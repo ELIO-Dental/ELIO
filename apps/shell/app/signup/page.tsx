@@ -1,0 +1,197 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Stepper, getModuleColor } from "@elio/ui";
+
+const STEPS = [
+  { id: "practice", label: "Practice" },
+  { id: "dentally", label: "Connect Dentally" },
+  { id: "modules", label: "Choose modules" },
+];
+
+const MODULES: { id: "PAY" | "PLANS" | "FLOW"; name: string; description: string }[] = [
+  { id: "PAY", name: "ElioPay", description: "Run payroll & pay periods" },
+  { id: "PLANS", name: "ElioPlans", description: "Patient membership plans" },
+  { id: "FLOW", name: "ElioFlow", description: "Practice workflow & scheduling" },
+];
+
+/** Step 2.1 (MASTER_BUILD_GUIDE.md §2.1, FR-5) — self-serve practice signup. */
+export default function SignupPage() {
+  const router = useRouter();
+  const [stepIndex, setStepIndex] = React.useState(0);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const [practiceName, setPracticeName] = React.useState("");
+  const [adminEmail, setAdminEmail] = React.useState("");
+  const [adminPassword, setAdminPassword] = React.useState("");
+  const [dentallyApiKey, setDentallyApiKey] = React.useState("");
+  const [selectedModules, setSelectedModules] = React.useState<string[]>([]);
+
+  function toggleModule(id: string) {
+    setSelectedModules((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
+  }
+
+  function goNext() {
+    setError(null);
+    if (stepIndex === 0) {
+      if (practiceName.trim().length < 2) return setError("Enter your practice name.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) return setError("Enter a valid email address.");
+      if (adminPassword.length < 10) return setError("Password must be at least 10 characters.");
+    }
+    setStepIndex((i) => i + 1);
+  }
+
+  function goBack() {
+    setError(null);
+    setStepIndex((i) => Math.max(0, i - 1));
+  }
+
+  async function submit() {
+    setError(null);
+    if (selectedModules.length === 0) {
+      setError("Select at least one module to trial.");
+      return;
+    }
+    setLoading(true);
+
+    const res = await fetch("/api/public/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        practiceName,
+        adminEmail,
+        adminPassword,
+        dentallyApiKey: dentallyApiKey.trim() || undefined,
+        selectedModules,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setLoading(false);
+      setError(data.error ?? "Signup failed. Please try again.");
+      return;
+    }
+
+    // Sign the new OWNER in immediately — no reason to make them re-enter the
+    // password they just chose on the very next screen.
+    const signInResult = await signIn("credentials", { email: adminEmail, password: adminPassword, redirect: false });
+    setLoading(false);
+    if (signInResult?.error) {
+      router.push("/login");
+      return;
+    }
+    router.push("/launcher");
+    router.refresh();
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4 py-12">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Create your ELIO account</CardTitle>
+          <Stepper steps={STEPS} currentIndex={stepIndex} className="mt-4" />
+        </CardHeader>
+        <CardContent>
+          {stepIndex === 0 && (
+            <div className="space-y-4" data-testid="signup-step-practice">
+              <div>
+                <Label htmlFor="practiceName">Practice name</Label>
+                <Input id="practiceName" required value={practiceName} onChange={(e) => setPracticeName(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="adminEmail">Admin email</Label>
+                <Input id="adminEmail" type="email" autoComplete="email" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="adminPassword">Password</Label>
+                <Input
+                  id="adminPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                />
+              </div>
+              {error && <p className="text-body-sm text-[--color-danger]">{error}</p>}
+              <Button className="w-full" onClick={goNext} data-testid="signup-next">
+                Continue
+              </Button>
+            </div>
+          )}
+
+          {stepIndex === 1 && (
+            <div className="space-y-4" data-testid="signup-step-dentally">
+              <p className="text-body-sm text-[--color-text-secondary]">
+                Enter your practice's own Dentally API key to sync patients and appointments. You can skip this and connect it later from Settings.
+              </p>
+              <div>
+                <Label htmlFor="dentallyApiKey">Dentally API key</Label>
+                <Input id="dentallyApiKey" value={dentallyApiKey} onChange={(e) => setDentallyApiKey(e.target.value)} placeholder="Optional" />
+              </div>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={goBack} className="flex-1">
+                  Back
+                </Button>
+                <Button onClick={goNext} className="flex-1" data-testid="signup-next">
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {stepIndex === 2 && (
+            <div className="space-y-4" data-testid="signup-step-modules">
+              <p className="text-body-sm text-[--color-text-secondary]">
+                Choose which modules to try. Each starts its own independent 7-day trial.
+              </p>
+              <div className="space-y-2">
+                {MODULES.map((mod) => {
+                  const color = getModuleColor(mod.id.toLowerCase() as "pay" | "plans" | "flow");
+                  const checked = selectedModules.includes(mod.id);
+                  return (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => toggleModule(mod.id)}
+                      data-testid={`signup-module-${mod.id.toLowerCase()}`}
+                      className="flex w-full items-center gap-3 rounded-[--radius-lg] border p-4 text-left transition-colors"
+                      style={{
+                        borderColor: checked ? color.hex : "var(--color-border)",
+                        backgroundColor: checked ? color.badgeLight.bg : "var(--color-surface)",
+                      }}
+                    >
+                      <span
+                        className="flex size-9 shrink-0 items-center justify-center rounded-[--radius-md] text-body-sm font-semibold"
+                        style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
+                      >
+                        {mod.name.replace("Elio", "").slice(0, 1)}
+                      </span>
+                      <span>
+                        <span className="block text-body font-medium text-[--color-text-primary]">{mod.name}</span>
+                        <span className="block text-body-sm text-[--color-text-secondary]">{mod.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {error && <p className="text-body-sm text-[--color-danger]">{error}</p>}
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={goBack} className="flex-1">
+                  Back
+                </Button>
+                <Button onClick={submit} loading={loading} className="flex-1" data-testid="signup-submit">
+                  Create account
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,283 @@
+/**
+ * ELIO Design System — Tailwind v4 theme tokens.
+ * Implements THEME_GUIDELINE.md sections 2-4 exactly. Do not hand-edit values
+ * without updating THEME_GUIDELINE.md first (see §0.1).
+ *
+ * Dark mode strategy: `data-theme="dark"` attribute on <html>, no `dark:` class variant.
+ */
+
+@import "tailwindcss";
+
+@theme {
+  /* ---------------------------------------------------------------------
+   * §2.2 Primary scale
+   * ------------------------------------------------------------------- */
+  --color-primary-50: #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #7c5cfc;
+  --color-primary-600: #6d3ef5;
+  --color-primary-700: #5b2fd6;
+  --color-primary-800: #4a26ad;
+  --color-primary-900: #3b1f89;
+
+  /* §2.3 Secondary / accent — sparing use, capped at 3 per screen */
+  --color-accent-teal: #14b8a6;
+  --color-accent-amber: #f59e0b;
+  --color-accent-blue: #3b82f6;
+
+  /* §2.4 Semantic colors */
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-info: #2563eb;
+  --color-info-bg: #eff6ff;
+
+  /* §2.5 Neutrals — light mode defaults (redefined for dark below) */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-border: #e5e7eb;
+  --color-border-subtle: #f0f0f2;
+  --color-text-primary: #0f0f14;
+  --color-text-secondary: #5b5b66;
+  --color-text-tertiary: #9494a0;
+  --color-text-disabled: #c4c4cc;
+
+  /* §2.7 Glass / depth tokens */
+  --glass-bg-light: rgba(255, 255, 255, 0.72);
+  --glass-bg-dark: rgba(23, 23, 29, 0.72);
+  --glass-blur: 16px;
+  --glass-border-light: rgba(15, 15, 20, 0.06);
+  --glass-border-dark: rgba(255, 255, 255, 0.08);
+  --gradient-mesh-opacity-light: 0.12;
+  --gradient-mesh-opacity-dark: 0.18;
+
+  /* Runtime glass tokens — theme-aware, redefined under data-theme=dark below */
+  --glass-bg: var(--glass-bg-light);
+  --glass-border: var(--glass-border-light);
+  --gradient-mesh-opacity: var(--gradient-mesh-opacity-light);
+
+  /* §5.7 modal overlay */
+  --overlay-bg: rgba(15, 15, 20, 0.5);
+
+  /* ---------------------------------------------------------------------
+   * §3.2 Typography scale
+   * ------------------------------------------------------------------- */
+  --font-sans:
+    var(--font-geist-sans), Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display-lg: 4rem;
+  --text-display-lg--line-height: 1.05;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg--letter-spacing: -0.02em;
+
+  --text-display: 3rem;
+  --text-display--line-height: 1.1;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.2;
+  --text-h1--font-weight: 700;
+  --text-h1--letter-spacing: -0.01em;
+
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.3;
+  --text-h2--font-weight: 600;
+
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.4;
+  --text-h3--font-weight: 600;
+
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.5;
+  --text-body-lg--font-weight: 400;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--font-weight: 400;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+
+  --text-money: 1.25rem;
+  --text-money--line-height: 1.2;
+  --text-money--font-weight: 600;
+
+  --text-money-hero: 2.5rem;
+  --text-money-hero--line-height: 1.1;
+  --text-money-hero--font-weight: 600;
+
+  /* ---------------------------------------------------------------------
+   * §4.2 Radius
+   * ------------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------
+   * §4.3 Shadows (light mode)
+   * ------------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(15, 15, 20, 0.04);
+  --shadow-sm: 0 2px 8px rgba(15, 15, 20, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 15, 20, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 15, 20, 0.12);
+  --shadow-xl: 0 24px 48px rgba(15, 15, 20, 0.16);
+  --shadow-glow-primary: 0 0 0 4px rgba(124, 92, 252, 0.15);
+  --shadow-glow-success: 0 0 0 4px rgba(22, 163, 74, 0.15);
+
+  /* ---------------------------------------------------------------------
+   * §4.4 Z-index scale
+   * ------------------------------------------------------------------- */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1100;
+  --z-index-modal-overlay: 1200;
+  --z-index-modal: 1210;
+  --z-index-command-palette: 1250;
+  --z-index-toast: 1300;
+  --z-index-tooltip: 1400;
+
+  /* §8.1 Module Color System — raw hues (variants generated at runtime, see
+     get-module-color.ts). Exposed as tokens too so Tailwind utilities like
+     bg-[--color-module-flow] work if ever needed directly. */
+  --color-module-flow: #8b5cf6;
+  --color-module-pay: #3b82f6;
+  --color-module-plans: #6366f1;
+  --color-module-cqc: #10b981;
+  --color-module-hr: #f59e0b;
+  --color-module-care: #f43f5e;
+  --color-module-bookings: #0ea5e9;
+  --color-module-marketing: #d946ef;
+  --color-module-analytics: #14b8a6;
+}
+
+/* ---------------------------------------------------------------------
+ * §2.6 Neutrals — dark mode
+ * Two guards so the toggle wins both directions: system-preference dark
+ * (no explicit data-theme) AND an explicit data-theme="dark" override.
+ * ------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0b0b0f;
+    --color-bg-subtle: #131318;
+    --color-surface: #17171d;
+    --color-surface-raised: #1e1e26;
+    --color-border: #2a2a33;
+    --color-border-subtle: #202027;
+    --color-text-primary: #f5f5f7;
+    --color-text-secondary: #a8a8b3;
+    --color-text-tertiary: #6e6e79;
+    --color-text-disabled: #45454f;
+
+    --glass-bg: var(--glass-bg-dark);
+    --glass-border: var(--glass-border-dark);
+    --gradient-mesh-opacity: var(--gradient-mesh-opacity-dark);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.09);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.18);
+    --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.24);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0b0b0f;
+  --color-bg-subtle: #131318;
+  --color-surface: #17171d;
+  --color-surface-raised: #1e1e26;
+  --color-border: #2a2a33;
+  --color-border-subtle: #202027;
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a8a8b3;
+  --color-text-tertiary: #6e6e79;
+  --color-text-disabled: #45454f;
+
+  --glass-bg: var(--glass-bg-dark);
+  --glass-border: var(--glass-border-dark);
+  --gradient-mesh-opacity: var(--gradient-mesh-opacity-dark);
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.09);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.24);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* §3.3 Money values always use tabular figures */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* §5.2 input error shake — fires once on entering the error state, never loops */
+@keyframes shakeX {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+  40%, 60% { transform: translate3d(3px, 0, 0); }
+}
+
+/* §6.3 skeleton shimmer — the one other acceptable infinite loop besides the status pulse dot */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* §5.6 live/processing status pulse dot */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* generic popover/dropdown/select entrance — §5.17 */
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* §5.7 modal panel entrance — fade + scale(0.96 -> 1) */
+@keyframes dialogIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dialogOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "elio-migrations",
+  "private": true,
+  "description": "Step 1.9 one-time data migration scripts — not a workspace member, run standalone via tsx.",
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "dotenv": "^17.4.2",
+    "googleapis": "^144.0.0"
+  }
+}

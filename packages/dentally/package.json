@@ -1,0 +1,19 @@
+{
+  "name": "@elio/dentally",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit -p ./tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@elio/db": "*",
+    "inngest": "^3.27.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

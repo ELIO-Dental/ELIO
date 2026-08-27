@@ -1,0 +1,28 @@
+import { NextResponse } from "next/server";
+import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
+import { listDentists, createDentist } from "@/lib/pay-service";
+
+export async function GET() {
+  try {
+    const session = await requirePermission("pay:view");
+    const dentists = await listDentists(session.practiceId);
+    return NextResponse.json({ dentists });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const session = await requirePermission("pay:configure-splits");
+    const body = await req.json();
+    const dentist = await createDentist(session.practiceId, body);
+    return NextResponse.json({ dentist }, { status: 201 });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });
+    if (e instanceof ForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Internal error" }, { status: 500 });
+  }
+}

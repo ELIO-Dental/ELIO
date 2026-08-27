@@ -1,0 +1,1230 @@
+// Multi-tenant data model — Step 1.3 (Multi-Tenancy Foundations, FR-6).
+// Contract: project-docs/DATA_MODEL.md — update that file in the same turn as any
+// change here. See project-docs/00_SCOPE.md FR-6, NFR-2, NFR-3.
+//
+// COLLISION SAFETY: this Neon database is SHARED with the live ElioPlans production
+// app, which already owns unmapped PascalCase tables (Patient, Payment, Plan, Mandate,
+// Document, DocumentAcceptance, PatientPlan, User, Clinic, ...). Every model below is
+// therefore @@map'd to a distinct snake_case table name — continuing the pattern Step
+// 1.2 already established for `practices`/`users` — so nothing here can ever collide
+// with or overwrite ElioPlans' live rows.
+//
+// Tenant isolation: enforced via a shared Prisma Client Extension query-wrapper
+// in packages/db/tenant.ts (NOT PostgreSQL RLS) — see
+// elio/docs/adr/0001-tenant-isolation-strategy.md for the decision record and why
+// RLS was rejected for this stage (Neon pooler transaction-mode + Prisma session
+// variable propagation risk).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Non-pooled Neon connection, used ONLY for migrations (see PERFORMANCE_SCALABILITY.md
+  // section 2). Prisma Migrate reads `directUrl` for schema changes when set, while the
+  // app always uses the pooled `url` above for normal queries. Set 2026-08-17 to the
+  // real non-pooled host (same DB as `url` above, just without "-pooler" — confirmed
+  // via `prisma migrate status` resolving against the correct direct host).
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  FINANCE
+  STAFF
+  AUDITOR
+}
+
+enum DentallyConnectionStatus {
+  NOT_CONNECTED
+  CONNECTED
+  ERROR
+}
+
+enum OnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum ModuleId {
+  PAY
+  PLANS
+  FLOW
+}
+
+// --- ElioPlans (draft, Step 1.7 builds full business logic) ----------------
+enum PlanPatientStatus {
+  INVITED
+  SIGNED
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum PlanEnrolmentStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum PlanMandateStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum PlanPaymentStatus {
+  PENDING
+  CONFIRMED
+  PAID_OUT
+  FAILED
+  CANCELLED
+  CHARGED_BACK
+}
+
+enum PlanDocumentType {
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
+  PLAN_AGREEMENT
+}
+
+enum PlanRedeemStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PARTIALLY_EARNED
+}
+
+enum PlanRedeemItemType {
+  EXAMINATION
+  HYGIENE
+  DISCOUNT
+  OTHER
+}
+
+// --- ElioPay (draft, Step 1.6 builds full business logic) ------------------
+enum PayType {
+  PERCENTAGE_SPLIT
+  HOURLY
+}
+
+enum PayPeriodStatus {
+  DRAFT
+  LOCKED
+}
+
+enum CompassStatementStatus {
+  PENDING
+  PARSED
+  NEEDS_REVIEW
+}
+
+enum MatchConfidence {
+  CONFIDENT
+  NEEDS_REVIEW
+}
+
+enum HourEntrySource {
+  DENTALLY
+  MANUAL_OVERRIDE
+}
+
+// --- ElioFlow (draft, Step 1.8 builds full business logic) -----------------
+enum ConsultOutcome {
+  ACCEPTED
+  THINKING
+  DECLINED
+}
+
+// ============================================================================
+// CORE SHARED MODELS (packages/db, read by every module)
+// ============================================================================
+
+model Practice {
+  id                    String  @id @default(cuid())
+  name                  String
+  requireMfaForAllStaff Boolean @default(false)
+
+  // Super Admin Control Centre fields (FR-10) — set/read by apps/admin, Phase 2.
+  dentallyApiKey           String? // encrypted at rest, Phase 2 — see ENGINEERING_CONVENTIONS.md
+  dentallyConnectionStatus DentallyConnectionStatus @default(NOT_CONNECTED)
+  plan                     String? // data label only, e.g. "Trial"/"Enterprise" — not a billing system
+  trialEndsAt              DateTime?
+  onboardingStatus         OnboardingStatus         @default(NOT_STARTED)
+  supportStatus            String?
+  suspendedAt              DateTime? // a suspended practice's users can't log in
+
+  // General per-practice custom domain mechanism (kept open per 00_SCOPE.md section 9 /
+  // open question 11) — only Aura's own Practice row uses this in Phase 1/2.
+  customDomain String? @unique
+
+  // ElioPay §6.3: Dentally has no fixed system vocabulary for "cosmetic
+  // consultation" — treatment_category_id resolves to practice-defined names.
+  // This is a genuinely external unknown (see project-docs/PROJECT_STATE.md),
+  // so it's a manual/admin-settable value, not a hardcoded guess. Matched
+  // case-insensitively against Treatment.dentallyTreatmentCategory when set.
+  cosmeticConsultationTreatmentCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                 User[]
+  auditLogs             AuditLog[]
+  licences              Licence[]
+  featureFlags          PracticeFeatureFlag[]
+  impersonationSessions ImpersonationSession[]
+
+  // Dentally-synced core (Step 1.4 owns the sync job; draft shape only here)
+  patients     Patient[]
+  appointments Appointment[]
+  treatments   Treatment[]
+  invoices     Invoice[]
+
+  // ElioPay (draft)
+  dentists               Dentist[]
+  payPeriods             PayPeriod[]
+  compassStatements      CompassStatement[]
+  payslipEntries         PayslipEntry[]
+  supplierInvoiceEntries SupplierInvoiceEntry[]
+  savedLabs              SavedLab[]
+  savedSuppliers         SavedSupplier[]
+  legacyPayslipArchives  LegacyPayslipArchive[]
+
+  // ElioPlans (draft)
+  plansPlans           PlanModel[]
+  planPatients         PlanPatient[]
+  planInclusions       PlanInclusion[]
+  planDiscounts        PlanDiscount[]
+  planEligibilityRules PlanEligibilityRule[]
+  planRedeemRules      PlanRedeemRule[]
+  planRedeems          PlanRedeem[]
+  planDocuments        PlanDocument[]
+  planSigningRequests  PlanSigningRequest[]
+  planGuideArticles    PlanGuideArticle[]
+
+  // ElioFlow (draft)
+  enquiries                    Enquiry[]
+  consults                     Consult[]
+  reminders                    Reminder[]
+  legacyFlowTouchPointArchives LegacyFlowTouchPointArchive[]
+  patientPlanEnrolments        PatientPlanEnrolment[]
+  planPayments                 PlanPayment[]
+  planMandates                 PlanMandate[]
+
+  @@map("practices")
+}
+
+model User {
+  id             String  @id @default(cuid())
+  email          String  @unique
+  hashedPassword String
+  role           Role    @default(STAFF)
+  active         Boolean @default(true)
+
+  mfaSecret  String?
+  mfaEnabled Boolean @default(false)
+
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+
+  passwordResetTokens PasswordResetToken[]
+  auditLogsAsActor    AuditLog[]           @relation("AuditLogActor")
+  planRedeemApprovals PlanRedeem[]         @relation("PlanRedeemApprovedBy")
+  enquiriesCaptured   Enquiry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@map("users")
+}
+
+// Self-serve password reset — single-use, 1-hour expiry tokens (hashed at rest).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// Written by FR-4 (permission changes), FR-10 (super-admin actions), impersonation
+// sessions. practiceId is nullable because super-admin actions (Step 2.3) aren't
+// scoped to a single practice.
+model AuditLog {
+  id                 String    @id @default(cuid())
+  practiceId         String?
+  practice           Practice? @relation(fields: [practiceId], references: [id])
+  actorUserId        String
+  actor              User      @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  impersonatedUserId String? // set only during an impersonation session
+  action             String
+  targetType         String
+  targetId           String
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+
+  @@index([practiceId])
+  @@map("audit_logs")
+}
+
+// Phase 2, Step 2.1/2.2 — per-module licence + per-module trial clock.
+model Licence {
+  id          String    @id @default(cuid())
+  practiceId  String
+  practice    Practice  @relation(fields: [practiceId], references: [id])
+  moduleId    ModuleId
+  active      Boolean   @default(false)
+  grantedAt   DateTime?
+  revokedAt   DateTime?
+  trialEndsAt DateTime?
+
+  @@unique([practiceId, moduleId])
+  @@index([practiceId])
+  @@map("licences")
+}
+
+// Phase 2, Step 2.3 — per-tenant feature flags set by the Super Admin.
+model FeatureFlag {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  name        String
+  description String?
+
+  practiceFlags PracticeFeatureFlag[]
+
+  @@map("feature_flags")
+}
+
+model PracticeFeatureFlag {
+  id            String      @id @default(cuid())
+  practiceId    String
+  practice      Practice    @relation(fields: [practiceId], references: [id])
+  featureFlagId String
+  featureFlag   FeatureFlag @relation(fields: [featureFlagId], references: [id])
+  enabled       Boolean     @default(false)
+
+  @@unique([practiceId, featureFlagId])
+  @@index([practiceId])
+  @@map("practice_feature_flags")
+}
+
+// Phase 2, Step 2.3 — audit trail for FR-10's impersonation/support mode.
+model ImpersonationSession {
+  id                 String    @id @default(cuid())
+  superAdminUserId   String
+  impersonatedUserId String
+  practiceId         String
+  practice           Practice  @relation(fields: [practiceId], references: [id])
+  startedAt          DateTime  @default(now())
+  endedAt            DateTime?
+  reason             String?
+
+  @@index([practiceId])
+  @@map("impersonation_sessions")
+}
+
+// ============================================================================
+// DENTALLY-SYNCED CORE (Step 1.4, read-only for modules) — draft shape
+// ============================================================================
+
+model Patient {
+  id          String    @id @default(cuid())
+  practiceId  String
+  practice    Practice  @relation(fields: [practiceId], references: [id])
+  dentallyId  String
+  firstName   String?
+  lastName    String?
+  dateOfBirth DateTime?
+  email       String?
+  phone       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+  treatments   Treatment[]
+  invoices     Invoice[]
+  planPatients PlanPatient[]
+  enquiries    Enquiry[]
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@map("dentally_patients")
+}
+
+model Appointment {
+  id             String    @id @default(cuid())
+  practiceId     String
+  practice       Practice  @relation(fields: [practiceId], references: [id])
+  dentallyId     String
+  patientId      String?
+  patient        Patient?  @relation(fields: [patientId], references: [id])
+  startsAt       DateTime?
+  endsAt         DateTime?
+  // Dentally's raw `state`/`reason`/`practitioner_id` fields were already
+  // captured in DentallyAppointmentRaw (packages/dentally/src/types.ts) but
+  // never normalized/stored — added for Step 1.8 (ElioFlow), which needs
+  // `reason` to identify "Cosmetic Consultation" appointments (the old
+  // standalone ElioFlow app's entire dataset was Dentally appointments
+  // filtered by this exact field) and `dentallyState`/`practitionerId` for
+  // attendance/attribution. Nullable and additive — existing synced rows
+  // simply have these as null until the next sync run populates them.
+  dentallyState  String?
+  reason         String?
+  practitionerId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  consults Consult[]
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@map("dentally_appointments")
+}
+
+model Treatment {
+  id          String    @id @default(cuid())
+  practiceId  String
+  practice    Practice  @relation(fields: [practiceId], references: [id])
+  dentallyId  String
+  patientId   String?
+  patient     Patient?  @relation(fields: [patientId], references: [id])
+  completedAt DateTime?
+  amountPence Int?
+
+  // ElioPay §6.3 attribution: raw Dentally practitioner id from
+  // invoice_item.practitioner_id (source of truth), resolved to a Dentist
+  // row when one with a matching dentallyPractitionerId exists.
+  dentallyPractitionerId String?
+  dentistId              String?
+  dentist                Dentist? @relation(fields: [dentistId], references: [id])
+
+  // Dentally's treatment_category_id resolved name, if the sync captured
+  // one — no fixed system vocabulary exists (practice-defined names), so
+  // this is matched against Practice.cosmeticConsultationTreatmentCode
+  // as a configurable value rather than a hardcoded string/guess.
+  dentallyTreatmentCategory String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  privateRevenueLineItems PrivateRevenueLineItem[]
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@index([dentistId])
+  @@map("dentally_treatments")
+}
+
+model Invoice {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  dentallyId String
+  patientId  String?
+  patient    Patient? @relation(fields: [patientId], references: [id])
+  totalPence Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@map("dentally_invoices")
+}
+
+// ============================================================================
+// ELIOPAY (draft — Step 1.6 builds full business logic; adapted from
+// ElioPlans/prisma/schema.prisma's shape where relevant, per DATA_MODEL.md section 3)
+// ============================================================================
+
+model Dentist {
+  id                     String   @id @default(cuid())
+  practiceId             String
+  practice               Practice @relation(fields: [practiceId], references: [id])
+  userId                 String? // nullable — a clinician may not have their own ELIO login
+  name                   String
+  nhsPerformerNumber     String?
+  // Dentally's own numeric practitioner id (invoice_item.practitioner_id) —
+  // real, structured attribution of a treatment to the dentist who performed
+  // it, distinct from nhsPerformerNumber (used for Compass matching only).
+  dentallyPractitionerId String?
+  payType                PayType
+
+  // PERCENTAGE_SPLIT (dentists)
+  privateSplitPercent Decimal? @db.Decimal(5, 2)
+  udaRatePence        Int?
+
+  // HOURLY (therapists/hygienists)
+  hourlyRatePence Int?
+
+  effectiveFrom DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hourEntries           HourEntry[]
+  compassStatementLines PayLine[]
+  payslipEntries        PayslipEntry[]
+  labBillEntries        LabBillEntry[]
+  treatments            Treatment[]
+  consults              Consult[]
+
+  @@index([practiceId])
+  @@index([practiceId, dentallyPractitionerId])
+  @@map("pay_dentists")
+}
+
+model HourEntry {
+  id           String          @id @default(cuid())
+  dentistId    String
+  dentist      Dentist         @relation(fields: [dentistId], references: [id])
+  payPeriodId  String
+  payPeriod    PayPeriod       @relation(fields: [payPeriodId], references: [id])
+  hours        Decimal         @db.Decimal(6, 2)
+  source       HourEntrySource @default(DENTALLY)
+  enteredBy    String?
+  overriddenAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dentistId])
+  @@index([payPeriodId])
+  @@map("pay_hour_entries")
+}
+
+model PayPeriod {
+  id          String          @id @default(cuid())
+  practiceId  String
+  practice    Practice        @relation(fields: [practiceId], references: [id])
+  periodStart DateTime // inclusive, Europe/London calendar-month start
+  periodEnd   DateTime // exclusive (half-open interval, BUG-2 fix)
+  status      PayPeriodStatus @default(DRAFT)
+  lockedAt    DateTime?
+  triggeredAt DateTime? // the 15th run date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hourEntries       HourEntry[]
+  compassStatements CompassStatement[]
+  payslipEntries    PayslipEntry[]
+
+  @@index([practiceId])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@map("pay_periods")
+}
+
+model CompassStatement {
+  id                  String                 @id @default(cuid())
+  practiceId          String
+  practice            Practice               @relation(fields: [practiceId], references: [id])
+  payPeriodId         String
+  payPeriod           PayPeriod              @relation(fields: [payPeriodId], references: [id])
+  fileUrl             String
+  contractNumber      String?
+  statementReference  String?
+  statementDate       DateTime?
+  activityPeriodStart DateTime? // display/audit only — never gates the private-earnings calc
+  activityPeriodEnd   DateTime?
+  uploadedAt          DateTime               @default(now())
+  parsedAt            DateTime?
+  status              CompassStatementStatus @default(PENDING)
+
+  lines PayLine[] @relation("CompassStatementLines")
+
+  @@index([practiceId])
+  @@index([payPeriodId])
+  @@map("pay_compass_statements")
+}
+
+// Named PayLine (not CompassStatementLine) at the table level to avoid any future
+// ambiguity with the model name in generated types — table itself stays descriptive.
+model PayLine {
+  id                  String           @id @default(cuid())
+  compassStatementId  String
+  compassStatement    CompassStatement @relation("CompassStatementLines", fields: [compassStatementId], references: [id])
+  dentistId           String?
+  dentist             Dentist?         @relation(fields: [dentistId], references: [id])
+  performerNumber     String?
+  rawDentistName      String?
+  udas                Decimal?         @db.Decimal(8, 2)
+  superannuationPence Int?
+  matchConfidence     MatchConfidence  @default(NEEDS_REVIEW)
+  reviewedBy          String?
+  reviewedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([compassStatementId])
+  @@index([dentistId])
+  @@map("pay_compass_statement_lines")
+}
+
+model PayslipEntry {
+  id          String    @id @default(cuid())
+  practiceId  String
+  practice    Practice  @relation(fields: [practiceId], references: [id])
+  payPeriodId String
+  payPeriod   PayPeriod @relation(fields: [payPeriodId], references: [id])
+  dentistId   String
+  dentist     Dentist   @relation(fields: [dentistId], references: [id])
+  payType     PayType
+
+  // PERCENTAGE_SPLIT
+  udas                        Decimal? @db.Decimal(8, 2)
+  udaRatePence                Int?
+  nhsEarningsPence            Int?
+  grossPrivateRevenuePence    Int?
+  privateSplitPercent         Decimal? @db.Decimal(5, 2)
+  privateEarningsPence        Int?
+  consultationExclusionsPence Int?
+  labDeductionPence           Int?
+  superannuationPence         Int?
+
+  // HOURLY
+  hoursWorked         Decimal? @db.Decimal(6, 2)
+  hourlyRatePence     Int?
+  hourlyEarningsPence Int?
+
+  // Both
+  manualAdjustmentsPence Int     @default(0)
+  adjustmentReason       String?
+  finalPayPence          Int?
+  pdfUrl                 String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  privateRevenueLineItems PrivateRevenueLineItem[]
+
+  @@index([practiceId])
+  @@index([payPeriodId])
+  @@index([dentistId])
+  @@map("pay_payslip_entries")
+}
+
+/**
+ * Step 1.9 (MASTER_BUILD_GUIDE.md §1.9): a verbatim, read-only archive of a
+ * pre-migration payslip from the old standalone ElioPay ("aurapay") system.
+ * The old system stored each payslip as one denormalized row with several
+ * JSON blobs (itemized private-patient payments with real invoice/patient
+ * ids, discrepancy notes, computed analytics) — see
+ * `scripts/migrations/migrate-elioay.ts`'s header comment for the full old
+ * shape. The new `PayslipEntry`/`PrivateRevenueLineItem` models are
+ * intentionally normalized and expect every private-revenue line to
+ * reference a real, Dentally-synced `Treatment` row — the old JSON's loose
+ * patient-name/invoice-id records don't safely auto-match onto that without
+ * real cross-referencing against synced Dentally data, which risks
+ * silently mis-attributing real payroll figures if done wrong. Rather than
+ * force a risky, unverified transformation of real historical pay data,
+ * this model preserves the old row EXACTLY as it was (satisfying the
+ * guide's "historical records remain traceable" requirement) without ever
+ * feeding it into the new system's live payroll calculations. A human can
+ * open a specific archived payslip for reference/audit at any time; if a
+ * later, carefully-verified pass wants to properly re-derive
+ * `PrivateRevenueLineItem` rows from this archive (matching against synced
+ * Treatments), that's a deliberate, separate, reviewed piece of work — not
+ * something this migration silently attempts.
+ */
+model LegacyPayslipArchive {
+  id          String   @id @default(cuid())
+  practiceId  String
+  practice    Practice @relation(fields: [practiceId], references: [id])
+  // The old system's own numeric row id — kept as a plain string (not a
+  // foreign key into anything) purely for traceability back to the source.
+  sourceId    String
+  dentistName String
+  periodMonth Int
+  periodYear  Int
+  rawRowJson  String // the ENTIRE old payslip_entries row, verbatim, as JSON text
+  migratedAt  DateTime @default(now())
+
+  @@unique([practiceId, sourceId])
+  @@index([practiceId])
+  @@map("pay_legacy_payslip_archive")
+}
+
+model PrivateRevenueLineItem {
+  id                     String       @id @default(cuid())
+  payslipEntryId         String
+  payslipEntry           PayslipEntry @relation(fields: [payslipEntryId], references: [id])
+  treatmentId            String?
+  treatment              Treatment?   @relation(fields: [treatmentId], references: [id])
+  amountPence            Int
+  excludedAsConsultation Boolean      @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([payslipEntryId])
+  @@map("pay_private_revenue_line_items")
+}
+
+model LabBillEntry {
+  id          String   @id @default(cuid())
+  practiceId  String
+  dentistId   String?
+  dentist     Dentist? @relation(fields: [dentistId], references: [id])
+  amountPence Int
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@index([dentistId])
+  @@map("pay_lab_bill_entries")
+}
+
+model SupplierInvoiceEntry {
+  id          String         @id @default(cuid())
+  practiceId  String
+  practice    Practice       @relation(fields: [practiceId], references: [id])
+  supplierId  String?
+  supplier    SavedSupplier? @relation(fields: [supplierId], references: [id])
+  amountPence Int
+  description String?
+  invoiceDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@index([supplierId])
+  @@map("pay_supplier_invoice_entries")
+}
+
+model SavedLab {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  name       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@map("pay_saved_labs")
+}
+
+model SavedSupplier {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  name       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices SupplierInvoiceEntry[]
+
+  @@index([practiceId])
+  @@map("pay_saved_suppliers")
+}
+
+// ============================================================================
+// ELIOPLANS (draft — Step 1.7 builds full business logic; model names suffixed
+// or renamed where they'd otherwise collide with ElioPlans' own live PascalCase
+// tables in this shared database — table names are ALWAYS distinct regardless)
+// ============================================================================
+
+model PlanModel {
+  id                String   @id @default(cuid())
+  practiceId        String
+  practice          Practice @relation(fields: [practiceId], references: [id])
+  name              String
+  monthlyPricePence Int
+  description       String?
+  publicDescription String?
+
+  // Plan rules (ElioPlans parity — Plan.requiresAdultMembership / dentistPayoutPerExam)
+  requiresAdultMembership   Boolean @default(false)
+  dentistPayoutPerExamPence Int?
+
+  // Eligibility
+  eligibilityDentalFit Boolean @default(false)
+
+  // GoCardless pre-configured payment page URL
+  gocardlessLink String?
+
+  // Versioning (ElioPlans parity — Plan.version / parentPlanId / childVersions / isCurrentVersion)
+  version          Int         @default(1)
+  parentPlanId     String?
+  parentPlan       PlanModel?  @relation("PlanModelVersions", fields: [parentPlanId], references: [id])
+  childVersions    PlanModel[] @relation("PlanModelVersions")
+  isCurrentVersion Boolean     @default(true)
+
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planPatients          PlanPatient[]
+  patientPlanEnrolments PatientPlanEnrolment[]
+  inclusions            PlanInclusion[]
+  discounts             PlanDiscount[]
+  eligibilityRules      PlanEligibilityRule[]
+  redeemRules           PlanRedeemRule[]
+
+  @@index([practiceId])
+  @@map("plans_plans")
+}
+
+model PlanInclusion {
+  id          String             @id @default(cuid())
+  practiceId  String
+  practice    Practice           @relation(fields: [practiceId], references: [id])
+  planId      String
+  plan        PlanModel          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name        String
+  itemType    PlanRedeemItemType @default(OTHER)
+  quantity    Int?
+  period      String?
+  description String?
+  sortOrder   Int                @default(0)
+
+  @@index([practiceId])
+  @@map("plans_inclusions")
+}
+
+model PlanDiscount {
+  id           String    @id @default(cuid())
+  practiceId   String
+  practice     Practice  @relation(fields: [practiceId], references: [id])
+  planId       String
+  plan         PlanModel @relation(fields: [planId], references: [id], onDelete: Cascade)
+  name         String
+  percentage   Decimal   @db.Decimal(5, 2)
+  applicableTo String?
+  excludes     String?
+  description  String?
+  sortOrder    Int       @default(0)
+
+  @@index([practiceId])
+  @@map("plans_discounts")
+}
+
+model PlanEligibilityRule {
+  id          String    @id @default(cuid())
+  practiceId  String
+  practice    Practice  @relation(fields: [practiceId], references: [id])
+  planId      String
+  plan        PlanModel @relation(fields: [planId], references: [id], onDelete: Cascade)
+  ruleType    String
+  ruleValue   String?
+  description String?
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+
+  @@index([practiceId])
+  @@map("plans_eligibility_rules")
+}
+
+model PlanPatient {
+  id         String            @id @default(cuid())
+  practiceId String
+  practice   Practice          @relation(fields: [practiceId], references: [id])
+  patientId  String
+  patient    Patient           @relation(fields: [patientId], references: [id])
+  status     PlanPatientStatus @default(INVITED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patientPlans        PatientPlanEnrolment[]
+  mandates            PlanMandate[]
+  payments            PlanPayment[]
+  documentAcceptances PlanDocumentAcceptance[]
+  signingRequests     PlanSigningRequest[]
+  redeems             PlanRedeem[]
+  planModel           PlanModel?               @relation(fields: [planModelId], references: [id])
+  planModelId         String?
+
+  @@index([practiceId])
+  @@index([patientId])
+  @@map("plans_patients")
+}
+
+model PatientPlanEnrolment {
+  id            String              @id @default(cuid())
+  practiceId    String
+  practice      Practice            @relation(fields: [practiceId], references: [id])
+  planPatientId String
+  planPatient   PlanPatient         @relation(fields: [planPatientId], references: [id])
+  planId        String
+  plan          PlanModel           @relation(fields: [planId], references: [id])
+  status        PlanEnrolmentStatus @default(PENDING)
+  startDate     DateTime?
+  endDate       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments PlanPayment[]
+  redeems  PlanRedeem[]
+
+  @@index([practiceId])
+  @@map("plans_patient_plan_enrolments")
+}
+
+model PlanMandate {
+  id                  String            @id @default(cuid())
+  practiceId          String
+  practice            Practice          @relation(fields: [practiceId], references: [id])
+  planPatientId       String
+  planPatient         PlanPatient       @relation(fields: [planPatientId], references: [id])
+  gocardlessMandateId String            @unique
+  status              PlanMandateStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments PlanPayment[]
+
+  @@index([practiceId])
+  @@map("plans_mandates")
+}
+
+// GoCardless webhook replay guard (Step 1.7). Global (not practice-scoped) —
+// the GoCardless event id itself is globally unique and the webhook body
+// carries no practiceId, so tenant is resolved AFTER this dedup check by
+// looking up the mandate/payment the event references. The unique primary
+// key `id` (the GoCardless event id) is what idempotentCreate() from
+// packages/plans-engine relies on: a replayed event fails with P2002 and is
+// then read back and skipped instead of being reprocessed.
+model PlanWebhookEvent {
+  id           String   @id
+  resourceType String
+  action       String
+  createdAt    DateTime @default(now())
+
+  @@map("plans_webhook_events")
+}
+
+// BUG-1 fix at the database level: @@unique([patientPlanEnrolmentId, billingPeriod])
+// MUST survive every future migration that touches this table — see
+// project-docs/DATA_MODEL.md section 4.
+model PlanPayment {
+  id                     String                @id @default(cuid())
+  practiceId             String
+  practice               Practice              @relation(fields: [practiceId], references: [id])
+  planPatientId          String
+  planPatient            PlanPatient           @relation(fields: [planPatientId], references: [id])
+  patientPlanEnrolmentId String?
+  patientPlanEnrolment   PatientPlanEnrolment? @relation(fields: [patientPlanEnrolmentId], references: [id])
+  mandateId              String?
+  mandate                PlanMandate?          @relation(fields: [mandateId], references: [id])
+  billingPeriod          String? // "YYYY-MM" in Europe/London; null for ad-hoc/legacy charges
+  gocardlessPaymentId    String?               @unique
+  amountPence            Int
+  status                 PlanPaymentStatus     @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([patientPlanEnrolmentId, billingPeriod])
+  @@index([practiceId])
+  @@map("plans_payments")
+}
+
+model PlanDocument {
+  id            String           @id @default(cuid())
+  practiceId    String
+  practice      Practice         @relation(fields: [practiceId], references: [id])
+  type          PlanDocumentType
+  title         String
+  content       String
+  version       String
+  effectiveDate DateTime
+  expiryDate    DateTime?
+  isActive      Boolean          @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  acceptances     PlanDocumentAcceptance[]
+  signingRequests PlanSigningRequest[]
+
+  @@index([practiceId])
+  @@map("plans_documents")
+}
+
+// ElioPlans parity — RedeemRule (per-plan redemption rules engine)
+model PlanRedeemRule {
+  id               String             @id @default(cuid())
+  practiceId       String
+  practice         Practice           @relation(fields: [practiceId], references: [id])
+  planId           String
+  plan             PlanModel          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  itemType         PlanRedeemItemType
+  name             String
+  maxPerYear       Int?
+  cooldownDays     Int?
+  providerType     String?
+  chairTimeMinutes Int?
+  requiresApproval Boolean            @default(true)
+  active           Boolean            @default(true)
+  sortOrder        Int                @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redeems PlanRedeem[]
+
+  @@index([practiceId])
+  @@map("plans_redeem_rules")
+}
+
+// ElioPlans parity — Redeem (approval-workflow redemption record)
+model PlanRedeem {
+  id                     String               @id @default(cuid())
+  practiceId             String
+  practice               Practice             @relation(fields: [practiceId], references: [id])
+  planPatientId          String
+  planPatient            PlanPatient          @relation(fields: [planPatientId], references: [id], onDelete: Cascade)
+  patientPlanEnrolmentId String
+  patientPlanEnrolment   PatientPlanEnrolment @relation(fields: [patientPlanEnrolmentId], references: [id])
+  redeemRuleId           String?
+  redeemRule             PlanRedeemRule?      @relation(fields: [redeemRuleId], references: [id])
+  itemType               PlanRedeemItemType
+  itemName               String
+  description            String?
+  appointmentDate        DateTime?
+  appointmentRef         String?
+  status                 PlanRedeemStatus     @default(PENDING_APPROVAL)
+  approvedById           String?
+  approvedBy             User?                @relation("PlanRedeemApprovedBy", fields: [approvedById], references: [id])
+  approvedAt             DateTime?
+  rejectionReason        String?
+  isPartial              Boolean              @default(false)
+  earnedPercentage       Decimal?             @db.Decimal(5, 2)
+  partialReason          String?
+  dentallyMatched        Boolean              @default(false)
+  dentallyAppointmentId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@map("plans_redeems")
+}
+
+// ElioPlans parity — SigningRequest (tokenized public e-sign link for a document)
+model PlanSigningRequest {
+  id            String       @id @default(cuid())
+  practiceId    String
+  practice      Practice     @relation(fields: [practiceId], references: [id])
+  planPatientId String
+  planPatient   PlanPatient  @relation(fields: [planPatientId], references: [id], onDelete: Cascade)
+  documentId    String
+  document      PlanDocument @relation(fields: [documentId], references: [id])
+  token         String       @unique
+  expiresAt     DateTime
+  signedAt      DateTime?
+  signatureData String?
+  signatureIp   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([practiceId])
+  @@map("plans_signing_requests")
+}
+
+// ElioPlans parity — GuideArticle (patient-facing help content)
+model PlanGuideArticle {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  title      String
+  slug       String   @unique
+  content    String
+  category   String   @default("general")
+  sortOrder  Int      @default(0)
+  published  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([practiceId])
+  @@map("plans_guide_articles")
+}
+
+model PlanDocumentAcceptance {
+  id            String       @id @default(cuid())
+  practiceId    String
+  planPatientId String
+  planPatient   PlanPatient  @relation(fields: [planPatientId], references: [id])
+  documentId    String
+  document      PlanDocument @relation(fields: [documentId], references: [id])
+  acceptedAt    DateTime     @default(now())
+  ipAddress     String?
+
+  @@index([practiceId])
+  @@map("plans_document_acceptances")
+}
+
+// ============================================================================
+// ELIOFLOW (draft — Step 1.8 builds full business logic)
+// ============================================================================
+
+// Old ElioFlow's Pipeline sheet tracked "touch points" as a single incrementing
+// counter with no per-contact date — the new Reminder model requires a real
+// dueAt/sentAt per row, so fabricating N synthetic dated Reminder rows from a
+// bare count would invent history that never existed. Preserves the whole old
+// pipeline row verbatim instead (Step 1.9 ElioFlow migration), mirroring
+// LegacyPayslipArchive's pattern above.
+model LegacyFlowTouchPointArchive {
+  id              String   @id @default(cuid())
+  practiceId      String
+  practice        Practice @relation(fields: [practiceId], references: [id])
+  // Old Sheets "Patient ID" column — the Dentally patient id, kept as plain
+  // text (not an FK) purely for traceability back to the source row.
+  sourcePatientId String
+  touchPoints     Int
+  rawRowJson      String // the ENTIRE old Pipeline sheet row, verbatim, as JSON text
+  migratedAt      DateTime @default(now())
+
+  @@unique([practiceId, sourcePatientId])
+  @@index([practiceId])
+  @@map("flow_legacy_touch_point_archive")
+}
+
+model Enquiry {
+  id               String   @id @default(cuid())
+  practiceId       String
+  practice         Practice @relation(fields: [practiceId], references: [id])
+  patientId        String? // nullable until linked to a Dentally record
+  patient          Patient? @relation(fields: [patientId], references: [id])
+  // Free text, not an enum — Step 1.8 research found no fixed vocabulary
+  // anywhere in the old ElioFlow app or the spec docs (open item, see
+  // DATA_MODEL.md §5's 2026-08-19 change-log entry). Practices can type
+  // whatever they actually use ("walk-in", "phone", "website form", ...).
+  source           String?
+  capturedAt       DateTime @default(now())
+  capturedByUserId String? // staff attribution — who logged this enquiry
+  capturedByUser   User?    @relation(fields: [capturedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  consults Consult[]
+
+  @@index([practiceId])
+  @@map("flow_enquiries")
+}
+
+model Consult {
+  id                    String              @id @default(cuid())
+  practiceId            String
+  practice              Practice            @relation(fields: [practiceId], references: [id])
+  enquiryId             String
+  enquiry               Enquiry             @relation(fields: [enquiryId], references: [id])
+  // Links this consult to the real Dentally-synced appointment it came from
+  // (the old ElioFlow app's entire dataset WAS Dentally "Cosmetic
+  // Consultation" appointments — without this link, ElioFlow can't read
+  // Dentally-sourced consult facts without a duplicate sync of its own).
+  appointmentId         String?
+  appointment           Appointment?        @relation(fields: [appointmentId], references: [id])
+  attended              Boolean? // old ElioFlow: attended 'true'/'false' string
+  // Old ElioFlow: `practitioner` was a free-text string matched against a
+  // Sheets-based UserRow.dentistName. The shared core already has a real
+  // Dentist model (ElioPay owns it) — reference it instead of duplicating
+  // a name string, so "conversion rate by dentist" reporting (§8) is a
+  // real join, not string matching.
+  practitionerDentistId String?
+  practitionerDentist   Dentist?            @relation(fields: [practitionerDentistId], references: [id])
+  quotePence            Int?
+  // Manual override of quotePence, e.g. a discount agreed verbally — old
+  // ElioFlow's `planValueOverride` semantics: once set, sync/re-derivation
+  // must never silently clobber it.
+  quotePenceOverride    Int?
+  // Read-only mirror of Dentally payment totals for this patient's account,
+  // synced the same way the old app's `totalPaid` was — NOT an ElioFlow-owned
+  // source of truth, just a convenience field for the pipeline/reporting UI.
+  totalPaidPence        Int?
+  hasDeposit            Boolean? // old ElioFlow: hasDeposit
+  treatmentBooked       Boolean? // old ElioFlow: treatmentBooked
+  outcome               ConsultOutcome?
+  outcomeAt             DateTime?
+  // Sub-reason for a THINKING/DECLINED outcome. Old ElioFlow tracked WHY a
+  // lead is stuck (failed-finance/price-shopping/bad-experience/out-of-budget)
+  // as real business value staff used for reporting — the new 3-value
+  // ConsultOutcome enum alone loses that granularity, so this restores it
+  // as an optional field rather than dropping it (open item, see
+  // DATA_MODEL.md §5's 2026-08-19 change-log entry).
+  stuckReason           ConsultStuckReason?
+  // Local denormalized flag: has this patient signed up to a membership
+  // plan (old ElioFlow: `elioCare`, a manual boolean directly on the
+  // pipeline row). The actual signup happens in ElioPlans via the
+  // Accepted-outcome UI handoff (APPLICATION_FLOW.md §12 — never a
+  // cross-module DB write); this flag is set by that same UI action so
+  // ElioFlow's own funnel/conversion reporting doesn't need to query
+  // ElioPlans data, which modules should not do across boundaries.
+  planSignedUp          Boolean             @default(false)
+  notes                 String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reminders Reminder[]
+
+  @@index([practiceId])
+  @@map("flow_consults")
+}
+
+// Old ElioFlow's 4 real "why stuck" values (STATUS_OPTIONS in pages/index.tsx),
+// confirmed via Step 1.8 codebase research — excludes 'new'/'thinking'/
+// 'converted'/'completed', which map onto ConsultOutcome/outcomeAt instead.
+enum ConsultStuckReason {
+  FAILED_FINANCE
+  PRICE_SHOPPING
+  BAD_EXPERIENCE
+  OUT_OF_BUDGET
+}
+
+model Reminder {
+  id         String    @id @default(cuid())
+  practiceId String
+  practice   Practice  @relation(fields: [practiceId], references: [id])
+  consultId  String
+  consult    Consult   @relation(fields: [consultId], references: [id])
+  dueAt      DateTime
+  sentAt     DateTime?
+  // Free text, not an enum — no fixed channel vocabulary specified anywhere
+  // (open item, see DATA_MODEL.md §5's 2026-08-19 change-log entry). Also
+  // doubles as old ElioFlow's `touchPoints` counter: rather than a manual,
+  // easy-to-forget increment button, "touch points" for a consult is now
+  // COUNT(Reminder WHERE consultId = X AND sentAt IS NOT NULL) — every
+  // contact is a real, timestamped record instead of a number staff must
+  // remember to bump.
+  channel    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([practiceId])
+  @@map("flow_reminders")
+}
