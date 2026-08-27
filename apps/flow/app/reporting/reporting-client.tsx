@@ -60,7 +60,7 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
 
   return (
     <div>
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-[--radius-lg] border border-[--color-border] p-4">
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-(--radius-lg) border border-(--color-border) p-4">
         <div>
           <Label htmlFor="from">From</Label>
           <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -92,10 +92,10 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
         />
       </div>
 
-      <div className="mt-8 rounded-[--radius-lg] border border-[--color-border]">
+      <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
         <table className="w-full text-body-sm">
           <thead>
-            <tr className="border-b border-[--color-border] text-left text-caption text-[--color-text-tertiary]">
+            <tr className="border-b border-(--color-border) text-left text-caption text-(--color-text-tertiary)">
               <th className="px-4 py-3 font-medium">Practitioner</th>
               <th className="px-4 py-3 font-medium">Consultations</th>
               <th className="px-4 py-3 font-medium">Converted</th>
@@ -105,17 +105,17 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
           <tbody>
             {report.byDentist.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-[--color-text-tertiary]">
+                <td colSpan={4} className="px-4 py-8 text-center text-(--color-text-tertiary)">
                   No consults recorded yet.
                 </td>
               </tr>
             ) : (
               report.byDentist.map((row) => (
-                <tr key={row.dentistId ?? "unassigned"} className="border-b border-[--color-border-subtle] last:border-0">
-                  <td className="px-4 py-3 text-[--color-text-primary]">{row.name}</td>
-                  <td className="px-4 py-3 text-[--color-text-secondary]">{row.totalConsultations}</td>
-                  <td className="px-4 py-3 text-[--color-text-secondary]">{row.converted}</td>
-                  <td className="px-4 py-3 text-[--color-text-secondary]">{row.conversionRate}%</td>
+                <tr key={row.dentistId ?? "unassigned"} className="border-b border-(--color-border-subtle) last:border-0">
+                  <td className="px-4 py-3 text-(--color-text-primary)">{row.name}</td>
+                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.totalConsultations}</td>
+                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.converted}</td>
+                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.conversionRate}%</td>
                 </tr>
               ))
             )}

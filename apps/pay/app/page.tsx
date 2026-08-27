@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirectToLogin } from "@/lib/session";
 import { scopedDb } from "@elio/db";
 import { auth } from "@elio/auth";
 import { StatCard, Card, CardHeader, CardTitle, CardContent, Badge, Button, StaggerList, StaggerItem } from "@elio/ui";
@@ -14,7 +14,7 @@ function money(pence: number) {
 
 export default async function PayDashboardPage() {
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
 
   const db = scopedDb(session.practiceId);
   const periods = await db.payPeriod.findMany({ orderBy: { periodStart: "desc" }, take: 6 });
@@ -25,8 +25,8 @@ export default async function PayDashboardPage() {
       <div>
         <PayNav isOwner={session.role === "OWNER"} />
         <div className="mx-auto max-w-3xl px-6 py-12">
-          <h1 className="text-h2 text-[--color-text-primary]">ElioPay dashboard</h1>
-          <p className="mt-1 text-body text-[--color-text-secondary]">Run payroll & pay periods.</p>
+          <h1 className="text-h2 text-(--color-text-primary)">ElioPay dashboard</h1>
+          <p className="mt-1 text-body text-(--color-text-secondary)">Run payroll & pay periods.</p>
           <WalletEmptyState
             className="mt-8"
             title="No pay periods yet"
@@ -59,8 +59,8 @@ export default async function PayDashboardPage() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-h2 text-[--color-text-primary]">ElioPay dashboard</h1>
-            <p className="mt-1 text-body-sm text-[--color-text-secondary]">
+            <h1 className="text-h2 text-(--color-text-primary)">ElioPay dashboard</h1>
+            <p className="mt-1 text-body-sm text-(--color-text-secondary)">
               Current period: {currentPeriod.periodStart.toISOString().slice(0, 10)} –{" "}
               {currentPeriod.periodEnd.toISOString().slice(0, 10)}{" "}
               <Badge variant={currentPeriod.status === "LOCKED" ? "success" : "warning"}>{currentPeriod.status}</Badge>
@@ -81,10 +81,10 @@ export default async function PayDashboardPage() {
         {needsReview > 0 && (
           <Card className="mt-6 flex items-center justify-between" accentColor="var(--color-warning)">
             <div className="flex items-center gap-3">
-              <FileWarning className="size-5 text-[--color-warning]" />
+              <FileWarning className="size-5 text-(--color-warning)" />
               <div>
-                <p className="text-body font-medium text-[--color-text-primary]">{needsReview} Compass line(s) need manual review</p>
-                <p className="text-body-sm text-[--color-text-secondary]">Unmatched performer numbers or a name mismatch since the last statement.</p>
+                <p className="text-body font-medium text-(--color-text-primary)">{needsReview} Compass line(s) need manual review</p>
+                <p className="text-body-sm text-(--color-text-secondary)">Unmatched performer numbers or a name mismatch since the last statement.</p>
               </div>
             </div>
             <Link href={`/pay/pay-periods/${currentPeriod.id}`}>
@@ -100,13 +100,13 @@ export default async function PayDashboardPage() {
             </CardHeader>
             <CardContent>
               {entries.length === 0 ? (
-                <p className="text-body-sm text-[--color-text-secondary]">No payslip entries calculated for this period yet.</p>
+                <p className="text-body-sm text-(--color-text-secondary)">No payslip entries calculated for this period yet.</p>
               ) : (
-                <StaggerList className="divide-y divide-[--color-border-subtle]">
+                <StaggerList className="divide-y divide-(--color-border-subtle)">
                   {entries.map((e) => (
                     <StaggerItem key={e.id} className="flex items-center justify-between py-3">
-                      <span className="text-body-sm text-[--color-text-primary]">{e.dentist.name}</span>
-                      <span className="tabular-nums font-[--font-mono] text-body-sm text-[--color-text-primary]">{money(e.finalPayPence ?? 0)}</span>
+                      <span className="text-body-sm text-(--color-text-primary)">{e.dentist.name}</span>
+                      <span className="tabular-nums font-(--font-mono) text-body-sm text-(--color-text-primary)">{money(e.finalPayPence ?? 0)}</span>
                     </StaggerItem>
                   ))}
                 </StaggerList>

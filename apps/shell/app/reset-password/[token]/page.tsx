@@ -45,14 +45,14 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Set a new password</CardTitle>
         </CardHeader>
         <CardContent>
           {done ? (
-            <p className="text-body-sm text-[--color-success]" data-testid="reset-password-success">
+            <p className="text-body-sm text-(--color-success)" data-testid="reset-password-success">
               Your password has been reset. Redirecting to sign in&hellip;
             </p>
           ) : (

@@ -14,14 +14,14 @@ export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTab
 }
 
 export function TableHeader({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("sticky top-0 z-[1] bg-[--color-bg-subtle]", className)} {...props} />;
+  return <thead className={cn("sticky top-0 z-[1] bg-(--color-bg-subtle)", className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       className={cn(
-        "h-11 px-4 text-left text-caption font-semibold uppercase tracking-wide text-[--color-text-secondary]",
+        "h-11 px-4 text-left text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)",
         className
       )}
       {...props}
@@ -49,7 +49,7 @@ export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTable
     <motion.tr
       variants={listStaggerItem}
       className={cn(
-        "h-12 border-b border-[--color-border-subtle] transition-colors duration-100 hover:bg-[--color-bg-subtle]",
+        "h-12 border-b border-(--color-border-subtle) transition-colors duration-100 hover:bg-(--color-bg-subtle)",
         className
       )}
       {...(props as React.ComponentProps<typeof motion.tr>)}
@@ -58,14 +58,14 @@ export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTable
 }
 
 export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-4 text-[--color-text-primary]", className)} {...props} />;
+  return <td className={cn("px-4 text-(--color-text-primary)", className)} {...props} />;
 }
 
 /** Right-aligned, mono, tabular-nums — for money columns (§5.4). Pass a semantic color className. */
 export function TableCellMoney({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td
-      className={cn("tabular-nums px-4 text-right font-[--font-mono] text-[--color-text-primary]", className)}
+      className={cn("tabular-nums px-4 text-right font-(--font-mono) text-(--color-text-primary)", className)}
       {...props}
     />
   );

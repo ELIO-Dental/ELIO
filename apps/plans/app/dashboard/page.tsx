@@ -61,8 +61,8 @@ export default async function DashboardPage() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-h2 text-[--color-text-primary]">ElioPlans</h1>
-            <p className="mt-1 text-body text-[--color-text-secondary]">
+            <h1 className="text-h2 text-(--color-text-primary)">ElioPlans</h1>
+            <p className="mt-1 text-body text-(--color-text-secondary)">
               Membership plans, billing period <Badge variant="neutral">{period}</Badge>
             </p>
           </div>
@@ -81,10 +81,10 @@ export default async function DashboardPage() {
         {overdueOrFailed > 0 && (
           <Card className="mt-6 flex items-center justify-between" accentColor="var(--color-danger)">
             <div>
-              <p className="text-body font-medium text-[--color-text-primary]">
+              <p className="text-body font-medium text-(--color-text-primary)">
                 {overdueOrFailed} payment(s) failed or charged back
               </p>
-              <p className="text-body-sm text-[--color-text-secondary]">
+              <p className="text-body-sm text-(--color-text-secondary)">
                 Review patients below and check their mandate status.
               </p>
             </div>
@@ -100,9 +100,9 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {recentPayments.length === 0 ? (
-              <p className="text-body-sm text-[--color-text-secondary]">No payments recorded yet.</p>
+              <p className="text-body-sm text-(--color-text-secondary)">No payments recorded yet.</p>
             ) : (
-              <ul className="divide-y divide-[--color-border-subtle]">
+              <ul className="divide-y divide-(--color-border-subtle)">
                 {recentPayments.map((p) => {
                   const name =
                     [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
@@ -110,14 +110,14 @@ export default async function DashboardPage() {
                   return (
                     <li key={p.id} className="flex items-center justify-between py-3">
                       <div>
-                        <span className="text-body-sm text-[--color-text-primary]">{name}</span>
+                        <span className="text-body-sm text-(--color-text-primary)">{name}</span>
                         {p.billingPeriod && (
-                          <span className="ml-2 text-body-sm text-[--color-text-tertiary]">{p.billingPeriod}</span>
+                          <span className="ml-2 text-body-sm text-(--color-text-tertiary)">{p.billingPeriod}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge variant={statusVariant[p.status] ?? "neutral"}>{p.status}</Badge>
-                        <span className="tabular-nums font-[--font-mono] text-body-sm text-[--color-text-primary]">
+                        <span className="tabular-nums font-(--font-mono) text-body-sm text-(--color-text-primary)">
                           {money(p.amountPence)}
                         </span>
                       </div>

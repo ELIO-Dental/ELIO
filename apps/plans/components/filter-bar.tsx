@@ -44,10 +44,10 @@ export function FilterBar() {
   const hasFilters = Boolean(q || status);
 
   return (
-    <div className="rounded-t-[--radius-lg] border border-b-0 border-[--color-border] bg-[--color-surface] px-4 py-3">
+    <div className="rounded-t-(--radius-lg) border border-b-0 border-(--color-border) bg-(--color-surface) px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[--color-text-tertiary]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-(--color-text-tertiary)" />
           <Input
             placeholder="Search patients…"
             value={value}

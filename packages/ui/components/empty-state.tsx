@@ -22,13 +22,13 @@ export function EmptyState({ icon: Icon = Inbox, title, description, action, cla
       variants={emptyStateVariants}
       initial="initial"
       animate="animate"
-      className={cn("flex flex-col items-center justify-center gap-3 rounded-[--radius-lg] border border-dashed border-[--color-border] px-6 py-16 text-center", className)}
+      className={cn("flex flex-col items-center justify-center gap-3 rounded-(--radius-lg) border border-dashed border-(--color-border) px-6 py-16 text-center", className)}
     >
-      <div className="flex size-12 items-center justify-center rounded-[--radius-full] bg-[--color-bg-subtle] text-[--color-text-tertiary]">
+      <div className="flex size-12 items-center justify-center rounded-(--radius-full) bg-(--color-bg-subtle) text-(--color-text-tertiary)">
         <Icon className="size-6" strokeWidth={1.75} />
       </div>
-      <p className="text-h3 text-[--color-text-primary]">{title}</p>
-      {description && <p className="max-w-sm text-body-sm text-[--color-text-secondary]">{description}</p>}
+      <p className="text-h3 text-(--color-text-primary)">{title}</p>
+      {description && <p className="max-w-sm text-body-sm text-(--color-text-secondary)">{description}</p>}
       {action && (
         <Button variant="primary" size="sm" onClick={action.onClick} className="mt-2">
           {action.label}

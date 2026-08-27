@@ -31,6 +31,11 @@ class TooManyAttemptsError extends CredentialsSignin {
 }
 
 export const adminAuthConfig: NextAuthConfig = {
+  // See authConfig's identical comment in config.ts — Auth.js only
+  // auto-trusts the incoming Host header on a known platform (e.g.
+  // process.env.VERCEL); explicit trustHost avoids relying on that implicit
+  // detection.
+  trustHost: true,
   session: {
     strategy: "jwt",
     // Distinct cookie name from apps/shell's default (`authjs.session-token`)

@@ -199,7 +199,7 @@ export function ConsultDetailClient({
                 onChange={(e) => setQuotePence(e.target.value)}
               />
               {consult.quotePenceOverride !== null && (
-                <p className="mt-1 text-caption text-[--color-text-tertiary]">
+                <p className="mt-1 text-caption text-(--color-text-tertiary)">
                   Override applied: {money(consult.quotePenceOverride)}
                 </p>
               )}
@@ -220,11 +220,11 @@ export function ConsultDetailClient({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between rounded-[--radius-md] border border-[--color-border-subtle] px-3 py-2">
+            <div className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2">
               <Label htmlFor="deposit">Deposit taken</Label>
               <Switch id="deposit" checked={hasDeposit} onCheckedChange={setHasDeposit} />
             </div>
-            <div className="flex items-center justify-between rounded-[--radius-md] border border-[--color-border-subtle] px-3 py-2">
+            <div className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2">
               <Label htmlFor="treatment-booked">Treatment booked</Label>
               <Switch id="treatment-booked" checked={treatmentBooked} onCheckedChange={setTreatmentBooked} />
             </div>
@@ -297,14 +297,14 @@ export function ConsultDetailClient({
         </CardHeader>
         <CardContent>
           {!hasLinkedPatient ? (
-            <p className="text-body-sm text-[--color-text-tertiary]">
+            <p className="text-body-sm text-(--color-text-tertiary)">
               This enquiry has no linked Dentally patient yet — link a patient to the enquiry before you can pick an
               appointment or sync financials.
             </p>
           ) : (
             <div className="flex flex-col gap-4">
               {consult.appointment ? (
-                <p className="text-body-sm text-[--color-text-secondary]">
+                <p className="text-body-sm text-(--color-text-secondary)">
                   Linked appointment:{" "}
                   {consult.appointment.startsAt
                     ? new Date(consult.appointment.startsAt).toLocaleString("en-GB")
@@ -312,15 +312,15 @@ export function ConsultDetailClient({
                   {consult.appointment.reason ? ` · ${consult.appointment.reason}` : ""}
                 </p>
               ) : linkableAppointments.length === 0 ? (
-                <p className="text-body-sm text-[--color-text-tertiary]">No candidate appointments found.</p>
+                <p className="text-body-sm text-(--color-text-tertiary)">No candidate appointments found.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {linkableAppointments.map((a) => (
                     <li
                       key={a.id}
-                      className="flex items-center justify-between rounded-[--radius-md] border border-[--color-border-subtle] px-3 py-2"
+                      className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2"
                     >
-                      <span className="text-body-sm text-[--color-text-secondary]">
+                      <span className="text-body-sm text-(--color-text-secondary)">
                         {a.startsAt ? new Date(a.startsAt).toLocaleString("en-GB") : "unknown date"}
                         {a.reason ? ` · ${a.reason}` : ""}
                         {a.dentallyState ? ` · ${a.dentallyState}` : ""}
@@ -334,7 +334,7 @@ export function ConsultDetailClient({
               )}
 
               <div>
-                <p className="text-body-sm text-[--color-text-secondary]">Paid to date: {money(consult.totalPaidPence)}</p>
+                <p className="text-body-sm text-(--color-text-secondary)">Paid to date: {money(consult.totalPaidPence)}</p>
                 <Button className="mt-2" size="sm" variant="secondary" loading={syncing} onClick={syncFinancials}>
                   Sync financials from Dentally
                 </Button>
@@ -350,11 +350,11 @@ export function ConsultDetailClient({
         </CardHeader>
         <CardContent>
           {reminders.length === 0 ? (
-            <p className="text-body-sm text-[--color-text-tertiary]">No reminders scheduled.</p>
+            <p className="text-body-sm text-(--color-text-tertiary)">No reminders scheduled.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {reminders.map((r) => (
-                <li key={r.id} className="text-body-sm text-[--color-text-secondary]">
+                <li key={r.id} className="text-body-sm text-(--color-text-secondary)">
                   {new Date(r.dueAt).toLocaleString("en-GB")}
                   {r.channel ? ` · ${r.channel}` : ""} — {r.sentAt ? "sent" : "pending"}
                 </li>

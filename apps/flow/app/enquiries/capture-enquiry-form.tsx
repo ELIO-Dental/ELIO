@@ -91,7 +91,7 @@ export function CaptureEnquiryForm({ patients }: { patients: CorePatient[] }) {
             />
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Capture enquiry
             </Button>

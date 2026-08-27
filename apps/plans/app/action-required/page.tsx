@@ -45,8 +45,8 @@ export default async function ActionRequiredPage() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-h2 text-[--color-text-primary]">Action Required</h1>
-            <p className="mt-1 text-body text-[--color-text-secondary]">
+            <h1 className="text-h2 text-(--color-text-primary)">Action Required</h1>
+            <p className="mt-1 text-body text-(--color-text-secondary)">
               Everything currently waiting on staff attention across plans, payments, and documents.
             </p>
           </div>
@@ -54,7 +54,7 @@ export default async function ActionRequiredPage() {
         </div>
 
         {totalCount === 0 ? (
-          <div className="mt-8 rounded-[--radius-lg] border border-[--color-border]">
+          <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
             <ActionRequiredEmptyState
               title="Nothing needs attention"
               description="Pending redemptions, failed payments, unsigned documents, and reconciliation mismatches will show up here."
@@ -71,15 +71,15 @@ export default async function ActionRequiredPage() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <ul className="divide-y divide-[--color-border-subtle]">
+                  <ul className="divide-y divide-(--color-border-subtle)">
                     {pendingRedeems.slice(0, 8).map((r) => {
                       const name =
                         [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
                         "Unknown patient";
                       return (
                         <li key={r.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-[--color-text-primary]">{name}</span>
-                          <span className="text-body-sm text-[--color-text-secondary]">{r.itemName}</span>
+                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
+                          <span className="text-body-sm text-(--color-text-secondary)">{r.itemName}</span>
                         </li>
                       );
                     })}
@@ -97,14 +97,14 @@ export default async function ActionRequiredPage() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <ul className="divide-y divide-[--color-border-subtle]">
+                  <ul className="divide-y divide-(--color-border-subtle)">
                     {failedPayments.slice(0, 8).map((p) => {
                       const name =
                         [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
                         "Unknown patient";
                       return (
                         <li key={p.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-[--color-text-primary]">{name}</span>
+                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
                           <Badge variant="danger">{p.status}</Badge>
                         </li>
                       );
@@ -123,15 +123,15 @@ export default async function ActionRequiredPage() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <ul className="divide-y divide-[--color-border-subtle]">
+                  <ul className="divide-y divide-(--color-border-subtle)">
                     {unsignedRequests.slice(0, 8).map((r) => {
                       const name =
                         [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
                         "Unknown patient";
                       return (
                         <li key={r.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-[--color-text-primary]">{name}</span>
-                          <span className="text-body-sm text-[--color-text-secondary]">{r.document.title}</span>
+                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
+                          <span className="text-body-sm text-(--color-text-secondary)">{r.document.title}</span>
                         </li>
                       );
                     })}
@@ -151,11 +151,11 @@ export default async function ActionRequiredPage() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <ul className="divide-y divide-[--color-border-subtle]">
+                  <ul className="divide-y divide-(--color-border-subtle)">
                     {reconciliation.mismatches.slice(0, 8).map((m, i) => (
                       <li key={i} className="flex items-center justify-between py-3">
                         <Badge variant="warning">{m.type}</Badge>
-                        <span className="text-body-sm text-[--color-text-secondary]">{m.detail}</span>
+                        <span className="text-body-sm text-(--color-text-secondary)">{m.detail}</span>
                       </li>
                     ))}
                   </ul>

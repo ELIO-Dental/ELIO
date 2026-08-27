@@ -81,7 +81,7 @@ export function BulkPaymentsClient({ initialItems }: { initialItems: BulkPayment
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Lab bills &amp; supplier invoices</CardTitle>
-            <p className="mt-1 text-body-sm text-[--color-text-secondary]">
+            <p className="mt-1 text-body-sm text-(--color-text-secondary)">
               {initialItems.length} entries totalling {fmt(total)}
               {selected.size > 0 && ` — ${selected.size} selected: ${fmt(selectedTotal)}`}
             </p>

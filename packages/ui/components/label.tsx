@@ -11,8 +11,8 @@ export const Label = React.forwardRef<
   <LabelPrimitive.Root
     ref={ref}
     className={cn(
-      "mb-1 block text-caption font-semibold text-[--color-text-secondary] transition-colors duration-150",
-      focused && "text-[--color-primary-600]",
+      "mb-1 block text-caption font-semibold text-(--color-text-secondary) transition-colors duration-150",
+      focused && "text-(--color-primary-600)",
       className
     )}
     {...props}

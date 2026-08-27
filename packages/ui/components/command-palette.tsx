@@ -46,14 +46,14 @@ export function CommandPalette({ open, onOpenChange, items, placeholder = "Searc
           onOpenChange={onOpenChange}
           label="Command palette"
           shouldFilter
-          className="fixed left-1/2 top-[15%] z-[--z-index-command-palette] w-[calc(100%-32px)] max-w-xl -translate-x-1/2"
+          className="fixed left-1/2 top-[15%] z-(--z-index-command-palette) w-[calc(100%-32px)] max-w-xl -translate-x-1/2"
         >
           <motion.div
             variants={commandPaletteVariants}
             initial="initial"
             animate="animate"
             exit="exit"
-            className="overflow-hidden rounded-[--radius-xl] border shadow-[--shadow-xl]"
+            className="overflow-hidden rounded-(--radius-xl) border shadow-(--shadow-xl)"
             style={{
               background: "var(--glass-bg)",
               borderColor: "var(--glass-border)",
@@ -61,15 +61,15 @@ export function CommandPalette({ open, onOpenChange, items, placeholder = "Searc
               WebkitBackdropFilter: "blur(var(--glass-blur))",
             }}
           >
-            <div className="flex items-center gap-2 border-b border-[--color-border-subtle] px-4">
-              <Search className="size-4 shrink-0 text-[--color-text-tertiary]" />
+            <div className="flex items-center gap-2 border-b border-(--color-border-subtle) px-4">
+              <Search className="size-4 shrink-0 text-(--color-text-tertiary)" />
               <Command.Input
                 placeholder={placeholder}
-                className="h-12 w-full bg-transparent text-body text-[--color-text-primary] outline-none placeholder:text-[--color-text-tertiary]"
+                className="h-12 w-full bg-transparent text-body text-(--color-text-primary) outline-none placeholder:text-(--color-text-tertiary)"
               />
             </div>
             <Command.List className="max-h-80 overflow-y-auto p-2">
-              <Command.Empty className="px-3 py-6 text-center text-body-sm text-[--color-text-secondary]">
+              <Command.Empty className="px-3 py-6 text-center text-body-sm text-(--color-text-secondary)">
                 No results found.
               </Command.Empty>
               {groups.map(([group, groupItems]) => (
@@ -78,7 +78,7 @@ export function CommandPalette({ open, onOpenChange, items, placeholder = "Searc
                   heading={group}
                   className={cn(
                     "px-1 pb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5",
-                    "[&_[cmdk-group-heading]]:text-caption [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[--color-text-tertiary]"
+                    "[&_[cmdk-group-heading]]:text-caption [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-(--color-text-tertiary)"
                   )}
                 >
                   {groupItems.map((item) => (
@@ -90,14 +90,14 @@ export function CommandPalette({ open, onOpenChange, items, placeholder = "Searc
                         onOpenChange(false);
                       }}
                       className={cn(
-                        "flex h-10 cursor-pointer select-none items-center gap-2 rounded-[--radius-md] px-2 text-body-sm text-[--color-text-primary]",
-                        "data-[selected=true]:bg-[--color-primary-50] data-[selected=true]:text-[--color-primary-700]"
+                        "flex h-10 cursor-pointer select-none items-center gap-2 rounded-(--radius-md) px-2 text-body-sm text-(--color-text-primary)",
+                        "data-[selected=true]:bg-(--color-primary-50) data-[selected=true]:text-(--color-primary-700)"
                       )}
                     >
                       {item.icon}
                       <span className="flex-1">{item.label}</span>
                       {item.shortcut && (
-                        <kbd className="rounded-[--radius-sm] border border-[--color-border] px-1.5 py-0.5 text-caption text-[--color-text-tertiary]">
+                        <kbd className="rounded-(--radius-sm) border border-(--color-border) px-1.5 py-0.5 text-caption text-(--color-text-tertiary)">
                           {item.shortcut}
                         </kbd>
                       )}

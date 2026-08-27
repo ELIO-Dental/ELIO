@@ -52,21 +52,21 @@ export function ManualReviewList({ lines, dentists }: { lines: ReviewLine[]; den
   }
 
   return (
-    <div className="mt-6 rounded-[--radius-lg] border border-[--color-warning] bg-[--color-warning-bg] p-4">
+    <div className="mt-6 rounded-(--radius-lg) border border-(--color-warning) bg-(--color-warning-bg) p-4">
       <div className="mb-3 flex items-center gap-2">
         <Badge variant="warning">Needs review</Badge>
         <span className="text-body-sm font-medium">{lines.length} Compass line(s) could not be auto-matched</span>
       </div>
       <ul className="space-y-3">
         {lines.map((line) => (
-          <li key={line.id} className="flex flex-wrap items-center gap-3 rounded-[--radius-md] bg-[--color-bg] p-3">
+          <li key={line.id} className="flex flex-wrap items-center gap-3 rounded-(--radius-md) bg-(--color-bg) p-3">
             <div className="text-body-sm">
               <span className="font-medium">{line.rawDentistName ?? "Unknown name"}</span>{" "}
-              <span className="text-[--color-text-tertiary]">(performer #{line.performerNumber ?? "?"})</span>
-              <span className="ml-2 text-[--color-text-secondary]">
+              <span className="text-(--color-text-tertiary)">(performer #{line.performerNumber ?? "?"})</span>
+              <span className="ml-2 text-(--color-text-secondary)">
                 UDAs: {line.udas ?? "—"} · Superann.: {line.superannuationPence != null ? `£${(line.superannuationPence / 100).toFixed(2)}` : "—"}
               </span>
-              {errors[line.id] && <p className="mt-1 text-body-sm text-[--color-danger]">{errors[line.id]}</p>}
+              {errors[line.id] && <p className="mt-1 text-body-sm text-(--color-danger)">{errors[line.id]}</p>}
             </div>
             <div className="ml-auto flex items-center gap-2">
               <Select value={selected[line.id] ?? ""} onValueChange={(v) => setSelected((s) => ({ ...s, [line.id]: v }))}>

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
 import { PayNav } from "@/components/pay-nav";
@@ -6,7 +6,7 @@ import { SupplierInvoicesClient } from "./supplier-invoices-client";
 
 export default async function SupplierInvoicesPage() {
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
 
   const db = scopedDb(session.practiceId);
   const [supplierInvoices, suppliers] = await Promise.all([
@@ -22,7 +22,7 @@ export default async function SupplierInvoicesPage() {
       <PayNav isOwner={session.role === "OWNER"} />
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-[--color-text-primary]">Supplier Invoices</h1>
+          <h1 className="text-h2 text-(--color-text-primary)">Supplier Invoices</h1>
         </div>
 
         <SupplierInvoicesClient

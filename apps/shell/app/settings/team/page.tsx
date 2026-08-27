@@ -15,10 +15,10 @@ export default async function TeamSettingsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[--color-bg] px-6 py-12">
+    <div className="min-h-screen bg-(--color-bg) px-6 py-12">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-h2 text-[--color-text-primary]">Team</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Team</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Manage who has access to your practice and what they can do.
         </p>
         <TeamClient initialRequireMfaForAllStaff={practice.requireMfaForAllStaff} currentUserId={session.userId} />

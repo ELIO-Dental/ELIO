@@ -50,7 +50,7 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
   return (
     <div
       className={cn(
-        "rounded-[--radius-md] bg-[length:200%_100%]",
+        "rounded-(--radius-md) bg-[length:200%_100%]",
         className
       )}
       style={{

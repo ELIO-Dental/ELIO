@@ -78,7 +78,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
 
   if (error) {
     return (
-      <div className="rounded-[--radius-lg] border border-[--color-border]">
+      <div className="rounded-(--radius-lg) border border-(--color-border)">
         <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: load }} />
       </div>
     );
@@ -96,14 +96,14 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
 
   if (!users || users.length === 0) {
     return (
-      <div className="rounded-[--radius-lg] border border-[--color-border]">
+      <div className="rounded-(--radius-lg) border border-(--color-border)">
         <EmptyState icon={UsersIcon} title="No users yet" description="Team members will appear here." />
       </div>
     );
   }
 
   return (
-    <div className="rounded-[--radius-lg] border border-[--color-border]">
+    <div className="rounded-(--radius-lg) border border-(--color-border)">
       <Table data-testid="plans-users-table">
         <TableHeader>
           <TableRow>

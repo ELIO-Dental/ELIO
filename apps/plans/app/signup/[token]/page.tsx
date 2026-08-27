@@ -107,13 +107,13 @@ function PublicSignupContent() {
   }, [token, billingRequestId]);
 
   return (
-    <div className="min-h-screen bg-[--color-bg] px-4 py-10">
+    <div className="min-h-screen bg-(--color-bg) px-4 py-10">
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-8 text-center">
-          <h1 className="text-h2 text-[--color-text-primary]">
-            ELIO <span className="text-[--color-primary-600]">Plans</span>
+          <h1 className="text-h2 text-(--color-text-primary)">
+            ELIO <span className="text-(--color-primary-600)">Plans</span>
           </h1>
-          <p className="mt-1 text-body-sm text-[--color-text-secondary]">Complete your membership signup</p>
+          <p className="mt-1 text-body-sm text-(--color-text-secondary)">Complete your membership signup</p>
         </div>
 
         {stepIndex < STEPS.length - 1 && (
@@ -136,9 +136,9 @@ function PublicSignupContent() {
         {!loading && loadError && (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-              <AlertCircle className="size-10 text-[--color-danger]" aria-hidden />
-              <p className="text-h3 text-[--color-text-primary]">Signup link problem</p>
-              <p className="text-body-sm text-[--color-text-secondary]">{loadError}</p>
+              <AlertCircle className="size-10 text-(--color-danger)" aria-hidden />
+              <p className="text-h3 text-(--color-text-primary)">Signup link problem</p>
+              <p className="text-body-sm text-(--color-text-secondary)">{loadError}</p>
               <Button variant="secondary" size="sm" onClick={fetchData} className="mt-2">
                 <RefreshCw className="size-4" aria-hidden />
                 Retry
@@ -159,7 +159,7 @@ export default function PublicSignupPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="min-h-screen bg-[--color-bg] px-4 py-10">
+        <div className="min-h-screen bg-(--color-bg) px-4 py-10">
           <div className="mx-auto w-full max-w-xl">
             <Skeleton className="h-40 w-full" />
           </div>
@@ -205,7 +205,7 @@ function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void })
         <CardTitle>Welcome, {data.patient.firstName || "there"}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <p className="text-body-sm text-[--color-text-secondary]">
+        <p className="text-body-sm text-(--color-text-secondary)">
           Please confirm your details below before continuing.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -224,16 +224,16 @@ function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void })
         </div>
 
         {data.plan && (
-          <div className="rounded-[--radius-lg] border border-[--color-border-subtle] bg-[--color-bg-subtle] p-4">
+          <div className="rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle) p-4">
             <div className="flex items-center justify-between">
-              <span className="text-h3 text-[--color-text-primary]">{data.plan.name}</span>
-              <span className="text-h3 text-[--color-primary-600]">{money(data.plan.monthlyPricePence)}/mo</span>
+              <span className="text-h3 text-(--color-text-primary)">{data.plan.name}</span>
+              <span className="text-h3 text-(--color-primary-600)">{money(data.plan.monthlyPricePence)}/mo</span>
             </div>
             {data.plan.publicDescription && (
-              <p className="mt-1 text-body-sm text-[--color-text-secondary]">{data.plan.publicDescription}</p>
+              <p className="mt-1 text-body-sm text-(--color-text-secondary)">{data.plan.publicDescription}</p>
             )}
             {data.plan.inclusions.length > 0 && (
-              <ul className="mt-3 space-y-1 text-body-sm text-[--color-text-secondary]">
+              <ul className="mt-3 space-y-1 text-body-sm text-(--color-text-secondary)">
                 {data.plan.inclusions.map((inc, idx) => (
                   <li key={idx}>
                     • {inc.quantity && inc.period ? `${inc.quantity}x ${inc.name} per ${inc.period}` : inc.name}
@@ -289,14 +289,14 @@ function TermsStep({ token, data, onNext }: { token: string; data: SignupData; o
       <CardContent className="space-y-4">
         {data.document ? (
           <>
-            <div className="max-h-64 overflow-y-auto rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-bg-subtle] p-4 text-body-sm text-[--color-text-secondary]">
-              <p className="mb-2 text-caption text-[--color-text-tertiary]">Version {data.document.version}</p>
+            <div className="max-h-64 overflow-y-auto rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-bg-subtle) p-4 text-body-sm text-(--color-text-secondary)">
+              <p className="mb-2 text-caption text-(--color-text-tertiary)">Version {data.document.version}</p>
               <div dangerouslySetInnerHTML={{ __html: data.document.content }} />
             </div>
-            <label className="flex items-start gap-3 text-body-sm text-[--color-text-secondary]">
+            <label className="flex items-start gap-3 text-body-sm text-(--color-text-secondary)">
               <input
                 type="checkbox"
-                className="mt-1 size-4 accent-[--color-primary-500]"
+                className="mt-1 size-4 accent-(--color-primary-500)"
                 checked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
               />
@@ -313,13 +313,13 @@ function TermsStep({ token, data, onNext }: { token: string; data: SignupData; o
             </div>
           </>
         ) : (
-          <p className="text-body-sm text-[--color-danger]">
+          <p className="text-body-sm text-(--color-danger)">
             No terms document is available for this plan. Please contact the practice.
           </p>
         )}
 
         {error && (
-          <p className="flex items-center gap-2 text-body-sm text-[--color-danger]">
+          <p className="flex items-center gap-2 text-body-sm text-(--color-danger)">
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {error}
           </p>
@@ -386,13 +386,13 @@ function MandateStep({ token, onDone }: { token: string; onDone: () => void }) {
         <CardTitle>Set up Direct Debit</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-body-sm text-[--color-text-secondary]">
+        <p className="text-body-sm text-(--color-text-secondary)">
           You&apos;ll be redirected to our secure payment provider, GoCardless, to set up your Direct Debit
           mandate. This is a real-money step — please don&apos;t click more than once.
         </p>
 
         {status === "error" && (
-          <p className="flex items-center gap-2 text-body-sm text-[--color-danger]">
+          <p className="flex items-center gap-2 text-body-sm text-(--color-danger)">
             <AlertCircle className="size-4 shrink-0" aria-hidden />
             {error}
           </p>
@@ -407,7 +407,7 @@ function MandateStep({ token, onDone }: { token: string; onDone: () => void }) {
             back didn't fire cleanly (mobile browser tab switch, etc). */}
         <button
           type="button"
-          className="w-full text-center text-caption text-[--color-text-tertiary] underline-offset-2 hover:underline"
+          className="w-full text-center text-caption text-(--color-text-tertiary) underline-offset-2 hover:underline"
           onClick={onDone}
         >
           I already completed Direct Debit setup
@@ -422,8 +422,8 @@ function CompleteStep() {
     <Card>
       <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
         <SuccessCheck />
-        <p className="text-h2 text-[--color-text-primary]">You&apos;re all set</p>
-        <p className="max-w-sm text-body-sm text-[--color-text-secondary]">
+        <p className="text-h2 text-(--color-text-primary)">You&apos;re all set</p>
+        <p className="max-w-sm text-body-sm text-(--color-text-secondary)">
           Your membership signup is complete and your Direct Debit is being set up. You&apos;ll receive a
           confirmation email shortly.
         </p>

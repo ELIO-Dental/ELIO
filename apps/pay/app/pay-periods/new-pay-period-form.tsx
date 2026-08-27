@@ -52,7 +52,7 @@ export function NewPayPeriodForm() {
             <Input id="year" name="year" type="number" defaultValue={now.getFullYear()} required />
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Create pay period
             </Button>

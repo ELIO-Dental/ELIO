@@ -32,19 +32,19 @@ export default async function AuditLogPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Audit Log</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Audit Log</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Every recorded action for your practice, including Plans-specific decisions like
           redeem approvals and rejections.
         </p>
 
         <div className="mt-8">
           {logs.length === 0 ? (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <AuditLogEmptyState title="No audit entries yet" description="Recorded actions will appear here." />
             </div>
           ) : (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -60,17 +60,17 @@ export default async function AuditLogPage() {
                     const mod = moduleForAction(log.action);
                     return (
                       <TableRow key={log.id}>
-                        <TableCell className="text-[--color-text-tertiary]">
+                        <TableCell className="text-(--color-text-tertiary)">
                           {log.createdAt.toISOString().replace("T", " ").slice(0, 19)}
                         </TableCell>
                         <TableCell>{log.actor?.email ?? "—"}</TableCell>
                         <TableCell>
                           <Badge variant={mod.variant}>{mod.label}</Badge>
                         </TableCell>
-                        <TableCell className="font-[--font-mono] text-body-sm">{log.action}</TableCell>
-                        <TableCell className="text-[--color-text-secondary]">
+                        <TableCell className="font-(--font-mono) text-body-sm">{log.action}</TableCell>
+                        <TableCell className="text-(--color-text-secondary)">
                           {log.targetType}
-                          <span className="ml-1 text-[--color-text-tertiary]">{log.targetId}</span>
+                          <span className="ml-1 text-(--color-text-tertiary)">{log.targetId}</span>
                         </TableCell>
                       </TableRow>
                     );

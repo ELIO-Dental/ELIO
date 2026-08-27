@@ -41,9 +41,9 @@ export function StatCard({ label, value, format, trend, sparklineData, className
 
   return (
     <Card ref={ref} className={cn("flex flex-col gap-3", className)}>
-      <span className="text-caption font-medium text-[--color-text-secondary]">{label}</span>
+      <span className="text-caption font-medium text-(--color-text-secondary)">{label}</span>
       <div className="flex items-end justify-between gap-4">
-        <span className="tabular-nums font-[--font-mono] text-money-hero font-semibold text-[--color-text-primary]">
+        <span className="tabular-nums font-(--font-mono) text-money-hero font-semibold text-(--color-text-primary)">
           {display}
         </span>
         {sparklineData && sparklineData.length > 1 && <Sparkline data={sparklineData} />}
@@ -55,7 +55,7 @@ export function StatCard({ label, value, format, trend, sparklineData, className
           transition={{ delay: 0.3, duration: 0.2 }}
           className={cn(
             "inline-flex w-fit items-center gap-1 text-caption font-semibold",
-            trend.direction === "up" ? "text-[--color-success]" : "text-[--color-danger]"
+            trend.direction === "up" ? "text-(--color-success)" : "text-(--color-danger)"
           )}
         >
           {trend.direction === "up" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}

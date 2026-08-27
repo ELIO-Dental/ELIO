@@ -78,7 +78,7 @@ export function EnrolPatientForm({
           <CardTitle>Enrol a patient</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-body-sm text-[--color-text-secondary]">
+          <p className="text-body-sm text-(--color-text-secondary)">
             No unenrolled patients found from the synced patient list.
           </p>
         </CardContent>
@@ -124,7 +124,7 @@ export function EnrolPatientForm({
             </Select>
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Enrol patient
             </Button>

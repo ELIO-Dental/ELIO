@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { PayNav } from "@/components/pay-nav";
 import { listLabBills, listSupplierInvoices } from "@/lib/pay-service";
@@ -6,7 +6,7 @@ import { BulkPaymentsClient } from "./bulk-payments-client";
 
 export default async function BulkPaymentsPage() {
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
 
   const [labBills, supplierInvoices] = await Promise.all([
     listLabBills(session.practiceId),
@@ -18,7 +18,7 @@ export default async function BulkPaymentsPage() {
       <PayNav isOwner={session.role === "OWNER"} />
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-[--color-text-primary]">Bulk Payments</h1>
+          <h1 className="text-h2 text-(--color-text-primary)">Bulk Payments</h1>
         </div>
 
         <BulkPaymentsClient

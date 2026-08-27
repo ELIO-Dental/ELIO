@@ -21,7 +21,7 @@ export const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-[--z-index-dropdown] min-w-[10rem] overflow-hidden rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-surface-raised] p-1 text-body-sm shadow-[--shadow-md] data-[state=open]:animate-[fadeInScale_150ms_ease-out]",
+        "z-(--z-index-dropdown) min-w-[10rem] overflow-hidden rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-raised) p-1 text-body-sm shadow-(--shadow-md) data-[state=open]:animate-[fadeInScale_150ms_ease-out]",
         className
       )}
       {...props}
@@ -35,13 +35,13 @@ export const DropdownMenuItem = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & { destructive?: boolean; separatorBefore?: boolean }
 >(({ className, destructive, separatorBefore, ...props }, ref) => (
   <>
-    {separatorBefore && <DropdownMenuPrimitive.Separator className="my-1 h-px bg-[--color-border-subtle]" />}
+    {separatorBefore && <DropdownMenuPrimitive.Separator className="my-1 h-px bg-(--color-border-subtle)" />}
     <DropdownMenuPrimitive.Item
       ref={ref}
       className={cn(
-        "flex h-9 cursor-pointer select-none items-center gap-2 rounded-[--radius-sm] px-2 outline-none transition-colors duration-100",
-        "data-[highlighted]:bg-[--color-bg-subtle] data-[disabled]:pointer-events-none data-[disabled]:text-[--color-text-disabled]",
-        destructive && "text-[--color-danger] data-[highlighted]:bg-[--color-danger-bg]",
+        "flex h-9 cursor-pointer select-none items-center gap-2 rounded-(--radius-sm) px-2 outline-none transition-colors duration-100",
+        "data-[highlighted]:bg-(--color-bg-subtle) data-[disabled]:pointer-events-none data-[disabled]:text-(--color-text-disabled)",
+        destructive && "text-(--color-danger) data-[highlighted]:bg-(--color-danger-bg)",
         className
       )}
       {...props}
@@ -57,7 +57,7 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex h-9 cursor-pointer select-none items-center rounded-[--radius-sm] py-1.5 pl-8 pr-2 outline-none data-[highlighted]:bg-[--color-bg-subtle]",
+      "relative flex h-9 cursor-pointer select-none items-center rounded-(--radius-sm) py-1.5 pl-8 pr-2 outline-none data-[highlighted]:bg-(--color-bg-subtle)",
       className
     )}
     {...props}
@@ -77,7 +77,7 @@ export const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex h-9 cursor-pointer select-none items-center rounded-[--radius-sm] py-1.5 pl-8 pr-2 outline-none data-[highlighted]:bg-[--color-bg-subtle]",
+      "relative flex h-9 cursor-pointer select-none items-center rounded-(--radius-sm) py-1.5 pl-8 pr-2 outline-none data-[highlighted]:bg-(--color-bg-subtle)",
       className
     )}
     {...props}
@@ -91,11 +91,11 @@ export const DropdownMenuRadioItem = React.forwardRef<
 DropdownMenuRadioItem.displayName = "DropdownMenuRadioItem";
 
 export function DropdownMenuLabel({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-2 py-1.5 text-caption font-semibold text-[--color-text-tertiary]", className)} {...props} />;
+  return <div className={cn("px-2 py-1.5 text-caption font-semibold text-(--color-text-tertiary)", className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({ className, ...props }: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>) {
-  return <DropdownMenuPrimitive.Separator className={cn("my-1 h-px bg-[--color-border-subtle]", className)} {...props} />;
+  return <DropdownMenuPrimitive.Separator className={cn("my-1 h-px bg-(--color-border-subtle)", className)} {...props} />;
 }
 
 export const DropdownMenuSubTrigger = React.forwardRef<
@@ -105,7 +105,7 @@ export const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex h-9 cursor-pointer select-none items-center rounded-[--radius-sm] px-2 outline-none data-[highlighted]:bg-[--color-bg-subtle]",
+      "flex h-9 cursor-pointer select-none items-center rounded-(--radius-sm) px-2 outline-none data-[highlighted]:bg-(--color-bg-subtle)",
       className
     )}
     {...props}
@@ -123,7 +123,7 @@ export const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-[--z-index-dropdown] min-w-[8rem] overflow-hidden rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-surface-raised] p-1 shadow-[--shadow-md]",
+      "z-(--z-index-dropdown) min-w-[8rem] overflow-hidden rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-raised) p-1 shadow-(--shadow-md)",
       className
     )}
     {...props}

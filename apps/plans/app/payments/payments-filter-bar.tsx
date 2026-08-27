@@ -23,7 +23,7 @@ export function PaymentsFilterBar() {
   }
 
   return (
-    <div className="rounded-t-[--radius-lg] border border-b-0 border-[--color-border] bg-[--color-surface] px-4 py-3">
+    <div className="rounded-t-(--radius-lg) border border-b-0 border-(--color-border) bg-(--color-surface) px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {STATUS_OPTIONS.map((s) => (

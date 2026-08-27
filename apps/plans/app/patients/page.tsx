@@ -59,8 +59,8 @@ export default async function PatientsPage({
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Patients</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Patients</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Patients enrolled on a membership plan.
         </p>
 
@@ -80,14 +80,14 @@ export default async function PatientsPage({
         <div className="mt-8">
           <FilterBar />
           {planPatients.length === 0 ? (
-            <div className="rounded-b-[--radius-lg] border border-t-0 border-[--color-border]">
+            <div className="rounded-b-(--radius-lg) border border-t-0 border-(--color-border)">
               <EmptyState
                 title="No patients match"
                 description="Enrol a patient above, or clear your filters."
               />
             </div>
           ) : (
-            <div className="rounded-b-[--radius-lg] border border-t-0 border-[--color-border]">
+            <div className="rounded-b-(--radius-lg) border border-t-0 border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>

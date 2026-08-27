@@ -37,7 +37,7 @@ export function Stepper({ steps, currentIndex, className }: StepperProps) {
               <span className="relative flex size-8 items-center justify-center">
                 {status === "current" && (
                   <motion.span
-                    className="absolute inset-0 rounded-full bg-[--color-primary-500]/30"
+                    className="absolute inset-0 rounded-full bg-(--color-primary-500)/30"
                     animate={{ scale: [1, 1.35, 1], opacity: [0.6, 0, 0.6] }}
                     transition={{ duration: duration.slowest / 1000, repeat: Infinity, ease: easing.inOut }}
                     aria-hidden
@@ -46,9 +46,9 @@ export function Stepper({ steps, currentIndex, className }: StepperProps) {
                 <motion.span
                   className={cn(
                     "relative flex size-8 items-center justify-center rounded-full border-2 text-body-sm font-medium",
-                    status === "complete" && "border-[--color-primary-500] bg-[--color-primary-500] text-white",
-                    status === "current" && "border-[--color-primary-500] bg-[--color-surface] text-[--color-primary-600]",
-                    status === "upcoming" && "border-[--color-border] bg-[--color-surface] text-[--color-text-tertiary]"
+                    status === "complete" && "border-(--color-primary-500) bg-(--color-primary-500) text-white",
+                    status === "current" && "border-(--color-primary-500) bg-(--color-surface) text-(--color-primary-600)",
+                    status === "upcoming" && "border-(--color-border) bg-(--color-surface) text-(--color-text-tertiary)"
                   )}
                   animate={{ scale: status === "current" ? 1.05 : 1 }}
                   transition={easing.spring}
@@ -81,7 +81,7 @@ export function Stepper({ steps, currentIndex, className }: StepperProps) {
               <span
                 className={cn(
                   "text-caption text-center whitespace-nowrap",
-                  status === "upcoming" ? "text-[--color-text-tertiary]" : "text-[--color-text-secondary]"
+                  status === "upcoming" ? "text-(--color-text-tertiary)" : "text-(--color-text-secondary)"
                 )}
               >
                 {step.label}
@@ -89,9 +89,9 @@ export function Stepper({ steps, currentIndex, className }: StepperProps) {
             </div>
 
             {!isLast && (
-              <div className="relative -mt-6 mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-[--color-border-subtle]">
+              <div className="relative -mt-6 mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-(--color-border-subtle)">
                 <motion.div
-                  className="absolute inset-y-0 left-0 bg-[--color-primary-500]"
+                  className="absolute inset-y-0 left-0 bg-(--color-primary-500)"
                   initial={false}
                   animate={{ width: status === "complete" ? "100%" : "0%" }}
                   transition={{ duration: duration.slow / 1000, ease: easing.out }}

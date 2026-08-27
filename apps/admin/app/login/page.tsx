@@ -89,11 +89,11 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{step === "credentials" ? "ELIO Super Admin" : "Two-factor authentication"}</CardTitle>
-          {step === "credentials" && <p className="mt-1 text-body-sm text-[--color-text-secondary]">Internal — ELIO staff only.</p>}
+          {step === "credentials" && <p className="mt-1 text-body-sm text-(--color-text-secondary)">Internal — ELIO staff only.</p>}
         </CardHeader>
         <CardContent>
           {step === "credentials" ? (
@@ -120,7 +120,7 @@ export default function AdminLoginPage() {
             </form>
           ) : (
             <form onSubmit={submitMfa} className="space-y-4" data-testid="mfa-form">
-              <p className="text-body-sm text-[--color-text-secondary]">Enter the 6-digit code from your authenticator app.</p>
+              <p className="text-body-sm text-(--color-text-secondary)">Enter the 6-digit code from your authenticator app.</p>
               <div>
                 <Label htmlFor="mfaCode">Authentication code</Label>
                 <Input

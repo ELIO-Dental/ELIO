@@ -34,14 +34,14 @@ interface ThemedTooltipProps {
 function ThemedTooltip({ active, payload, label }: ThemedTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-surface-raised] px-3 py-2 shadow-[--shadow-lg]">
-      <p className="text-caption font-semibold text-[--color-text-primary]">{label}</p>
+    <div className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-2 shadow-(--shadow-lg)">
+      <p className="text-caption font-semibold text-(--color-text-primary)">{label}</p>
       <div className="mt-1 flex flex-col gap-0.5">
         {payload.map((entry) => (
-          <div key={entry.dataKey as string} className="flex items-center gap-2 text-caption text-[--color-text-secondary]">
+          <div key={entry.dataKey as string} className="flex items-center gap-2 text-caption text-(--color-text-secondary)">
             <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span>{entry.name}:</span>
-            <span className="font-medium text-[--color-text-primary]">{money(Number(entry.value ?? 0))}</span>
+            <span className="font-medium text-(--color-text-primary)">{money(Number(entry.value ?? 0))}</span>
           </div>
         ))}
       </div>

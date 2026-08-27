@@ -13,8 +13,8 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-h2 text-[--color-text-primary]">{practice.name}</h1>
-        <p className="mt-1 text-body-sm text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">{practice.name}</h1>
+        <p className="mt-1 text-body-sm text-(--color-text-secondary)">
           {practice.users.length} users · {dentistCount} dentists · Dentally: {practice.dentallyConnectionStatus}
         </p>
       </div>
@@ -60,7 +60,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                   <TableCell>
                     {u.role !== "SUPER_ADMIN" && u.active && (
                       <form action={`/api/tenants/${practice.id}/impersonate/${u.id}`} method="POST">
-                        <button type="submit" className="text-body-sm text-[--color-primary-600] hover:underline" data-testid={`impersonate-${u.id}`}>
+                        <button type="submit" className="text-body-sm text-(--color-primary-600) hover:underline" data-testid={`impersonate-${u.id}`}>
                           Impersonate
                         </button>
                       </form>

@@ -20,7 +20,7 @@ export function ImpersonationBanner({ impersonatedUserEmail }: Props) {
       initial={{ y: -40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="sticky top-0 z-[1300] flex items-center justify-center gap-3 bg-[--color-warning] px-4 py-2 text-body-sm font-medium text-white"
+      className="sticky top-0 z-[1300] flex items-center justify-center gap-3 bg-(--color-warning) px-4 py-2 text-body-sm font-medium text-white"
       data-testid="impersonation-banner"
     >
       <span>
@@ -29,7 +29,7 @@ export function ImpersonationBanner({ impersonatedUserEmail }: Props) {
       <form action="/api/impersonate/end" method="POST">
         <button
           type="submit"
-          className="rounded-[--radius-sm] border border-white/40 px-2.5 py-0.5 text-caption font-semibold hover:bg-white/10"
+          className="rounded-(--radius-sm) border border-white/40 px-2.5 py-0.5 text-caption font-semibold hover:bg-white/10"
           data-testid="impersonation-end"
         >
           End

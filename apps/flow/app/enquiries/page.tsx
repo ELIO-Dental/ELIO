@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/session";
+import { requireSession, redirectToLogin } from "@/lib/session";
 import { FlowNav } from "@/components/flow-nav";
 import { prisma } from "@elio/db";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from "@elio/ui";
@@ -7,7 +6,7 @@ import { CaptureEnquiryForm } from "./capture-enquiry-form";
 
 export default async function EnquiriesPage() {
   const session = await requireSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToLogin();
   const practiceId = session.practiceId;
 
   const [enquiries, patients] = await Promise.all([
@@ -25,8 +24,8 @@ export default async function EnquiriesPage() {
     <div>
       <FlowNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Enquiries</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Enquiries</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Capture a new lead. Linking to a Dentally patient is optional — a phone enquiry can be logged before the
           person is a known patient.
         </p>
@@ -43,13 +42,13 @@ export default async function EnquiriesPage() {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-h4 text-[--color-text-primary]">Awaiting a consult</h2>
+          <h2 className="text-h4 text-(--color-text-primary)">Awaiting a consult</h2>
           {enquiries.length === 0 ? (
-            <div className="mt-3 rounded-[--radius-lg] border border-[--color-border]">
+            <div className="mt-3 rounded-(--radius-lg) border border-(--color-border)">
               <EmptyState title="No open enquiries" description="Captured leads with no consult booked yet will appear here." />
             </div>
           ) : (
-            <div className="mt-3 rounded-[--radius-lg] border border-[--color-border]">
+            <div className="mt-3 rounded-(--radius-lg) border border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>

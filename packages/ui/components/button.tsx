@@ -9,21 +9,21 @@ import { cn } from "../lib/cn";
 import { easing } from "../tokens/motion";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[--radius-md] text-body font-medium transition-[background-color,border-color,color,box-shadow] duration-150 ease-out disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[--color-primary-500]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-md) text-body font-medium transition-[background-color,border-color,color,box-shadow] duration-150 ease-out disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--color-primary-500)",
   {
     variants: {
       variant: {
         primary:
-          "bg-[--color-primary-500] text-white hover:bg-[--color-primary-600] hover:shadow-[--shadow-glow-primary] active:bg-[--color-primary-700] active:scale-[0.98] disabled:bg-[--color-primary-200] disabled:text-[--color-text-disabled]",
+          "bg-(--color-primary-500) text-white hover:bg-(--color-primary-600) hover:shadow-(--shadow-glow-primary) active:bg-(--color-primary-700) active:scale-[0.98] disabled:bg-(--color-primary-200) disabled:text-(--color-text-disabled)",
         secondary:
-          "bg-[--color-surface] text-[--color-text-primary] border border-[--color-border] hover:bg-[--color-bg-subtle] active:border-[--color-text-tertiary] disabled:opacity-50",
+          "bg-(--color-surface) text-(--color-text-primary) border border-(--color-border) hover:bg-(--color-bg-subtle) active:border-(--color-text-tertiary) disabled:opacity-50",
         outline:
-          "bg-transparent text-[--color-primary-600] border border-[--color-primary-300] hover:bg-[--color-primary-50] active:bg-[--color-primary-100] disabled:opacity-50",
+          "bg-transparent text-(--color-primary-600) border border-(--color-primary-300) hover:bg-(--color-primary-50) active:bg-(--color-primary-100) disabled:opacity-50",
         ghost:
-          "bg-transparent text-[--color-text-primary] hover:bg-[--color-bg-subtle] active:bg-[--color-border-subtle] disabled:opacity-40",
+          "bg-transparent text-(--color-text-primary) hover:bg-(--color-bg-subtle) active:bg-(--color-border-subtle) disabled:opacity-40",
         destructive:
-          "bg-[--color-danger] text-white hover:brightness-[0.92] active:brightness-[0.85] disabled:opacity-50",
-        link: "bg-transparent text-[--color-primary-600] underline-offset-4 hover:underline active:text-[--color-primary-700] disabled:opacity-50 p-0 h-auto",
+          "bg-(--color-danger) text-white hover:brightness-[0.92] active:brightness-[0.85] disabled:opacity-50",
+        link: "bg-transparent text-(--color-primary-600) underline-offset-4 hover:underline active:text-(--color-primary-700) disabled:opacity-50 p-0 h-auto",
       },
       size: {
         sm: "h-8 px-3 text-body-sm",

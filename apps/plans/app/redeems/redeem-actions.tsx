@@ -39,7 +39,7 @@ export function RedeemActions({ redeemId }: { redeemId: string }) {
       <Button size="sm" variant="secondary" loading={pending === "reject"} onClick={() => decide("reject")}>
         Reject
       </Button>
-      {error && <span className="text-body-sm text-[--color-danger]">{error}</span>}
+      {error && <span className="text-body-sm text-(--color-danger)">{error}</span>}
     </div>
   );
 }

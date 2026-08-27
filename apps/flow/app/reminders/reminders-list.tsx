@@ -37,7 +37,7 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
   }
 
   return (
-    <div className="rounded-[--radius-lg] border border-[--color-border]">
+    <div className="rounded-(--radius-lg) border border-(--color-border)">
       <Table>
         <TableHeader>
           <TableRow>

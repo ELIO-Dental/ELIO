@@ -169,7 +169,7 @@ export function TeamClient({
               Send invite
             </Button>
           </form>
-          {inviteMsg && <p className="mt-2 text-body-sm text-[--color-text-secondary]">{inviteMsg}</p>}
+          {inviteMsg && <p className="mt-2 text-body-sm text-(--color-text-secondary)">{inviteMsg}</p>}
         </CardContent>
       </Card>
 
@@ -180,8 +180,8 @@ export function TeamClient({
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-body font-medium text-[--color-text-primary]">Require MFA for all staff</p>
-              <p className="text-body-sm text-[--color-text-secondary]">
+              <p className="text-body font-medium text-(--color-text-primary)">Require MFA for all staff</p>
+              <p className="text-body-sm text-(--color-text-secondary)">
                 Enforced on next login for anyone without MFA configured.
               </p>
             </div>

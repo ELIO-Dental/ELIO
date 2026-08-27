@@ -26,10 +26,10 @@ export default async function LauncherPage() {
   const licenceChecks = await Promise.all(MODULES.map((mod) => checkLicence(session.practiceId!, mod.licenceModuleId)));
 
   return (
-    <div className="min-h-screen bg-[--color-bg] px-6 py-12">
+    <div className="min-h-screen bg-(--color-bg) px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-h2 text-[--color-text-primary]">Welcome back</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">Choose a module to get started.</p>
+        <h1 className="text-h2 text-(--color-text-primary)">Welcome back</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">Choose a module to get started.</p>
 
         <TooltipProvider>
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="launcher-grid">
@@ -42,17 +42,17 @@ export default async function LauncherPage() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <span
-                        className="flex size-9 items-center justify-center rounded-[--radius-md] text-body-sm font-semibold"
+                        className="flex size-9 items-center justify-center rounded-(--radius-md) text-body-sm font-semibold"
                         style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
                       >
                         {mod.name.replace("Elio", "").slice(0, 1)}
                       </span>
-                      {!licensed && <Lock className="size-4 text-[--color-text-tertiary]" aria-label="Locked" />}
+                      {!licensed && <Lock className="size-4 text-(--color-text-tertiary)" aria-label="Locked" />}
                     </div>
                   </CardHeader>
                   <CardContent>
                     <CardTitle>{mod.name}</CardTitle>
-                    <p className="mt-1 text-body-sm text-[--color-text-secondary]">{mod.description}</p>
+                    <p className="mt-1 text-body-sm text-(--color-text-secondary)">{mod.description}</p>
                   </CardContent>
                 </Card>
               );

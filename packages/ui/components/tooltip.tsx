@@ -23,7 +23,7 @@ export function TooltipContent({ children, className, ...props }: React.Componen
             animate="animate"
             exit="exit"
             className={cn(
-              "z-[1400] rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-surface-raised] px-3 py-1.5 text-caption text-[--color-text-primary] shadow-[--shadow-md]",
+              "z-[1400] rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-1.5 text-caption text-(--color-text-primary) shadow-(--shadow-md)",
               className
             )}
           >

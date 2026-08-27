@@ -10,8 +10,8 @@ export default async function TenantListPage() {
 
   return (
     <div>
-      <h1 className="text-h2 text-[--color-text-primary]">Tenants</h1>
-      <p className="mt-1 text-body-sm text-[--color-text-secondary]">{tenants.length} practice{tenants.length === 1 ? "" : "s"} on the platform.</p>
+      <h1 className="text-h2 text-(--color-text-primary)">Tenants</h1>
+      <p className="mt-1 text-body-sm text-(--color-text-secondary)">{tenants.length} practice{tenants.length === 1 ? "" : "s"} on the platform.</p>
 
       <Card className="mt-6">
         <Table>
@@ -29,7 +29,7 @@ export default async function TenantListPage() {
             {tenants.map((t) => (
               <TableRow key={t.id}>
                 <TableCell>
-                  <Link href={`/tenants/${t.id}`} className="font-medium text-[--color-primary-600] hover:underline" data-testid={`tenant-link-${t.id}`}>
+                  <Link href={`/tenants/${t.id}`} className="font-medium text-(--color-primary-600) hover:underline" data-testid={`tenant-link-${t.id}`}>
                     {t.name}
                   </Link>
                 </TableCell>

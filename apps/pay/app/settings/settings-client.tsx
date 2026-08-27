@@ -55,7 +55,7 @@ export function SettingsClient({ initialCode }: { initialCode: string | null }) 
           </form>
           {message && (
             <p
-              className={`mt-2 text-body-sm ${message.type === "error" ? "text-[--color-danger]" : "text-[--color-text-secondary]"}`}
+              className={`mt-2 text-body-sm ${message.type === "error" ? "text-(--color-danger)" : "text-(--color-text-secondary)"}`}
               data-testid="settings-message"
             >
               {message.text}

@@ -1,5 +1,5 @@
-import { redirect, notFound } from "next/navigation";
-import { requireSession } from "@/lib/session";
+import { notFound } from "next/navigation";
+import { requireSession, redirectToLogin } from "@/lib/session";
 import { FlowNav } from "@/components/flow-nav";
 import { prisma } from "@elio/db";
 import { findLinkableAppointments } from "@/lib/flow-service";
@@ -7,7 +7,7 @@ import { ConsultDetailClient } from "./consult-detail-client";
 
 export default async function ConsultDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToLogin();
   const { id } = await params;
   const practiceId = session.practiceId;
 
@@ -38,8 +38,8 @@ export default async function ConsultDetailPage({ params }: { params: Promise<{ 
     <div>
       <FlowNav />
       <div className="mx-auto max-w-4xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">{patientName}</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">{patientName}</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           {consult.enquiry.source ?? "Source unknown"} · captured{" "}
           {consult.enquiry.capturedAt.toLocaleDateString("en-GB")}
         </p>

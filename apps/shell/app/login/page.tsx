@@ -102,7 +102,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{step === "credentials" ? "Sign in to ELIO" : "Two-factor authentication"}</CardTitle>
@@ -139,14 +139,14 @@ export default function LoginPage() {
                 Sign in
               </Button>
               <div className="text-center">
-                <a href="/forgot-password" className="text-body-sm text-[--color-primary-600] hover:underline" data-testid="forgot-password-link">
+                <a href="/forgot-password" className="text-body-sm text-(--color-primary-600) hover:underline" data-testid="forgot-password-link">
                   Forgot your password?
                 </a>
               </div>
             </form>
           ) : (
             <form onSubmit={submitMfa} className="space-y-4" data-testid="mfa-form">
-              <p className="text-body-sm text-[--color-text-secondary]">
+              <p className="text-body-sm text-(--color-text-secondary)">
                 Enter the 6-digit code from your authenticator app.
               </p>
               <div>
@@ -169,7 +169,7 @@ export default function LoginPage() {
               <div className="text-center">
                 <button
                   type="button"
-                  className="text-body-sm text-[--color-text-secondary] hover:underline"
+                  className="text-body-sm text-(--color-text-secondary) hover:underline"
                   onClick={() => {
                     setStep("credentials");
                     setError(null);

@@ -11,8 +11,8 @@ export default async function UsersPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Users</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Users</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Everyone with access to your practice. User accounts are shared across every ELIO
           module — changes here apply everywhere, not just Plans.
         </p>

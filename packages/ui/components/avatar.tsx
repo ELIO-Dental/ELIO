@@ -22,7 +22,7 @@ export function Avatar({
   return (
     <AvatarPrimitive.Root
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-[--radius-full] bg-[--color-primary-100] font-semibold text-[--color-primary-700]",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-(--radius-full) bg-(--color-primary-100) font-semibold text-(--color-primary-700)",
         sizeClass[size],
         className
       )}

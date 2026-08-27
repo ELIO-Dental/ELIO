@@ -63,7 +63,7 @@ export function ScheduleReminderForm({ consults }: { consults: ConsultOption[] }
           <CardTitle>Schedule a reminder</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-body-sm text-[--color-text-secondary]">No open consults to schedule a reminder for.</p>
+          <p className="text-body-sm text-(--color-text-secondary)">No open consults to schedule a reminder for.</p>
         </CardContent>
       </Card>
     );
@@ -100,7 +100,7 @@ export function ScheduleReminderForm({ consults }: { consults: ConsultOption[] }
             <Input id="channel" placeholder="e.g. call, SMS, email" value={channel} onChange={(e) => setChannel(e.target.value)} />
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Schedule reminder
             </Button>

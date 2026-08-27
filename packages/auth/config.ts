@@ -22,6 +22,15 @@ class TooManyAttemptsError extends CredentialsSignin {
 }
 
 export const authConfig: NextAuthConfig = {
+  // Auth.js only auto-trusts the incoming Host header when it detects a
+  // known platform (e.g. process.env.VERCEL) — otherwise every request
+  // throws UntrustedHost and 500s. Found live: a local `next start` (no
+  // VERCEL env var) crashed on every /api/auth/session call. This app's
+  // whole architecture is multi-zone rewrites (apps/shell/next.config.ts) —
+  // effectively a reverse proxy — so relying on implicit platform detection
+  // is fragile; explicit trustHost is the Auth.js-documented setting for
+  // exactly this deployment shape.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",

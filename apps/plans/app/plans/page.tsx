@@ -17,8 +17,8 @@ export default async function PlansPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Plans</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">Membership plan models patients can enrol on.</p>
+        <h1 className="text-h2 text-(--color-text-primary)">Plans</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">Membership plan models patients can enrol on.</p>
 
         <div className="mt-6">
           <NewPlanForm />

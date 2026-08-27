@@ -87,7 +87,7 @@ export function NewDentistForm() {
             </div>
           )}
           <div className="sm:col-span-2">
-            {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Add dentist
             </Button>

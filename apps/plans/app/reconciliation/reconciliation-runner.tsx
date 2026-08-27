@@ -89,7 +89,7 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
                 className="w-40"
               />
             </div>
-            {error && <p className="text-body-sm text-[--color-danger]">{error}</p>}
+            {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
             <Button onClick={runReconciliation} loading={running} disabled={!/^\d{4}-\d{2}$/.test(period)}>
               Run reconciliation
             </Button>
@@ -101,36 +101,36 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card className="p-4">
-              <p className="text-body-sm text-[--color-text-secondary]">Expected charges</p>
-              <p className="mt-1 text-h3 tabular-nums text-[--color-text-primary]">{result.counts.expected}</p>
+              <p className="text-body-sm text-(--color-text-secondary)">Expected charges</p>
+              <p className="mt-1 text-h3 tabular-nums text-(--color-text-primary)">{result.counts.expected}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-body-sm text-[--color-text-secondary]">Local payments</p>
-              <p className="mt-1 text-h3 tabular-nums text-[--color-text-primary]">{result.counts.localPayments}</p>
+              <p className="text-body-sm text-(--color-text-secondary)">Local payments</p>
+              <p className="mt-1 text-h3 tabular-nums text-(--color-text-primary)">{result.counts.localPayments}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-body-sm text-[--color-text-secondary]">GoCardless payments</p>
-              <p className="mt-1 text-h3 tabular-nums text-[--color-text-primary]">{result.counts.gocardlessPayments}</p>
+              <p className="text-body-sm text-(--color-text-secondary)">GoCardless payments</p>
+              <p className="mt-1 text-h3 tabular-nums text-(--color-text-primary)">{result.counts.gocardlessPayments}</p>
             </Card>
             <Card className="p-4" accentColor={result.counts.mismatches > 0 ? "var(--color-danger)" : undefined}>
-              <p className="text-body-sm text-[--color-text-secondary]">Mismatches</p>
-              <p className="mt-1 text-h3 tabular-nums text-[--color-text-primary]">{result.counts.mismatches}</p>
+              <p className="text-body-sm text-(--color-text-secondary)">Mismatches</p>
+              <p className="mt-1 text-h3 tabular-nums text-(--color-text-primary)">{result.counts.mismatches}</p>
             </Card>
           </div>
 
-          <p className="text-body-sm text-[--color-text-tertiary]">
+          <p className="text-body-sm text-(--color-text-tertiary)">
             Charge window: {result.chargeWindow.from} to {result.chargeWindow.to}
           </p>
 
           {result.mismatches.length === 0 ? (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <EmptyState
                 title="No mismatches"
                 description={`${result.period} reconciles cleanly — every expected charge matches GoCardless.`}
               />
             </div>
           ) : (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -146,10 +146,10 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
                       <TableCell>
                         <Badge variant={TYPE_VARIANT[m.type]}>{m.type}</Badge>
                       </TableCell>
-                      <TableCell className="font-[--font-mono] text-body-sm">
+                      <TableCell className="font-(--font-mono) text-body-sm">
                         {m.patientPlanEnrolmentId ?? "—"}
                       </TableCell>
-                      <TableCell className="font-[--font-mono] text-body-sm">
+                      <TableCell className="font-(--font-mono) text-body-sm">
                         {m.gocardlessPaymentId ?? "—"}
                       </TableCell>
                       <TableCell className="text-body-sm">{m.detail}</TableCell>

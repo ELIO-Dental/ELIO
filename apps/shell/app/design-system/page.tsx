@@ -71,10 +71,10 @@ function ThemeToggleRow() {
 
   return (
     <div className="flex items-center gap-3">
-      <Sun className="size-4 text-[--color-text-secondary]" />
+      <Sun className="size-4 text-(--color-text-secondary)" />
       <Switch checked={dark} onCheckedChange={setDark} aria-label="Toggle dark mode" />
-      <Moon className="size-4 text-[--color-text-secondary]" />
-      <span className="text-body-sm text-[--color-text-secondary]">
+      <Moon className="size-4 text-(--color-text-secondary)" />
+      <span className="text-body-sm text-(--color-text-secondary)">
         {dark ? "Dark mode" : "Light mode"}
       </span>
     </div>
@@ -83,8 +83,8 @@ function ThemeToggleRow() {
 
 function Section({ title, id, children }: { title: string; id: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="flex flex-col gap-6 border-b border-[--color-border-subtle] py-12">
-      <h2 className="text-h2 text-[--color-text-primary]">{title}</h2>
+    <section id={id} className="flex flex-col gap-6 border-b border-(--color-border-subtle) py-12">
+      <h2 className="text-h2 text-(--color-text-primary)">{title}</h2>
       {children}
     </section>
   );
@@ -101,7 +101,7 @@ function SkeletonDemo() {
       {showSkeleton ? (
         <Skeleton className="h-24 w-full max-w-sm" />
       ) : (
-        <div className="flex h-24 w-full max-w-sm items-center justify-center rounded-[--radius-md] border border-[--color-border-subtle] text-body-sm text-[--color-text-secondary]">
+        <div className="flex h-24 w-full max-w-sm items-center justify-center rounded-(--radius-md) border border-(--color-border-subtle) text-body-sm text-(--color-text-secondary)">
           Loaded content
         </div>
       )}
@@ -126,12 +126,12 @@ export default function DesignSystemPage() {
     <main className="mx-auto max-w-5xl px-4 pb-24 sm:px-6 lg:px-8">
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} items={paletteItems} />
 
-      <header className="sticky top-0 z-[--z-index-sticky] -mx-4 flex flex-wrap items-center justify-between gap-4 border-b border-[--color-border-subtle] bg-[--color-bg]/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <header className="sticky top-0 z-(--z-index-sticky) -mx-4 flex flex-wrap items-center justify-between gap-4 border-b border-(--color-border-subtle) bg-(--color-bg)/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div>
-          <h1 className="text-h1 text-[--color-text-primary]">ELIO Design System</h1>
-          <p className="text-body-sm text-[--color-text-secondary]">
+          <h1 className="text-h1 text-(--color-text-primary)">ELIO Design System</h1>
+          <p className="text-body-sm text-(--color-text-secondary)">
             Dev-only visual QA page — every component, every state, light + dark. Press{" "}
-            <kbd className="rounded-[--radius-sm] border border-[--color-border] px-1.5 py-0.5 text-caption">Ctrl/⌘+K</kbd>{" "}
+            <kbd className="rounded-(--radius-sm) border border-(--color-border) px-1.5 py-0.5 text-caption">Ctrl/⌘+K</kbd>{" "}
             for the command palette.
           </p>
         </div>
@@ -276,10 +276,10 @@ export default function DesignSystemPage() {
                 <TableCellMoney
                   className={
                     row.status === "success"
-                      ? "text-[--color-success]"
+                      ? "text-(--color-success)"
                       : row.status === "warning"
-                        ? "text-[--color-warning]"
-                        : "text-[--color-danger]"
+                        ? "text-(--color-warning)"
+                        : "text-(--color-danger)"
                   }
                 >
                   {row.amount}
@@ -384,7 +384,7 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section title="Sidebar & App Launcher (§5.5)" id="sidebar">
-        <div className="flex h-96 w-full max-w-2xl overflow-hidden rounded-[--radius-lg] border border-[--color-border]">
+        <div className="flex h-96 w-full max-w-2xl overflow-hidden rounded-(--radius-lg) border border-(--color-border)">
           <Sidebar
             items={SIDEBAR_ITEMS}
             activeId={sidebarActive}
@@ -395,7 +395,7 @@ export default function DesignSystemPage() {
             launcher={
               <AppLauncher
                 trigger={
-                  <button className="flex size-8 items-center justify-center rounded-[--radius-sm] text-[--color-text-secondary] hover:bg-[--color-border-subtle]">
+                  <button className="flex size-8 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) hover:bg-(--color-border-subtle)">
                     <Grid3x3 className="size-4" />
                   </button>
                 }
@@ -409,7 +409,7 @@ export default function DesignSystemPage() {
               />
             }
           />
-          <div className="flex flex-1 items-center justify-center bg-[--color-bg] text-body-sm text-[--color-text-tertiary]">
+          <div className="flex flex-1 items-center justify-center bg-(--color-bg) text-body-sm text-(--color-text-tertiary)">
             Module content area
           </div>
         </div>
@@ -420,31 +420,31 @@ export default function DesignSystemPage() {
           {modules.map((m) => (
             <div
               key={m.id}
-              className="flex flex-col gap-2 rounded-[--radius-lg] border border-[--color-border-subtle] p-4"
+              className="flex flex-col gap-2 rounded-(--radius-lg) border border-(--color-border-subtle) p-4"
               style={{ borderTop: `2px solid ${m.accentBorder}` }}
             >
               <span
-                className="flex size-9 items-center justify-center rounded-[--radius-md] text-body-sm font-semibold"
+                className="flex size-9 items-center justify-center rounded-(--radius-md) text-body-sm font-semibold"
                 style={{ backgroundColor: m.badgeLight.bg, color: m.badgeLight.fg }}
               >
                 {m.name.replace("Elio", "").slice(0, 1)}
               </span>
-              <span className="text-body-sm font-medium text-[--color-text-primary]">{m.name}</span>
-              <span className="text-caption text-[--color-text-tertiary]">{m.status}</span>
-              <span className="text-caption text-[--color-text-tertiary]">{m.hex}</span>
+              <span className="text-body-sm font-medium text-(--color-text-primary)">{m.name}</span>
+              <span className="text-caption text-(--color-text-tertiary)">{m.status}</span>
+              <span className="text-caption text-(--color-text-tertiary)">{m.hex}</span>
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-6 rounded-[--radius-lg] border border-[--color-border-subtle] p-4">
+        <div className="flex flex-wrap items-center gap-6 rounded-(--radius-lg) border border-(--color-border-subtle) p-4">
           <div className="flex items-center gap-2">
-            <span className="size-6 rounded-[--radius-sm]" style={{ background: "var(--color-primary-500)" }} />
+            <span className="size-6 rounded-(--radius-sm)" style={{ background: "var(--color-primary-500)" }} />
             <span className="text-body-sm">Primary action (#7c5cfc)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-6 rounded-[--radius-sm]" style={{ background: "var(--color-module-plans)" }} />
+            <span className="size-6 rounded-(--radius-sm)" style={{ background: "var(--color-module-plans)" }} />
             <span className="text-body-sm">ElioPlans module color (#6366f1)</span>
           </div>
-          <span className="text-caption text-[--color-text-tertiary]">
+          <span className="text-caption text-(--color-text-tertiary)">
             Side-by-side check per §8.1's note — the two remain visually distinguishable.
           </span>
         </div>
@@ -452,16 +452,16 @@ export default function DesignSystemPage() {
 
       <Section title="Typography (§3)" id="typography">
         <div className="flex flex-col gap-3">
-          <p className="text-display-lg text-[--color-text-primary]">Display LG</p>
-          <p className="text-display text-[--color-text-primary]">Display</p>
-          <p className="text-h1 text-[--color-text-primary]">Heading 1</p>
-          <p className="text-h2 text-[--color-text-primary]">Heading 2</p>
-          <p className="text-h3 text-[--color-text-primary]">Heading 3</p>
-          <p className="text-body-lg text-[--color-text-primary]">Body large</p>
-          <p className="text-body text-[--color-text-primary]">Body</p>
-          <p className="text-body-sm text-[--color-text-secondary]">Body small</p>
-          <p className="text-caption text-[--color-text-tertiary]">Caption</p>
-          <p className="text-money-hero tabular-nums text-[--color-text-primary]">£12,480.00</p>
+          <p className="text-display-lg text-(--color-text-primary)">Display LG</p>
+          <p className="text-display text-(--color-text-primary)">Display</p>
+          <p className="text-h1 text-(--color-text-primary)">Heading 1</p>
+          <p className="text-h2 text-(--color-text-primary)">Heading 2</p>
+          <p className="text-h3 text-(--color-text-primary)">Heading 3</p>
+          <p className="text-body-lg text-(--color-text-primary)">Body large</p>
+          <p className="text-body text-(--color-text-primary)">Body</p>
+          <p className="text-body-sm text-(--color-text-secondary)">Body small</p>
+          <p className="text-caption text-(--color-text-tertiary)">Caption</p>
+          <p className="text-money-hero tabular-nums text-(--color-text-primary)">£12,480.00</p>
         </div>
       </Section>
     </main>

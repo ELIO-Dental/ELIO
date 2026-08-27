@@ -41,22 +41,22 @@ export default async function PaymentsPage({
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Payments</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Payments</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Every recurring membership charge recorded for this practice.
         </p>
 
         <div className="mt-8">
           <PaymentsFilterBar />
           {payments.length === 0 ? (
-            <div className="rounded-b-[--radius-lg] border border-t-0 border-[--color-border]">
+            <div className="rounded-b-(--radius-lg) border border-t-0 border-(--color-border)">
               <EmptyState
                 title="No payments match"
                 description="Payments will appear here once billing periods run, or clear your filters."
               />
             </div>
           ) : (
-            <div className="rounded-b-[--radius-lg] border border-t-0 border-[--color-border]">
+            <div className="rounded-b-(--radius-lg) border border-t-0 border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -76,11 +76,11 @@ export default async function PaymentsPage({
                       <TableRow key={p.id}>
                         <TableCell>{name}</TableCell>
                         <TableCell>{p.billingPeriod ?? "—"}</TableCell>
-                        <TableCell className="tabular-nums font-[--font-mono]">{money(p.amountPence)}</TableCell>
+                        <TableCell className="tabular-nums font-(--font-mono)">{money(p.amountPence)}</TableCell>
                         <TableCell>
                           <Badge variant={STATUS_VARIANT[p.status] ?? "neutral"}>{p.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-[--color-text-tertiary]">
+                        <TableCell className="text-(--color-text-tertiary)">
                           {p.createdAt.toISOString().slice(0, 10)}
                         </TableCell>
                       </TableRow>

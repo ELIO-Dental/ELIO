@@ -62,8 +62,8 @@ export default async function ReportsPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Reports</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Reports</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Summary of plan performance for billing period <strong>{period}</strong>.
         </p>
 
@@ -75,10 +75,10 @@ export default async function ReportsPage() {
         </div>
 
         <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <p className="text-caption text-[--color-text-tertiary] sm:col-start-3">
+          <p className="text-caption text-(--color-text-tertiary) sm:col-start-3">
             {churnRate.toFixed(1)}% of all plan patients ({cancelledPatients} of {allPatients})
           </p>
-          <p className="text-caption text-[--color-text-tertiary]">
+          <p className="text-caption text-(--color-text-tertiary)">
             {successfulPaymentsThisPeriod} of {totalPaymentsThisPeriod} payments succeeded ({pct(successRate)})
           </p>
         </div>
@@ -89,16 +89,16 @@ export default async function ReportsPage() {
           </CardHeader>
           <CardContent>
             {revenueByPlan.size === 0 ? (
-              <p className="text-body-sm text-[--color-text-secondary]">No active plan enrolments yet.</p>
+              <p className="text-body-sm text-(--color-text-secondary)">No active plan enrolments yet.</p>
             ) : (
-              <ul className="divide-y divide-[--color-border-subtle]">
+              <ul className="divide-y divide-(--color-border-subtle)">
                 {Array.from(revenueByPlan.entries()).map(([name, entry]) => (
                   <li key={name} className="flex items-center justify-between py-3">
                     <div>
-                      <span className="text-body-sm text-[--color-text-primary]">{name}</span>
-                      <span className="ml-2 text-body-sm text-[--color-text-tertiary]">{entry.count} patients</span>
+                      <span className="text-body-sm text-(--color-text-primary)">{name}</span>
+                      <span className="ml-2 text-body-sm text-(--color-text-tertiary)">{entry.count} patients</span>
                     </div>
-                    <span className="tabular-nums font-[--font-mono] text-body-sm text-[--color-text-primary]">
+                    <span className="tabular-nums font-(--font-mono) text-body-sm text-(--color-text-primary)">
                       £{(entry.pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
                     </span>
                   </li>
@@ -114,20 +114,20 @@ export default async function ReportsPage() {
           </CardHeader>
           <CardContent>
             {paymentCounts.length === 0 ? (
-              <p className="text-body-sm text-[--color-text-secondary]">No payments recorded for {period} yet.</p>
+              <p className="text-body-sm text-(--color-text-secondary)">No payments recorded for {period} yet.</p>
             ) : (
-              <ul className="divide-y divide-[--color-border-subtle]">
+              <ul className="divide-y divide-(--color-border-subtle)">
                 {paymentCounts.map((g) => (
                   <li key={g.status} className="flex items-center justify-between py-3">
-                    <span className="text-body-sm text-[--color-text-primary]">{g.status}</span>
-                    <span className="tabular-nums font-[--font-mono] text-body-sm text-[--color-text-secondary]">
+                    <span className="text-body-sm text-(--color-text-primary)">{g.status}</span>
+                    <span className="tabular-nums font-(--font-mono) text-body-sm text-(--color-text-secondary)">
                       {g._count}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-3 text-caption text-[--color-text-tertiary]">
+            <p className="mt-3 text-caption text-(--color-text-tertiary)">
               Collected so far this period:{" "}
               £{((paymentsThisPeriod._sum.amountPence ?? 0) / 100).toLocaleString("en-GB", {
                 minimumFractionDigits: 2,

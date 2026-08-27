@@ -121,7 +121,7 @@ export function LabBillsClient({
                 <Input id="description" name="description" placeholder="e.g. Crown - John Smith" />
               </div>
               <div className="sm:col-span-2">
-                {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+                {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
                 <Button type="submit" loading={submitting}>
                   Add lab bill
                 </Button>
@@ -132,7 +132,7 @@ export function LabBillsClient({
       </div>
 
       <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-h3 text-[--color-text-primary]">All lab bills</h2>
+        <h2 className="text-h3 text-(--color-text-primary)">All lab bills</h2>
         <div className="w-64">
           <Select value={filterDentistId} onValueChange={setFilterDentistId}>
             <SelectTrigger>

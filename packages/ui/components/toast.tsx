@@ -13,13 +13,13 @@ export function Toaster() {
         duration: 4000,
         classNames: {
           toast:
-            "rounded-[--radius-lg]! border! border-[--color-border-subtle]! bg-[--color-surface-raised]! shadow-[--shadow-md]! text-[--color-text-primary]! font-[--font-sans]!",
+            "rounded-(--radius-lg)! border! border-(--color-border-subtle)! bg-(--color-surface-raised)! shadow-(--shadow-md)! text-(--color-text-primary)! font-(--font-sans)!",
           title: "text-body-sm! font-medium!",
-          description: "text-caption! text-[--color-text-secondary]!",
-          success: "border-l-4! border-l-[--color-success]!",
-          error: "border-l-4! border-l-[--color-danger]!",
-          warning: "border-l-4! border-l-[--color-warning]!",
-          info: "border-l-4! border-l-[--color-info]!",
+          description: "text-caption! text-(--color-text-secondary)!",
+          success: "border-l-4! border-l-(--color-success)!",
+          error: "border-l-4! border-l-(--color-danger)!",
+          warning: "border-l-4! border-l-(--color-warning)!",
+          info: "border-l-4! border-l-(--color-info)!",
         },
       }}
       // Errors get manual dismiss + a longer floor per §5.8 — callers pass duration:Infinity or 8000 explicitly.

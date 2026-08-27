@@ -39,14 +39,14 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
     <motion.aside
       animate={{ width: collapsed ? 72 : 240 }}
       transition={{ duration: duration.base / 1000, ease: easing.out }}
-      className="flex h-full flex-col border-r border-[--color-border] bg-[--color-bg-subtle]"
+      className="flex h-full flex-col border-r border-(--color-border) bg-(--color-bg-subtle)"
     >
       <div className="flex h-16 items-center justify-between px-3">
         {!collapsed && launcher}
         <button
           onClick={() => onCollapsedChange(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="ml-auto flex size-8 items-center justify-center rounded-[--radius-sm] text-[--color-text-secondary] transition-colors hover:bg-[--color-border-subtle] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--color-primary-500]"
+          className="ml-auto flex size-8 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)"
         >
           {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
         </button>
@@ -67,8 +67,8 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
                 }
               }}
               className={cn(
-                "relative flex h-10 items-center gap-3 rounded-[--radius-md] px-3 text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--color-primary-500]",
-                isActive ? "text-[--color-text-primary]" : "text-[--color-text-secondary] hover:bg-[--color-border-subtle]"
+                "relative flex h-10 items-center gap-3 rounded-(--radius-md) px-3 text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)",
+                isActive ? "text-(--color-text-primary)" : "text-(--color-text-secondary) hover:bg-(--color-border-subtle)"
               )}
               style={isActive ? { backgroundColor: moduleColor.badgeLight.bg, color: moduleColor.hex } : undefined}
               aria-current={isActive ? "page" : undefined}
@@ -76,7 +76,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
               {isActive && (
                 <motion.span
                   layoutId="sidebar-active-accent"
-                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-[--radius-full]"
+                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-(--radius-full)"
                   style={{ backgroundColor: moduleColor.hex }}
                   transition={easing.spring}
                 />
@@ -100,7 +100,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
         })}
       </nav>
 
-      {footer && <div className="border-t border-[--color-border] p-2">{footer}</div>}
+      {footer && <div className="border-t border-(--color-border) p-2">{footer}</div>}
     </motion.aside>
   );
 }
@@ -130,20 +130,20 @@ export function AppLauncher({ tiles, trigger }: { tiles: LauncherTile[]; trigger
                 aria-disabled={!tile.licensed}
                 title={!tile.licensed ? "Contact admin to enable" : undefined}
                 className={cn(
-                  "relative flex flex-col gap-2 rounded-[--radius-md] border border-[--color-border-subtle] p-3 transition-colors",
-                  tile.licensed ? "cursor-pointer hover:bg-[--color-bg-subtle]" : "cursor-not-allowed grayscale opacity-60"
+                  "relative flex flex-col gap-2 rounded-(--radius-md) border border-(--color-border-subtle) p-3 transition-colors",
+                  tile.licensed ? "cursor-pointer hover:bg-(--color-bg-subtle)" : "cursor-not-allowed grayscale opacity-60"
                 )}
               >
                 <span
-                  className="flex size-8 items-center justify-center rounded-[--radius-md] text-body-sm font-semibold"
+                  className="flex size-8 items-center justify-center rounded-(--radius-md) text-body-sm font-semibold"
                   style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
                 >
                   {tile.name.replace("Elio", "").slice(0, 1)}
                 </span>
-                <span className="text-body-sm font-medium text-[--color-text-primary]">{tile.name}</span>
-                <span className="text-caption text-[--color-text-tertiary]">{tile.description}</span>
+                <span className="text-body-sm font-medium text-(--color-text-primary)">{tile.name}</span>
+                <span className="text-caption text-(--color-text-tertiary)">{tile.description}</span>
                 {!tile.licensed && (
-                  <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-[--radius-full] bg-[--color-bg-subtle] text-[--color-text-tertiary]">
+                  <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-(--radius-full) bg-(--color-bg-subtle) text-(--color-text-tertiary)">
                     <Lock className="size-3" />
                   </span>
                 )}

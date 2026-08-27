@@ -162,11 +162,11 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
             ref={(el) => {
               columnRefs.current[key] = el;
             }}
-            className="flex min-h-[16rem] flex-col rounded-[--radius-lg] border border-[--color-border-subtle] bg-[--color-bg-subtle] p-3"
+            className="flex min-h-[16rem] flex-col rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle) p-3"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-body-sm font-medium text-[--color-text-primary]">{label}</h2>
-              <span className="rounded-[--radius-full] bg-[--color-surface] px-2 py-0.5 text-caption text-[--color-text-tertiary]">
+              <h2 className="text-body-sm font-medium text-(--color-text-primary)">{label}</h2>
+              <span className="rounded-(--radius-full) bg-(--color-surface) px-2 py-0.5 text-caption text-(--color-text-tertiary)">
                 {cards.length}
               </span>
             </div>
@@ -183,16 +183,16 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
                   onDragEnd={(_e, info) => handleDragEnd(card.id, info)}
                   whileDrag={{ scale: 1.02, rotate: 2, boxShadow: "var(--shadow-lg)", zIndex: 50 }}
                   transition={easing.springSnappy}
-                  className="cursor-grab rounded-[--radius-md] border border-[--color-border-subtle] bg-[--color-surface] p-3 shadow-[--shadow-xs] active:cursor-grabbing"
+                  className="cursor-grab rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-3 shadow-(--shadow-xs) active:cursor-grabbing"
                   style={draggingId === card.id ? { position: "relative" } : undefined}
                 >
-                  <p className="text-body-sm font-medium text-[--color-text-primary]">{card.patientName}</p>
+                  <p className="text-body-sm font-medium text-(--color-text-primary)">{card.patientName}</p>
                   {card.kind === "enquiry" ? (
-                    <p className="mt-1 text-caption text-[--color-text-tertiary]">
+                    <p className="mt-1 text-caption text-(--color-text-tertiary)">
                       {card.source ?? "Source unknown"} · {new Date(card.capturedAt).toLocaleDateString("en-GB")}
                     </p>
                   ) : (
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-[--color-text-tertiary]">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-(--color-text-tertiary)">
                       {money(card.quotePence) && <span style={{ color: color.hex }}>{money(card.quotePence)}</span>}
                       {card.practitionerName && <span>{card.practitionerName}</span>}
                       <span>{card.daysSinceConsult}d since consult</span>
@@ -209,7 +209,7 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
                       </a>
                       {card.outcome === "ACCEPTED" &&
                         (card.planSignedUp ? (
-                          <span className="text-caption text-[--color-text-tertiary]">ElioPlans signup started</span>
+                          <span className="text-caption text-(--color-text-tertiary)">ElioPlans signup started</span>
                         ) : (
                           <Button
                             size="sm"
@@ -225,7 +225,7 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
                 </motion.div>
               ))}
               {cards.length === 0 && (
-                <p className="rounded-[--radius-md] border border-dashed border-[--color-border] p-3 text-center text-caption text-[--color-text-tertiary]">
+                <p className="rounded-(--radius-md) border border-dashed border-(--color-border) p-3 text-center text-caption text-(--color-text-tertiary)">
                   Drop here
                 </p>
               )}

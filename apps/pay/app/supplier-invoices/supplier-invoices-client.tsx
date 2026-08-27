@@ -129,7 +129,7 @@ export function SupplierInvoicesClient({
                 <Input id="description" name="description" placeholder="e.g. Dental supplies order" />
               </div>
               <div className="sm:col-span-2">
-                {error && <p className="mb-2 text-body-sm text-[--color-danger]">{error}</p>}
+                {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
                 <Button type="submit" loading={submitting}>
                   Add supplier invoice
                 </Button>
@@ -140,7 +140,7 @@ export function SupplierInvoicesClient({
       </div>
 
       <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-h3 text-[--color-text-primary]">All supplier invoices</h2>
+        <h2 className="text-h3 text-(--color-text-primary)">All supplier invoices</h2>
         <div className="w-64">
           <Input
             placeholder="Filter by supplier name"

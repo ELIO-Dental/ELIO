@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/session";
+import { requireSession, redirectToLogin } from "@/lib/session";
 import { FlowNav } from "@/components/flow-nav";
 import { prisma } from "@elio/db";
 import { EmptyState } from "@elio/ui";
@@ -8,7 +7,7 @@ import { ScheduleReminderForm } from "./schedule-reminder-form";
 
 export default async function RemindersPage() {
   const session = await requireSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToLogin();
   const practiceId = session.practiceId;
 
   const [reminders, openConsults] = await Promise.all([
@@ -37,8 +36,8 @@ export default async function RemindersPage() {
     <div>
       <FlowNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Reminders</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Reminders</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Outstanding follow-ups, soonest due first.
         </p>
 
@@ -53,7 +52,7 @@ export default async function RemindersPage() {
 
         <div className="mt-8">
           {rows.length === 0 ? (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <EmptyState title="No outstanding reminders" description="Scheduled follow-ups awaiting contact will appear here." />
             </div>
           ) : (

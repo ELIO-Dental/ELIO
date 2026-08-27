@@ -20,19 +20,19 @@ export default async function RedeemsPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Redeems</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Redeems</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Benefit redemption requests. Approving or rejecting a pending redeem is recorded in
           the audit log.
         </p>
 
         <div className="mt-8">
           {redeems.length === 0 ? (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <EmptyState title="No redeems yet" description="Redemption requests will appear here." />
             </div>
           ) : (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -53,19 +53,19 @@ export default async function RedeemsPage() {
                         <TableCell>{name}</TableCell>
                         <TableCell>
                           {r.itemName}
-                          <span className="ml-2 text-body-sm text-[--color-text-tertiary]">{r.itemType}</span>
+                          <span className="ml-2 text-body-sm text-(--color-text-tertiary)">{r.itemType}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_VARIANT[r.status] ?? "neutral"}>{r.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-[--color-text-tertiary]">
+                        <TableCell className="text-(--color-text-tertiary)">
                           {r.createdAt.toISOString().slice(0, 10)}
                         </TableCell>
                         <TableCell>
                           {r.status === "PENDING_APPROVAL" ? (
                             <RedeemActions redeemId={r.id} />
                           ) : (
-                            <span className="text-body-sm text-[--color-text-tertiary]">
+                            <span className="text-body-sm text-(--color-text-tertiary)">
                               {r.status === "APPROVED" ? "Approved" : r.status === "REJECTED" ? "Rejected" : "—"}
                             </span>
                           )}

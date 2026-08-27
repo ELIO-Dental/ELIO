@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import "./globals.css";
 import { Toaster, PageTransition } from "@elio/ui";
 import { isModuleLicensed } from "@elio/auth";
-import { requireSession } from "@/lib/session";
+import { requireSession, redirectToLauncher } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "ELIO",
@@ -22,7 +21,7 @@ export default async function RootLayout({
   // see apps/pay/middleware.ts's comment for the full investigation).
   const session = await requireSession();
   if (session && !(await isModuleLicensed(session.practiceId, "FLOW"))) {
-    redirect("/launcher?unlicensed=flow");
+    await redirectToLauncher("unlicensed=flow");
   }
 
   return (

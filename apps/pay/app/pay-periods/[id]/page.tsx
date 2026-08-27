@@ -1,8 +1,9 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
 import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from "@elio/ui";
 import { PayNav } from "@/components/pay-nav";
+import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
@@ -14,7 +15,7 @@ function gbp(pence: number | null | undefined) {
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
   const { id } = await params;
 
   const db = scopedDb(session.practiceId);
@@ -40,15 +41,15 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       <PayNav isOwner={session.role === "OWNER"} />
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center gap-3">
-          <h1 className="text-h2 text-[--color-text-primary]">
+          <h1 className="text-h2 text-(--color-text-primary)">
             {payPeriod.periodStart.toISOString().slice(0, 10)} – {payPeriod.periodEnd.toISOString().slice(0, 10)}
           </h1>
           <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>{payPeriod.status}</Badge>
         </div>
 
         <section className="mt-8">
-          <h2 className="text-h3 text-[--color-text-primary]">Compass statement</h2>
-          <p className="mt-1 text-body-sm text-[--color-text-secondary]">
+          <h2 className="text-h3 text-(--color-text-primary)">Compass statement</h2>
+          <p className="mt-1 text-body-sm text-(--color-text-secondary)">
             Upload the NHSBSA Contract Monthly Pay Statement PDF for this period (§6.2).
           </p>
           <div className="mt-4">
@@ -67,7 +68,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         </section>
 
         <section className="mt-10">
-          <h2 className="text-h3 text-[--color-text-primary]">Run &amp; lock</h2>
+          <h2 className="text-h3 text-(--color-text-primary)">Run &amp; lock</h2>
           <CalculateAndLockPanel
             payPeriodId={payPeriod.id}
             dentists={dentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
@@ -76,20 +77,20 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         </section>
 
         <section className="mt-10">
-          <h2 className="text-h3 text-[--color-text-primary]">Payslips</h2>
+          <h2 className="text-h3 text-(--color-text-primary)">Payslips</h2>
           {payPeriod.payslipEntries.length === 0 ? (
             <EmptyState title="No payslips calculated yet" description="Run the calculation above once Compass data is loaded." className="mt-4" />
           ) : (
             <div className="mt-4 space-y-6">
               {payPeriod.payslipEntries.map((p) => (
-                <div key={p.id} className="rounded-[--radius-lg] border border-[--color-border] p-4">
+                <div key={p.id} className="rounded-(--radius-lg) border border-(--color-border) p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-body font-semibold">{p.dentist.name}</span>
                     <div className="flex items-center gap-4">
                       <span className="text-money font-semibold tabular-nums">{gbp(p.finalPayPence)}</span>
                       <a
                         href={`/pay/api/payslips/${p.id}/pdf`}
-                        className="text-body-sm font-medium text-[--color-brand] underline underline-offset-2"
+                        className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
                       >
                         Download PDF
                       </a>

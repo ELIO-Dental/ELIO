@@ -21,14 +21,14 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Reset your password</CardTitle>
         </CardHeader>
         <CardContent>
           {submitted ? (
-            <p className="text-body-sm text-[--color-text-secondary]" data-testid="forgot-password-confirmation">
+            <p className="text-body-sm text-(--color-text-secondary)" data-testid="forgot-password-confirmation">
               If an account exists for that email, we&apos;ve sent a link to reset your password. It expires in 1
               hour.
             </p>
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
                 Send reset link
               </Button>
               <div className="text-center">
-                <a href="/login" className="text-body-sm text-[--color-primary-600] hover:underline">
+                <a href="/login" className="text-body-sm text-(--color-primary-600) hover:underline">
                   Back to sign in
                 </a>
               </div>

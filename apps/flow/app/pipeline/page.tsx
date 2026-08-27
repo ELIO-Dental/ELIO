@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/session";
+import { requireSession, redirectToLogin } from "@/lib/session";
 import { FlowNav } from "@/components/flow-nav";
 import { listPipeline } from "@/lib/flow-service";
 import { PipelineEmptyState } from "@/components/pipeline-empty-state";
@@ -7,7 +6,7 @@ import { PipelineBoard, type PipelineData } from "./pipeline-board";
 
 export default async function PipelinePage() {
   const session = await requireSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToLogin();
 
   const columns = await listPipeline(session.practiceId);
 
@@ -40,8 +39,8 @@ export default async function PipelinePage() {
     <div>
       <FlowNav />
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Pipeline</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Pipeline</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Enquiry-to-consult funnel. Drag a card to move it between stages.
         </p>
 

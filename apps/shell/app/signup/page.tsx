@@ -89,7 +89,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[--color-bg] px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4 py-12">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Create your ELIO account</CardTitle>
@@ -117,7 +117,7 @@ export default function SignupPage() {
                   onChange={(e) => setAdminPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-body-sm text-[--color-danger]">{error}</p>}
+              {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
               <Button className="w-full" onClick={goNext} data-testid="signup-next">
                 Continue
               </Button>
@@ -126,7 +126,7 @@ export default function SignupPage() {
 
           {stepIndex === 1 && (
             <div className="space-y-4" data-testid="signup-step-dentally">
-              <p className="text-body-sm text-[--color-text-secondary]">
+              <p className="text-body-sm text-(--color-text-secondary)">
                 Enter your practice's own Dentally API key to sync patients and appointments. You can skip this and connect it later from Settings.
               </p>
               <div>
@@ -146,7 +146,7 @@ export default function SignupPage() {
 
           {stepIndex === 2 && (
             <div className="space-y-4" data-testid="signup-step-modules">
-              <p className="text-body-sm text-[--color-text-secondary]">
+              <p className="text-body-sm text-(--color-text-secondary)">
                 Choose which modules to try. Each starts its own independent 7-day trial.
               </p>
               <div className="space-y-2">
@@ -159,27 +159,27 @@ export default function SignupPage() {
                       type="button"
                       onClick={() => toggleModule(mod.id)}
                       data-testid={`signup-module-${mod.id.toLowerCase()}`}
-                      className="flex w-full items-center gap-3 rounded-[--radius-lg] border p-4 text-left transition-colors"
+                      className="flex w-full items-center gap-3 rounded-(--radius-lg) border p-4 text-left transition-colors"
                       style={{
                         borderColor: checked ? color.hex : "var(--color-border)",
                         backgroundColor: checked ? color.badgeLight.bg : "var(--color-surface)",
                       }}
                     >
                       <span
-                        className="flex size-9 shrink-0 items-center justify-center rounded-[--radius-md] text-body-sm font-semibold"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) text-body-sm font-semibold"
                         style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
                       >
                         {mod.name.replace("Elio", "").slice(0, 1)}
                       </span>
                       <span>
-                        <span className="block text-body font-medium text-[--color-text-primary]">{mod.name}</span>
-                        <span className="block text-body-sm text-[--color-text-secondary]">{mod.description}</span>
+                        <span className="block text-body font-medium text-(--color-text-primary)">{mod.name}</span>
+                        <span className="block text-body-sm text-(--color-text-secondary)">{mod.description}</span>
                       </span>
                     </button>
                   );
                 })}
               </div>
-              {error && <p className="text-body-sm text-[--color-danger]">{error}</p>}
+              {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={goBack} className="flex-1">
                   Back

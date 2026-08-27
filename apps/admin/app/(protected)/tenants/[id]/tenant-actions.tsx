@@ -136,7 +136,7 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
               </Button>
             </div>
           </div>
-          <div className="flex items-center justify-between border-t border-[--color-border-subtle] pt-4">
+          <div className="flex items-center justify-between border-t border-(--color-border-subtle) pt-4">
             <Label htmlFor="suspend">{suspendedState ? "Suspended" : "Active"}</Label>
             <Button variant={suspendedState ? "primary" : "destructive"} size="sm" onClick={onToggleSuspend} loading={togglingSuspend} data-testid="suspend-toggle">
               {suspendedState ? "Reactivate" : "Suspend"}
@@ -150,11 +150,11 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
           <CardTitle>Feature flags</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {flagState.length === 0 && <p className="text-body-sm text-[--color-text-secondary]">No feature flags defined yet.</p>}
+          {flagState.length === 0 && <p className="text-body-sm text-(--color-text-secondary)">No feature flags defined yet.</p>}
           {flagState.map((f) => (
             <div key={f.id} className="flex items-center justify-between">
               <Label htmlFor={`flag-${f.id}`}>
-                {f.name} <span className="text-[--color-text-tertiary]">({f.key})</span>
+                {f.name} <span className="text-(--color-text-tertiary)">({f.key})</span>
               </Label>
               <Switch
                 id={`flag-${f.id}`}

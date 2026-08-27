@@ -22,7 +22,7 @@ export function SuccessCheck({ className, size = 72 }: { className?: string; siz
       transition={{ duration: duration.slow / 1000, ease: easing.out }}
     >
       <motion.div
-        className="absolute inset-0 rounded-full bg-[--color-success]/15"
+        className="absolute inset-0 rounded-full bg-(--color-success)/15"
         animate={{ boxShadow: ["0 0 0 0 var(--color-success)", "0 0 0 14px transparent"] }}
         transition={{ duration: duration.slower / 1000, ease: easing.out, repeat: 1, repeatDelay: 0.15 }}
         aria-hidden

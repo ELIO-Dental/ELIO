@@ -8,6 +8,17 @@
 
 @import "tailwindcss";
 
+/* Every app imports this file via a node_modules symlink (workspace package),
+ * and Tailwind v4's automatic content scanning excludes node_modules by
+ * default — so without this, classes used inside packages/ui's own component
+ * files (Button, Card, Input, ...) never get generated into any app's CSS,
+ * even though those same components render fine (structurally) in every app.
+ * This was found live: the deployed login page rendered with zero Tailwind
+ * styling because Card/Button/Input/Label's own classes were silently
+ * missing from the compiled output. */
+@source "./components";
+@source "./lib";
+
 @theme {
   /* ---------------------------------------------------------------------
    * §2.2 Primary scale

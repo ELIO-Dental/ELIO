@@ -27,7 +27,7 @@ export function PlansNav() {
   const color = getModuleColor("plans");
 
   return (
-    <div className="border-b border-[--color-border]" style={{ borderTopColor: color.accentBorder, borderTopWidth: 2 }}>
+    <div className="border-b border-(--color-border)" style={{ borderTopColor: color.accentBorder, borderTopWidth: 2 }}>
       <nav className="mx-auto flex max-w-6xl flex-wrap gap-1 px-6">
         {LINKS.map((link) => {
           const active = pathname?.startsWith(link.href);
@@ -35,7 +35,7 @@ export function PlansNav() {
             <a
               key={link.href}
               href={link.href}
-              className="relative flex h-12 items-center px-3 text-body-sm font-medium text-[--color-text-secondary] transition-colors hover:text-[--color-text-primary]"
+              className="relative flex h-12 items-center px-3 text-body-sm font-medium text-(--color-text-secondary) transition-colors hover:text-(--color-text-primary)"
               style={active ? { color: color.hex } : undefined}
               aria-current={active ? "page" : undefined}
             >

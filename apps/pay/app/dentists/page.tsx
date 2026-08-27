@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from "@elio/ui";
@@ -7,7 +7,7 @@ import { NewDentistForm } from "./new-dentist-form";
 
 export default async function DentistsPage() {
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
 
   const db = scopedDb(session.practiceId);
   const dentists = await db.dentist.findMany({ orderBy: { name: "asc" } });
@@ -17,7 +17,7 @@ export default async function DentistsPage() {
       <PayNav isOwner={session.role === "OWNER"} />
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-[--color-text-primary]">Dentists</h1>
+          <h1 className="text-h2 text-(--color-text-primary)">Dentists</h1>
         </div>
 
         <div className="mt-6">

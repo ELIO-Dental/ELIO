@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { geistSans, geistMono, Toaster, PageTransition } from "@elio/ui";
 import { auth, isModuleLicensed } from "@elio/auth";
 import { prisma } from "@elio/db";
@@ -32,9 +32,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // once, at the layout level, covers every page under this app without
   // repeating it per-page, and is the layer this build actually relies on.
   const session = await auth();
-  if (!session?.practiceId) redirect("/login");
+  if (!session?.practiceId) return redirectToLogin();
   if (!(await isModuleLicensed(session.practiceId, "PAY"))) {
-    redirect("/launcher?unlicensed=pay");
+    await redirectToLauncher("unlicensed=pay");
   }
 
   const practice = await prisma.practice.findUnique({

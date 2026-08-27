@@ -22,21 +22,21 @@ export default async function DocumentsPage() {
     <div>
       <PlansNav />
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-[--color-text-primary]">Documents</h1>
-        <p className="mt-1 text-body text-[--color-text-secondary]">
+        <h1 className="text-h2 text-(--color-text-primary)">Documents</h1>
+        <p className="mt-1 text-body text-(--color-text-secondary)">
           Terms &amp; conditions and plan agreements, with acceptance and e-signing status.
         </p>
 
         <div className="mt-8">
           {documents.length === 0 ? (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <DocumentsEmptyState
                 title="No documents yet"
                 description="Terms & conditions and plan agreements will appear here once created."
               />
             </div>
           ) : (
-            <div className="rounded-[--radius-lg] border border-[--color-border]">
+            <div className="rounded-(--radius-lg) border border-(--color-border)">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -58,17 +58,17 @@ export default async function DocumentsPage() {
                         <TableCell>
                           <Badge variant="neutral">{doc.type.replace(/_/g, " ")}</Badge>
                         </TableCell>
-                        <TableCell className="text-[--color-text-secondary]">{doc.version}</TableCell>
+                        <TableCell className="text-(--color-text-secondary)">{doc.version}</TableCell>
                         <TableCell>
                           <Badge variant={doc.isActive ? "success" : "neutral"}>
                             {doc.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-[--color-text-tertiary]">
+                        <TableCell className="text-(--color-text-tertiary)">
                           {doc.effectiveDate.toISOString().slice(0, 10)}
                         </TableCell>
-                        <TableCell className="tabular-nums font-[--font-mono]">{doc._count.acceptances}</TableCell>
-                        <TableCell className="tabular-nums font-[--font-mono]">
+                        <TableCell className="tabular-nums font-(--font-mono)">{doc._count.acceptances}</TableCell>
+                        <TableCell className="tabular-nums font-(--font-mono)">
                           {signedCount} / {doc._count.signingRequests} signed
                         </TableCell>
                       </TableRow>
