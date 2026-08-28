@@ -38,9 +38,9 @@ scripts/migrations/google-credentials.json
 # internal planning/context docs — not part of the shipped codebase
 project-docs/
 
-# generated Prisma client — regenerated fresh by the root "postinstall" script
-# on every `npm install` (dev machine or Vercel build), never committed.
-# Found live (2026-08-28): a committed Windows-only client crashed every
-# deployed app's first real DB query on Vercel's Linux runtime — see
-# packages/db/prisma/schema.prisma's binaryTargets comment for the full story.
-packages/db/generated/
+# Prisma client generates to its DEFAULT location (node_modules/.prisma,
+# node_modules/@prisma/client) — see packages/db/prisma/schema.prisma's
+# generator comment for why the earlier custom `output` path was abandoned.
+# It's regenerated fresh by the root "postinstall" script on every
+# `npm install` (dev machine or Vercel build), already covered by the
+# node_modules/ ignore above — no separate entry needed.

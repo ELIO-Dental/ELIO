@@ -5,7 +5,7 @@
 import bcrypt from "bcryptjs";
 import { Secret, TOTP } from "otpauth";
 import { prisma } from "./client";
-import type { ModuleId, Role } from "./generated/client";
+import type { ModuleId, Role } from "@prisma/client";
 
 // Mirrors packages/auth/lib/mfa.ts's generateMfaSecret()/mfaOtpAuthUrl()
 // exactly (same otpauth config: SHA1, 6 digits, 30s period) rather than

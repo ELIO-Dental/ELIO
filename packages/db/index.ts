@@ -7,6 +7,6 @@
 // client is for: the seed script, migration tooling, and apps/admin's
 // legitimately cross-tenant Super Admin views.
 export { prisma } from "./client";
-export * from "./generated/client";
+export * from "@prisma/client";
 export { scopedDb } from "./tenant";
 export type { ScopedDb } from "./tenant";

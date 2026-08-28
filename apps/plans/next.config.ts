@@ -12,15 +12,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   basePath: "/plans",
   transpilePackages: ["@elio/ui"],
-  // See apps/shell/next.config.ts's identical comment — Next's file tracer
-  // doesn't reliably include Prisma's native engine binary from a custom
-  // `output` path, causing every deployed DB query to crash on Vercel.
-  outputFileTracingIncludes: {
-    "/**": [
-      "../../packages/db/generated/client/**",
-      "packages/db/generated/client/**",
-    ],
-  },
 };
 
 export default nextConfig;

@@ -16,16 +16,23 @@
 // variable propagation risk).
 
 generator client {
-  provider      = "prisma-client-js"
-  output        = "../generated/client"
-  // "native" covers local dev (Windows, where this schema was authored);
-  // "rhel-openssl-3.0.x" is Vercel's serverless Linux runtime. Found live
-  // (2026-08-28): without this, `prisma generate` only bundled the Windows
-  // engine binary, so every deployed app crashed on its first real DB query
-  // with PrismaClientInitializationError ("could not locate the Query Engine
-  // for runtime rhel-openssl-3.0.x") — surfaced misleadingly through
-  // NextAuth's login flow as a generic "Configuration"/"Incorrect email or
-  // password" error, nothing to do with credentials at all.
+  provider = "prisma-client-js"
+  // Deliberately NOT a custom `output` path (was "../generated/client").
+  // Found live (2026-08-28), a two-part bug chased through several rounds
+  // of real deployment testing: (1) missing binaryTargets meant only the
+  // Windows engine got bundled at all — fixed by adding "rhel-openssl-3.0.x"
+  // below. (2) even after that, and even after confirming via a live debug
+  // route that the correct .so.node file WAS present in the deployed
+  // function's filesystem, every real query still crashed with the same
+  // "could not locate the Query Engine" error — because Prisma's generated
+  // client resolves its own engine path relative to where NEXT.JS'S BUNDLER
+  // physically placed the compiled chunk at build time, which does NOT
+  // match the original packages/db/generated/client/ location once a
+  // custom `output` path gets bundled by Turbopack/webpack. The DEFAULT
+  // output location (node_modules/.prisma/client) has real, tested,
+  // Prisma-documented special-case support in Next.js's own file tracer for
+  // exactly this reason — every other combination silently breaks under a
+  // bundler. binaryTargets below still applies at the default location too.
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
