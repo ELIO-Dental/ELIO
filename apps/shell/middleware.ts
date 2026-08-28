@@ -19,7 +19,7 @@ import { auth } from "@elio/auth";
 // the request arrives with no valid shell session yet, and this route's own
 // token-based check (redeemImpersonationHandoff) is what actually gates it,
 // not a staff session.
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/signup", "/api/public/signup", "/api/impersonate/start", "/api/_debug_fs"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/signup", "/api/public/signup", "/api/impersonate/start", "/api/debugfs123"];
 // The apps/plans patient signup flow (MASTER_BUILD_GUIDE.md §1.7) is reached
 // through this shell's /plans/* rewrite. It authenticates via its own
 // PlanSigningRequest token in the URL, not a staff session, so this gate
