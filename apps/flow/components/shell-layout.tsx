@@ -1,11 +1,12 @@
 "use client";
 
-// Local copy of apps/shell's ShellLayout, adapted for this zone. Each module
-// app in the multi-zone architecture (see next.config.ts) renders its own
-// copy built from the SAME shared @elio/ui primitives (Sidebar, AppLauncher,
-// DropdownMenu) rather than importing apps/shell/components directly — the
-// two apps are separate Next.js deployments, so a cross-app component import
-// isn't available; @elio/ui is the shared surface, not apps/shell itself.
+// Local copy of apps/shell's ShellLayout, adapted for this zone — mirrors
+// apps/pay/components/shell-layout.tsx exactly (see its own header comment
+// for why each module app renders its own copy instead of importing across
+// zones). Found live (2026-08-28, independent Phase 1 audit): apps/flow
+// never rendered this at all — only apps/pay had it — so ElioFlow was
+// missing the shared cross-module sidebar/header chrome entirely, not just
+// visually inconsistent with apps/pay.
 import * as React from "react";
 import { LayoutGrid, Wallet, HeartHandshake, ClipboardList, ChevronDown, LogOut, Settings, User as UserIcon } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -41,9 +42,9 @@ export interface ShellLayoutProps {
   children: React.ReactNode;
 }
 
-/** ElioPay's copy of the shared shell layout — sidebar/header persist, module
- * content renders inside `children`. See MASTER_BUILD_GUIDE.md Step 1.6. */
-export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner, children }: ShellLayoutProps) {
+/** ElioFlow's copy of the shared shell layout — sidebar/header persist,
+ * module content renders inside `children`. See MASTER_BUILD_GUIDE.md Step 1.8. */
+export function ShellLayout({ activeId = "flow", practiceName, userEmail, isOwner, children }: ShellLayoutProps) {
   const [collapsed, setCollapsed] = React.useState(false);
 
   return (
@@ -53,7 +54,7 @@ export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner
         activeId={activeId}
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
-        activeModuleId="pay"
+        activeModuleId="flow"
         launcher={
           <AppLauncher
             tiles={LAUNCHER_TILES}
@@ -102,7 +103,7 @@ export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center border-b border-(--color-border) px-6">
-          <span className="text-body-sm font-medium text-(--color-text-secondary)">ELIO — ElioPay</span>
+          <span className="text-body-sm font-medium text-(--color-text-secondary)">ELIO — ElioFlow</span>
         </header>
         <main className="min-w-0 flex-1 overflow-auto">{children}</main>
       </div>

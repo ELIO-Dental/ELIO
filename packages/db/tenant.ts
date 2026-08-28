@@ -46,6 +46,27 @@ const TENANT_SCOPED_MODELS = new Set([
   "enquiry",
   "consult",
   "reminder",
+  // Found live (2026-08-28, independent Phase 1 audit): these 13 models all
+  // carry a direct practiceId column (confirmed against schema.prisma) but
+  // were missing from this allowlist, so every scopedDb() call against them
+  // silently ran completely UNSCOPED — no practiceId filter injected at all.
+  // Confirmed live unscoped call sites in apps/plans/lib/plans-service.ts
+  // (planDocument.findFirst, planSigningRequest.create/update,
+  // planRedeem.findMany/findUnique/update) — a real, plausible cross-tenant
+  // read/write path on plan documents, e-signing requests, and redemptions.
+  "planDocument",
+  "planSigningRequest",
+  "planRedeem",
+  "planRedeemRule",
+  "planInclusion",
+  "planDiscount",
+  "planEligibilityRule",
+  "planGuideArticle",
+  "savedLab",
+  "savedSupplier",
+  "supplierInvoiceEntry",
+  "legacyPayslipArchive",
+  "legacyFlowTouchPointArchive",
 ]);
 
 const READ_OPS = new Set([

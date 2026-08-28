@@ -28,8 +28,16 @@ function seedMfaOtpAuthUrl(email: string, secret: string): string {
 // before this concept did (scripts/migrations/backfill-legacy-licences.ts).
 const SEED_MODULES: ModuleId[] = ["PAY", "PLANS", "FLOW"];
 
-const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "mi0364922@gmail.com";
-const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "ismaeel786";
+// Found live (2026-08-28, independent Phase 1 audit): these fallbacks used
+// to be a real personal email + plaintext password, permanently committed
+// to git history — a genuine credential-hygiene risk regardless of whose
+// account it was. process.env.INITIAL_ADMIN_EMAIL/INITIAL_ADMIN_PASSWORD
+// (set in .env.local, git-ignored) is the real path for any real account;
+// these fallbacks exist only so `npm run seed` works out of the box on a
+// fresh local checkout with no .env.local at all — they must never be a
+// real, reachable credential.
+const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
+const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
 const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Seed12345!";
 
 // One seeded login per role. SUPER_ADMIN is platform-wide (apps/admin,

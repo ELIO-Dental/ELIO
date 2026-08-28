@@ -51,9 +51,16 @@ async function fetchUsers(): Promise<TeamUser[]> {
 export function TeamClient({
   initialRequireMfaForAllStaff,
   currentUserId,
+  canManage,
 }: {
   initialRequireMfaForAllStaff: boolean;
   currentUserId: string;
+  /** ADMIN gets view-only access (PERMISSIONS_MATRIX.md §2) — hides the
+   * invite form, MFA toggle, and per-user role/deactivate controls, but
+   * still shows the real user list. The API routes enforce this
+   * server-side regardless (requireOwnerSession() on every mutation), so
+   * this is UX only, not the actual security boundary. */
+  canManage: boolean;
 }) {
   const [users, setUsers] = React.useState<TeamUser[] | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -134,66 +141,70 @@ export function TeamClient({
 
   return (
     <div className="mt-8 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite a user</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3" data-testid="invite-form">
-            <div className="min-w-[220px] flex-1">
-              <Label htmlFor="invite-email">Email</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                required
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite a user</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3" data-testid="invite-form">
+              <div className="min-w-[220px] flex-1">
+                <Label htmlFor="invite-email">Email</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+              <div className="w-40">
+                <Label>Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)}>
+                  <SelectTrigger data-testid="invite-role-trigger">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" loading={inviting} data-testid="invite-submit">
+                Send invite
+              </Button>
+            </form>
+            {inviteMsg && <p className="mt-2 text-body-sm text-(--color-text-secondary)">{inviteMsg}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Security</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-body font-medium text-(--color-text-primary)">Require MFA for all staff</p>
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  Enforced on next login for anyone without MFA configured.
+                </p>
+              </div>
+              <Switch
+                checked={mfaToggle}
+                pending={mfaPending}
+                onCheckedChange={toggleMfa}
+                data-testid="mfa-toggle"
               />
             </div>
-            <div className="w-40">
-              <Label>Role</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)}>
-                <SelectTrigger data-testid="invite-role-trigger">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" loading={inviting} data-testid="invite-submit">
-              Send invite
-            </Button>
-          </form>
-          {inviteMsg && <p className="mt-2 text-body-sm text-(--color-text-secondary)">{inviteMsg}</p>}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-body font-medium text-(--color-text-primary)">Require MFA for all staff</p>
-              <p className="text-body-sm text-(--color-text-secondary)">
-                Enforced on next login for anyone without MFA configured.
-              </p>
-            </div>
-            <Switch
-              checked={mfaToggle}
-              pending={mfaPending}
-              onCheckedChange={toggleMfa}
-              data-testid="mfa-toggle"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -223,7 +234,7 @@ export function TeamClient({
                   <TableHead>Role</TableHead>
                   <TableHead>MFA</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Deactivate</TableHead>
+                  {canManage && <TableHead>Deactivate</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -231,18 +242,22 @@ export function TeamClient({
                   <TableRow key={u.id} data-testid={`team-row-${u.email}`}>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Select value={u.role} onValueChange={(v) => updateUser(u.id, { role: v as Role })}>
-                        <SelectTrigger className="h-8 w-32" data-testid={`role-select-${u.email}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((r) => (
-                            <SelectItem key={r} value={r}>
-                              {r}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canManage ? (
+                        <Select value={u.role} onValueChange={(v) => updateUser(u.id, { role: v as Role })}>
+                          <SelectTrigger className="h-8 w-32" data-testid={`role-select-${u.email}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLES.map((r) => (
+                              <SelectItem key={r} value={r}>
+                                {r}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        u.role
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={u.mfaEnabled ? "success" : "neutral"}>{u.mfaEnabled ? "Enabled" : "Not set up"}</Badge>
@@ -250,17 +265,19 @@ export function TeamClient({
                     <TableCell>
                       <Badge variant={u.active ? "success" : "danger"}>{u.active ? "Active" : "Deactivated"}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={u.id === currentUserId}
-                        onClick={() => updateUser(u.id, { active: !u.active })}
-                        data-testid={`deactivate-${u.email}`}
-                      >
-                        {u.active ? "Deactivate" : "Reactivate"}
-                      </Button>
-                    </TableCell>
+                    {canManage && (
+                      <TableCell>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={u.id === currentUserId}
+                          onClick={() => updateUser(u.id, { active: !u.active })}
+                          data-testid={`deactivate-${u.email}`}
+                        >
+                          {u.active ? "Deactivate" : "Reactivate"}
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

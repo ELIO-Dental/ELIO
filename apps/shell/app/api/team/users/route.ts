@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma, type Role } from "@elio/db";
 import { inviteUser, writeAuditLog, resolveAuditActor } from "@elio/auth";
-import { requireOwnerSession } from "@/lib/require-owner";
+import { requireOwnerSession, requireTeamViewSession } from "@/lib/require-owner";
 
 const VALID_ROLES: Role[] = ["OWNER", "ADMIN", "FINANCE", "STAFF", "AUDITOR"];
 
-// GET: list users in the caller's practice (OWNER only — server-side enforced).
+// GET: list users in the caller's practice (OWNER or ADMIN view-only, per
+// PERMISSIONS_MATRIX.md §2 — server-side enforced).
 export async function GET() {
-  const session = await requireOwnerSession();
+  const session = await requireTeamViewSession();
   if (!session) {
     return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 });
   }

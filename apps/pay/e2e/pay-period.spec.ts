@@ -4,8 +4,10 @@ import { prisma } from "@elio/db";
 
 // Real seeded OWNER credentials (packages/db/seed.ts) — logging in through the shell's
 // real /login page, per the multi-zone setup, since apps/pay never has its own login.
-const OWNER_EMAIL = "mi0364922@gmail.com";
-const OWNER_PASSWORD = "ismaeel786";
+// Matches packages/db/seed.ts's own env-var-first pattern — this test logs
+// in as whatever account `npm run seed` actually created, real or fallback.
+const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
+const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
 
 // packages/pay-engine/src/compass-parser.test.ts's own assertions confirm these two
 // performer numbers really appear in the fixture PDF: 112376 (KAPOOR) — we seed a

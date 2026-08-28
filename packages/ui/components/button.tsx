@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { cn } from "../lib/cn";
-import { easing } from "../tokens/motion";
+import { duration, easing } from "../tokens/motion";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-md) text-body font-medium transition-[background-color,border-color,color,box-shadow] duration-150 ease-out disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--color-primary-500)",
@@ -95,7 +95,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: duration.fast / 1000 }}
               className="inline-flex items-center justify-center"
             >
               <Loader2 className="size-4 animate-spin" aria-label="Loading" />
@@ -106,7 +106,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: duration.fast / 1000 }}
               className="inline-flex items-center gap-2"
             >
               {children}

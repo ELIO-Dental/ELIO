@@ -15,8 +15,10 @@ import { FLOW_ORIGIN } from "../playwright.config";
  * hand-wave.
  */
 
-const OWNER_EMAIL = "mi0364922@gmail.com";
-const OWNER_PASSWORD = "ismaeel786";
+// Matches packages/db/seed.ts's own env-var-first pattern — this test logs
+// in as whatever account `npm run seed` actually created, real or fallback.
+const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
+const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
 
 let enquiryId: string | undefined;
 let consultId: string | undefined;
