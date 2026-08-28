@@ -17,6 +17,19 @@ const OLD_DOMAINS = ["aurapayments.co.uk", "auraplans.co.uk", "elioflow.co.uk"];
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@elio/ui"],
+  // Found live (2026-08-28): Next's serverless-function file tracer doesn't
+  // reliably auto-include Prisma's native query-engine binary when the
+  // generated client lives at a CUSTOM `output` path (packages/db/generated/
+  // client, not the default node_modules/.prisma/client) — every deployed
+  // request that touched the DB crashed with PrismaClientInitializationError
+  // ("could not locate the Query Engine for runtime rhel-openssl-3.0.x"),
+  // even though `prisma generate` ran correctly during the Vercel build and
+  // produced the binary on disk. This explicitly tells the tracer to bundle
+  // the whole generated client directory (both engine binaries) into the
+  // function output.
+  outputFileTracingIncludes: {
+    "/**": ["../../packages/db/generated/client/**"],
+  },
   async redirects() {
     return OLD_DOMAINS.flatMap((domain) => [
       {

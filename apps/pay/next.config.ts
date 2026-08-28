@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
   // Next's bundler otherwise rewrites its module path and breaks that lookup
   // (ENOENT for Helvetica.afm). Keep it external/un-bundled instead.
   serverExternalPackages: ["pdfkit"],
+  // See apps/shell/next.config.ts's identical comment — Next's file tracer
+  // doesn't reliably include Prisma's native engine binary from a custom
+  // `output` path, causing every deployed DB query to crash on Vercel.
+  outputFileTracingIncludes: {
+    "/**": ["../../packages/db/generated/client/**"],
+  },
 };
 
 export default nextConfig;
