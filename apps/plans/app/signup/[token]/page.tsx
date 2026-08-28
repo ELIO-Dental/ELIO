@@ -357,8 +357,19 @@ function MandateStep({ token, onDone }: { token: string; onDone: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          redirectUri: `${origin}/plans/signup/${token}?step=mandate-callback`,
-          exitUri: `${origin}/plans/signup/${token}?step=mandate-exit`,
+          // No pre-existing query string here — GoCardless appends its own
+          // "?billing_request_id=..." to whatever redirectUri we give it.
+          // Found live: with a query string already present (the earlier
+          // "?step=mandate-callback"), the appended param produced a second
+          // literal "?" in the URL, which browsers don't parse as a new
+          // delimiter — billing_request_id never came through as a real
+          // query param, so the callback effect below silently never fired
+          // and the page stayed stuck on the Direct Debit step even after a
+          // real mandate was created on GoCardless's side. The effect
+          // already keys purely off billingRequestId's presence, so no
+          // "step" marker is actually needed.
+          redirectUri: `${origin}/plans/signup/${token}`,
+          exitUri: `${origin}/plans/signup/${token}`,
         }),
       });
       const body = await res.json().catch(() => ({}));
