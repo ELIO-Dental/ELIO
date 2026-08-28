@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { scopedDb, prisma, Prisma } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 import {
@@ -76,6 +77,19 @@ export async function createPlan(
 /** Enrol an existing (core, shared) Patient onto a plan. Creates the PlanPatient
  * wrapper record on first enrolment (idempotent — one PlanPatient per Patient
  * per practice) and a new PENDING PatientPlanEnrolment. */
+/** Signing request tokens are valid for this long — the patient must complete
+ * the whole signup (T&Cs sign + DD mandate setup) within this window. */
+const SIGNUP_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/** Enrols a patient and creates the real, usable signup invite in one step.
+ * Found live (2026-08): this function previously created only the DB-only
+ * enrolment rows and never a PlanSigningRequest — "Enrol a patient" in the
+ * UI (and its /api/enrolments route, whose permission is literally named
+ * "plans:invite-patients") silently produced no actual invite a patient
+ * could use, so the real signup-to-first-charge flow (Testing 1.7's own
+ * first checklist item) had no real entry point. Fixed by generating the
+ * real token + returning the real /plans/signup/[token] URL here, same
+ * shape as the test-only e2e route this mirrors. */
 export async function enrolPatient(
   practiceId: string,
   input: { patientId: string; planId: string },
@@ -84,6 +98,14 @@ export async function enrolPatient(
 
   const plan = await db.planModel.findUnique({ where: { id: input.planId } });
   if (!plan) throw new Error("Plan not found");
+
+  const document = await db.planDocument.findFirst({
+    where: { type: "TERMS_AND_CONDITIONS", isActive: true },
+    orderBy: { effectiveDate: "desc" },
+  });
+  if (!document) {
+    throw new Error("No active Terms & Conditions document — add one in Settings before inviting a patient");
+  }
 
   let planPatient = await db.planPatient.findFirst({ where: { patientId: input.patientId } });
   if (!planPatient) {
@@ -96,7 +118,17 @@ export async function enrolPatient(
     data: { practiceId, planPatientId: planPatient.id, planId: plan.id, status: "PENDING" },
   });
 
-  return { planPatient, enrolment };
+  const signingRequest = await db.planSigningRequest.create({
+    data: {
+      practiceId,
+      planPatientId: planPatient.id,
+      documentId: document.id,
+      token: randomUUID(),
+      expiresAt: new Date(Date.now() + SIGNUP_TOKEN_MAX_AGE_MS),
+    },
+  });
+
+  return { planPatient, enrolment, signupToken: signingRequest.token };
 }
 
 // ---------------------------------------------------------------------------

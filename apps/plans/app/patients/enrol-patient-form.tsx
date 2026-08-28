@@ -46,6 +46,7 @@ export function EnrolPatientForm({
   const [planId, setPlanId] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [signupUrl, setSignupUrl] = React.useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,6 +56,7 @@ export function EnrolPatientForm({
     }
     setSubmitting(true);
     setError(null);
+    setSignupUrl(null);
     const res = await fetch("/plans/api/enrolments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,8 +68,10 @@ export function EnrolPatientForm({
       setError(data.error ?? "Failed to enrol patient");
       return;
     }
+    const data = await res.json();
     setPatientId("");
     setPlanId("");
+    setSignupUrl(data.signupUrl);
     router.refresh();
   }
 
@@ -92,6 +96,14 @@ export function EnrolPatientForm({
         <CardTitle>Enrol a patient</CardTitle>
       </CardHeader>
       <CardContent>
+        {signupUrl && (
+          <p className="mb-4 rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-subtle) p-3 text-body-sm text-(--color-text-primary)">
+            Signup link ready — send this to the patient:{" "}
+            <a href={signupUrl} className="text-(--color-primary-600) underline" target="_blank" rel="noreferrer">
+              {typeof window !== "undefined" ? `${window.location.origin}${signupUrl}` : signupUrl}
+            </a>
+          </p>
+        )}
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
           <div>
             <Label htmlFor="patient">Patient</Label>

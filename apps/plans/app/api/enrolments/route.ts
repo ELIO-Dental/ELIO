@@ -12,7 +12,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "patientId and planId are required" }, { status: 400 });
     }
     const result = await enrolPatient(session.practiceId, body);
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(
+      { ...result, signupUrl: `/plans/signup/${result.signupToken}` },
+      { status: 201 },
+    );
   } catch (e) {
     return errorResponse(e);
   }
