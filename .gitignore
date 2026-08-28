@@ -44,3 +44,5 @@ project-docs/
 # It's regenerated fresh by the root "postinstall" script on every
 # `npm install` (dev machine or Vercel build), already covered by the
 # node_modules/ ignore above — no separate entry needed.
+
+.vercel

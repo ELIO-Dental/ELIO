@@ -39,6 +39,17 @@ const nextConfig: NextConfig = {
   // proxied here via rewrites to its own Next.js app/port, per Next.js's
   // documented multi-zone pattern. apps/pay sets basePath: "/pay" so every
   // route/asset it emits already matches this prefix.
+  //
+  // On Vercel, vercel.json's own top-level `rewrites` array (platform-level,
+  // handled at the edge before the request reaches this app at all) takes
+  // over instead — found live (2026-08-28): this app-level version, run
+  // through Next.js's own server-side fetch, consistently failed with
+  // Vercel's DNS_HOSTNAME_RESOLVED_PRIVATE error when proxying to another
+  // Vercel project (both a *.vercel.app alias and a real custom subdomain),
+  // even though the destination was directly reachable and DNS resolved
+  // correctly every time it was checked independently. This config stays
+  // ONLY so `next dev`/`next start` still proxy correctly locally, where
+  // vercel.json's rewrites are never honored.
   async rewrites() {
     return [
       { source: "/pay", destination: `${PAY_APP_ORIGIN}/pay` },

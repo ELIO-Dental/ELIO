@@ -4,5 +4,13 @@
       "path": "/api/cron/dentally-sync",
       "schedule": "0 3 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/pay", "destination": "https://pay.elioportal.co.uk/pay" },
+    { "source": "/pay/:path*", "destination": "https://pay.elioportal.co.uk/pay/:path*" },
+    { "source": "/plans", "destination": "https://plans.elioportal.co.uk/plans" },
+    { "source": "/plans/:path*", "destination": "https://plans.elioportal.co.uk/plans/:path*" },
+    { "source": "/flow", "destination": "https://flow.elioportal.co.uk/flow" },
+    { "source": "/flow/:path*", "destination": "https://flow.elioportal.co.uk/flow/:path*" }
   ]
 }
