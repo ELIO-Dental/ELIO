@@ -1,11 +1,1 @@
-@import "tailwindcss";
-
-@theme {
-  /* Full token set implemented in Phase 1 Step 1.1 per project-docs/THEME_GUIDELINE.md */
-  --color-primary-500: #7c5cfc;
-}
-
-body {
-  background: #ffffff;
-  color: #0f0f14;
-}
+@import "@elio/ui/theme.css";
