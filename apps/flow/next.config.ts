@@ -19,7 +19,10 @@ const nextConfig: NextConfig = {
   // doesn't reliably include Prisma's native engine binary from a custom
   // `output` path, causing every deployed DB query to crash on Vercel.
   outputFileTracingIncludes: {
-    "/**": ["../../packages/db/generated/client/**"],
+    "/**": [
+      "../../packages/db/generated/client/**",
+      "packages/db/generated/client/**",
+    ],
   },
 };
 

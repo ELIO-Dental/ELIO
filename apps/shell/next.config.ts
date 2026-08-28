@@ -28,7 +28,10 @@ const nextConfig: NextConfig = {
   // the whole generated client directory (both engine binaries) into the
   // function output.
   outputFileTracingIncludes: {
-    "/**": ["../../packages/db/generated/client/**"],
+    "/**": [
+      "../../packages/db/generated/client/**",
+      "packages/db/generated/client/**",
+    ],
   },
   async redirects() {
     return OLD_DOMAINS.flatMap((domain) => [
