@@ -16,8 +16,17 @@
 // variable propagation risk).
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/client"
+  provider      = "prisma-client-js"
+  output        = "../generated/client"
+  // "native" covers local dev (Windows, where this schema was authored);
+  // "rhel-openssl-3.0.x" is Vercel's serverless Linux runtime. Found live
+  // (2026-08-28): without this, `prisma generate` only bundled the Windows
+  // engine binary, so every deployed app crashed on its first real DB query
+  // with PrismaClientInitializationError ("could not locate the Query Engine
+  // for runtime rhel-openssl-3.0.x") — surfaced misleadingly through
+  // NextAuth's login flow as a generic "Configuration"/"Incorrect email or
+  // password" error, nothing to do with credentials at all.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

@@ -11,7 +11,8 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "seed": "npm run seed --workspace=@elio/db"
+    "seed": "npm run seed --workspace=@elio/db",
+    "postinstall": "prisma generate --schema packages/db/prisma/schema.prisma"
   },
   "devDependencies": {
     "turbo": "^2.3.0",
