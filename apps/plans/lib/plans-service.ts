@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { scopedDb, prisma, Prisma } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
+import { sendSignupCompleteEmail } from "./email";
 import {
   idempotentCreate,
   billingPeriodFromDate,
@@ -235,7 +236,13 @@ export async function publicCreateMandateFlow(
  * (handleBillingRequestEvent) — records the mandate and flips the enrolment
  * from PENDING to ACTIVE, and the PlanPatient itself out of INVITED, now
  * that a mandate exists. Idempotent (recordMandate's own unique-constraint
- * guard), safe to call from both paths for the same mandate. */
+ * guard), safe to call from both paths for the same mandate — including
+ * both paths racing for the SAME mandate, which is exactly why the
+ * confirmation email is gated on updateMany's own count rather than just
+ * "this function ran": only the call that actually flips INVITED -> ACTIVE
+ * (a real state transition, happens exactly once) sends it, not every
+ * idempotent re-entry (a webhook retry, or the redirect firing after the
+ * webhook already won). */
 async function recordMandateAndActivate(
   practiceId: string,
   planPatientId: string,
@@ -243,7 +250,7 @@ async function recordMandateAndActivate(
 ) {
   const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
   const db = scopedDb(practiceId);
-  await db.planPatient.updateMany({
+  const activated = await db.planPatient.updateMany({
     where: { id: planPatientId, status: "INVITED" },
     data: { status: "ACTIVE" },
   });
@@ -251,6 +258,23 @@ async function recordMandateAndActivate(
     where: { planPatientId, status: "PENDING" },
     data: { status: "ACTIVE", startDate: new Date() },
   });
+
+  if (activated.count > 0) {
+    const planPatient = await db.planPatient.findUnique({
+      where: { id: planPatientId },
+      include: { patient: true, planModel: true },
+    });
+    const practice = await db.practice.findUnique({ where: { id: practiceId } });
+    if (planPatient?.patient.email && planPatient.planModel) {
+      await sendSignupCompleteEmail({
+        to: planPatient.patient.email,
+        patientFirstName: planPatient.patient.firstName ?? "there",
+        practiceName: practice?.name ?? "your practice",
+        planName: planPatient.planModel.name,
+      }).catch((e) => console.error("[plans] signup confirmation email failed:", e));
+    }
+  }
+
   return { mandate };
 }
 
