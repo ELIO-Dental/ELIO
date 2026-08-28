@@ -4,9 +4,35 @@ const PAY_APP_ORIGIN = process.env.PAY_APP_ORIGIN ?? "http://localhost:3001";
 const PLANS_APP_ORIGIN = process.env.PLANS_APP_ORIGIN ?? "http://localhost:3002";
 const FLOW_APP_ORIGIN = process.env.FLOW_APP_ORIGIN ?? "http://localhost:3003";
 
+// Step 1.9 (MASTER_BUILD_GUIDE.md §1.9, line 940/950) — path-preserving 301
+// redirects from the 3 retired Aura/ElioFlow domains to the equivalent path
+// on app.elioportal.co.uk. Host-matched via Next's `has: [{ type: "host" }]`
+// redirect condition, so this is completely inert until (and unless) DNS for
+// one of these old domains is actually pointed at this Vercel project — it
+// does nothing to any currently-live app on those domains today. Do NOT
+// point real DNS at this until Hisham has confirmed the cutover plan,
+// especially for auraplans.co.uk (live GoCardless webhook, see PROJECT_STATE.md).
+const OLD_DOMAINS = ["aurapayments.co.uk", "auraplans.co.uk", "elioflow.co.uk"];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@elio/ui"],
+  async redirects() {
+    return OLD_DOMAINS.flatMap((domain) => [
+      {
+        source: "/:path*",
+        has: [{ type: "host" as const, value: domain }],
+        destination: "https://app.elioportal.co.uk/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host" as const, value: `www.${domain}` }],
+        destination: "https://app.elioportal.co.uk/:path*",
+        permanent: true,
+      },
+    ]);
+  },
   // Multi-zone integration (Step 1.6, MASTER_BUILD_GUIDE.md): ElioPay renders
   // "inside the shared shell" (shared sidebar/header, single NextAuth session,
   // no separate login) by living at the same origin as the shell and being
