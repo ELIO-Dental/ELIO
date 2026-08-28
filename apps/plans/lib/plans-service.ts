@@ -231,28 +231,36 @@ export async function publicCreateMandateFlow(
   });
 }
 
+/** Shared by the redirect path (publicRecordMandate) and the webhook path
+ * (handleBillingRequestEvent) — records the mandate and flips the enrolment
+ * from PENDING to ACTIVE, and the PlanPatient itself out of INVITED, now
+ * that a mandate exists. Idempotent (recordMandate's own unique-constraint
+ * guard), safe to call from both paths for the same mandate. */
+async function recordMandateAndActivate(
+  practiceId: string,
+  planPatientId: string,
+  gocardlessMandateId: string,
+) {
+  const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
+  const db = scopedDb(practiceId);
+  await db.planPatient.updateMany({
+    where: { id: planPatientId, status: "INVITED" },
+    data: { status: "ACTIVE" },
+  });
+  await db.patientPlanEnrolment.updateMany({
+    where: { planPatientId, status: "PENDING" },
+    data: { status: "ACTIVE", startDate: new Date() },
+  });
+  return { mandate };
+}
+
 /** Step 3 callback: record the mandate GoCardless confirmed, resolving
  * practiceId from the token (same idempotent path as the staff-facing
  * PATCH /api/mandates — the webhook may also see/create this mandate first). */
 export async function publicRecordMandate(token: string, gocardlessMandateId: string) {
   const signingRequest = await prisma.planSigningRequest.findUnique({ where: { token } });
   if (!signingRequest) throw new Error("Signup link not found");
-  const mandate = await recordMandate(signingRequest.practiceId, {
-    planPatientId: signingRequest.planPatientId,
-    gocardlessMandateId,
-  });
-  // Signup complete: flip the enrolment from PENDING to ACTIVE now that a
-  // mandate exists, and the PlanPatient itself out of INVITED.
-  const db = scopedDb(signingRequest.practiceId);
-  await db.planPatient.updateMany({
-    where: { id: signingRequest.planPatientId, status: "INVITED" },
-    data: { status: "ACTIVE" },
-  });
-  await db.patientPlanEnrolment.updateMany({
-    where: { planPatientId: signingRequest.planPatientId, status: "PENDING" },
-    data: { status: "ACTIVE", startDate: new Date() },
-  });
-  return { mandate };
+  return recordMandateAndActivate(signingRequest.practiceId, signingRequest.planPatientId, gocardlessMandateId);
 }
 
 /** Step 3 redirect-back handler: GoCardless returns the browser to our
@@ -598,11 +606,51 @@ export async function processWebhookEvent(event: GoCardlessEvent): Promise<{ dup
     case "subscriptions":
       await handleSubscriptionEvent(event.action, event.links.subscription ?? "");
       break;
+    case "billing_requests":
+      await handleBillingRequestEvent(event.action, event.links.billing_request ?? "");
+      break;
     default:
       console.log(`[GoCardless Webhook] Unhandled resource type: ${event.resource_type}`);
   }
 
   return { duplicate: false };
+}
+
+/** The AUTHORITATIVE mandate-creation path for the public signup flow — per
+ * GoCardless's own guidance ("Don't rely on the redirect back to your site
+ * to confirm the outcome. Always use webhooks."), NOT the redirect-based
+ * publicResolveMandateFromBillingRequest, which is real UX-acceleration
+ * (skips the wait for a webhook round-trip when it works) but was found live
+ * (2026-08-28) to be unreliable on its own — GoCardless's actual redirect
+ * query params are `outcome`/`id` (the Billing Request FLOW id), not
+ * `billing_request_id`, so a client relying solely on that redirect can
+ * silently never record the mandate even though GoCardless confirms it.
+ *
+ * On a `fulfilled` billing_request, re-fetches it (GoCardless doesn't
+ * include full metadata/links in the webhook payload itself) to read the
+ * `planPatientId` we stamped into `metadata` at creation (createMandateFlow)
+ * and the confirmed mandate id (`links.mandate_request_mandate`) — the same
+ * correlation key a raw redirect would have needed anyway, just sourced
+ * from GoCardless's own record instead of a fragile round-trip through the
+ * patient's browser. */
+async function handleBillingRequestEvent(action: string, billingRequestId: string) {
+  if (action !== "fulfilled" || !billingRequestId) return;
+
+  const billingRequest = await getBillingRequest(billingRequestId);
+  const planPatientId = billingRequest?.metadata?.planPatientId as string | undefined;
+  const gocardlessMandateId = billingRequest?.links?.mandate_request_mandate as string | undefined;
+  if (!planPatientId || !gocardlessMandateId) {
+    console.log(`[GoCardless Webhook] billing_request ${billingRequestId} fulfilled but missing planPatientId/mandate link, skipping`);
+    return;
+  }
+
+  const planPatient = await prisma.planPatient.findUnique({ where: { id: planPatientId } });
+  if (!planPatient) {
+    console.log(`[GoCardless Webhook] billing_request ${billingRequestId}: PlanPatient ${planPatientId} not found, skipping`);
+    return;
+  }
+
+  await recordMandateAndActivate(planPatient.practiceId, planPatientId, gocardlessMandateId);
 }
 
 async function handleMandateEvent(action: string, gocardlessMandateId: string) {
