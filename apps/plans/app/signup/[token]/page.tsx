@@ -85,26 +85,54 @@ function PublicSignupContent() {
     if (token) fetchData();
   }, [token, fetchData]);
 
-  // Returning from GoCardless's Billing Request Flow: resolve + record the
-  // mandate server-side (idempotent), then advance to the completion step.
+  // Returning from GoCardless's Billing Request Flow: try the redirect-based
+  // resolve first (fast path, works when GoCardless's redirect actually
+  // carries billing_request_id — which in practice it often doesn't; per
+  // GoCardless's own docs, "Don't rely on the redirect back to your site to
+  // confirm the outcome. Always use webhooks."). Either way, once we're back
+  // on this page past the mandate step, poll the signup data for a short
+  // window until the webhook (the real, authoritative path — see
+  // handleBillingRequestEvent in plans-service.ts) has recorded the mandate,
+  // then advance. Found live (2026-08-28): without this poll, a patient who
+  // completed a real mandate stayed stuck on step 3 indefinitely, since the
+  // billing_request_id param this effect used to depend on never actually
+  // arrived on the redirect.
   React.useEffect(() => {
-    if (!token || !billingRequestId) return;
-    (async () => {
+    if (!token || stepIndex !== 2) return;
+
+    if (billingRequestId) {
+      fetch(`/plans/api/public/signup/${token}/mandate/callback?billing_request_id=${encodeURIComponent(billingRequestId)}`)
+        .then((res) => res.json())
+        .then((body) => {
+          if (body?.status === "confirmed") setStepIndex(3);
+        })
+        .catch(() => {});
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 15; // ~30s at 2s intervals — generous for a webhook round-trip
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
       try {
-        const res = await fetch(
-          `/plans/api/public/signup/${token}/mandate/callback?billing_request_id=${encodeURIComponent(billingRequestId)}`,
-        );
+        const res = await fetch(`/plans/api/public/signup/${token}`);
         const body = await res.json().catch(() => ({}));
-        if (res.ok && body.status === "confirmed") {
+        if (body?.hasMandate) {
           setStepIndex(3);
+          return;
         }
       } catch {
-        // Non-fatal: the patient still has the manual "I already completed
-        // Direct Debit setup" fallback in MandateStep, and the webhook may
-        // record the mandate independently regardless.
+        // transient — keep polling until MAX_ATTEMPTS
       }
-    })();
-  }, [token, billingRequestId]);
+      if (!cancelled && attempts < MAX_ATTEMPTS) setTimeout(poll, 2000);
+    };
+    const timer = setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [token, billingRequestId, stepIndex]);
 
   return (
     <div className="min-h-screen bg-(--color-bg) px-4 py-10">

@@ -20,7 +20,7 @@ export async function sendSignupCompleteEmail(input: {
   }
 
   const resend = new Resend(apiKey);
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from,
     to: input.to,
     subject: `You're all set up — ${input.practiceName}`,
@@ -28,4 +28,13 @@ export async function sendSignupCompleteEmail(input: {
 <p>Your Direct Debit for the <strong>${input.planName}</strong> membership plan at ${input.practiceName} is now active. Thanks for signing up!</p>
 <p>If you have any questions, just get in touch with the practice.</p>`,
   });
+  // Found live (2026-08-28): a missing/misconfigured RESEND_FROM_EMAIL or
+  // API error can fail silently otherwise — Resend's SDK returns a `{error}`
+  // field on failure rather than throwing, so a bare await here doesn't
+  // surface it. Log both outcomes explicitly rather than assume success.
+  if (result.error) {
+    console.error(`[plans] signup confirmation email to ${input.to} failed:`, result.error);
+  } else {
+    console.log(`[plans] signup confirmation email sent to ${input.to}, id=${result.data?.id}`);
+  }
 }
