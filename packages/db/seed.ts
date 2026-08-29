@@ -13,7 +13,18 @@ import type { ModuleId, Role } from "@prisma/client";
 // @elio/db (for prisma), so importing packages/auth from here would create a
 // real circular workspace dependency. `otpauth` is a tiny, stable library;
 // duplicating this ~10-line config is safer than that circular edge.
+//
+// Found live (2026-08-29, Step 2.4 e2e build-out): a fresh random secret on
+// every seed run meant no automated test could ever know the SUPER_ADMIN's
+// TOTP secret to compute a valid code — apps/admin's MFA gate was completely
+// untestable end-to-end. SEED_SUPER_ADMIN_MFA_SECRET (git-ignored .env.local
+// only, same pattern as INITIAL_ADMIN_PASSWORD) lets a test suite seed with a
+// KNOWN secret and generate real, valid codes with the same otpauth library
+// the login route itself verifies against — falls back to a real random
+// secret (today's behavior, unchanged) when unset.
 function seedMfaSecret(): string {
+  const override = process.env.SEED_SUPER_ADMIN_MFA_SECRET;
+  if (override) return override;
   return new Secret({ size: 20 }).base32;
 }
 function seedMfaOtpAuthUrl(email: string, secret: string): string {
