@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/create-charges",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-payments",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}

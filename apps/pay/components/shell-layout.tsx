@@ -17,7 +17,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   useIsMobileViewport,
+  CommandPalette,
+  useCommandPaletteHotkey,
   type SidebarNavItem,
+  type CommandPaletteItem,
   type ModuleId,
 } from "@elio/ui";
 
@@ -59,6 +62,31 @@ export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner
   const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
   const collapsed = userOverride ?? isMobile;
   const setCollapsed = (next: boolean) => setUserOverride(next);
+
+  // F.5 Final QA (2026-08-29): APPLICATION_FLOW.md §3a documents a Cmd+K/
+  // Ctrl+K command palette as a real, specified flow — the component
+  // (packages/ui/components/command-palette.tsx) existed and was exported
+  // from @elio/ui, but was never actually mounted anywhere except the
+  // internal /design-system showcase page. Wiring it here (the module app
+  // whose sidebar chrome real users actually see) closes that gap. Every
+  // NAV_ITEMS href is a DIFFERENT zone from this one (launcher = shell,
+  // plans/flow = their own separate apps), so window.location.href is
+  // correct for all of them — unlike a same-zone link, router.push()
+  // wouldn't navigate across zones.
+  const [paletteOpen, setPaletteOpen] = useCommandPaletteHotkey();
+  const paletteItems = React.useMemo<CommandPaletteItem[]>(
+    () =>
+      NAV_ITEMS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        group: "Navigate",
+        icon: item.icon ? <item.icon className="size-4" /> : undefined,
+        onSelect: () => {
+          window.location.href = item.href;
+        },
+      })),
+    [],
+  );
 
   return (
     <div className="flex h-screen bg-(--color-bg)">
@@ -120,6 +148,7 @@ export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner
         </header>
         <main className="min-w-0 flex-1 overflow-auto">{children}</main>
       </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} items={paletteItems} />
     </div>
   );
 }

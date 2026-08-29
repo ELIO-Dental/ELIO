@@ -213,11 +213,29 @@ test("patient signup -> e-sign -> DD mandate -> first charge -> zero-mismatch re
   expect(chargeResult.payment.status).toBe("CONFIRMED");
   expect(chargeResult.payment.patientPlanEnrolmentId).toBe(fixture.enrolmentId);
 
-  // 7. runReconciliation() for that period must show zero mismatches — the
-  // mocked local PlanPayment and the mocked matching GoCardless payment
-  // reconcile cleanly.
-  expect(chargeResult.reconciliation.counts.mismatches).toBe(0);
-  expect(chargeResult.reconciliation.mismatches).toEqual([]);
+  // 7. runReconciliation() must show zero mismatches for THIS test's own
+  // enrolment specifically — the mocked local PlanPayment and the mocked
+  // matching GoCardless payment reconcile cleanly for it.
+  //
+  // F.5 Final QA (2026-08-29): this used to assert the WHOLE practice's
+  // mismatch count is 0, which only ever passed by accident — before this
+  // session, createCharge() never actually called GoCardless at all (a real
+  // gap, see plans-service.ts's own comment on createCharge), so
+  // runReconciliation() effectively had nothing real to compare against and
+  // reconciliation logic was never genuinely exercised end-to-end by this
+  // test. Now that createCharge() genuinely calls GoCardless, reconciliation
+  // correctly reports every OTHER pre-existing active enrolment in this
+  // shared fixture practice (e2e-signup's own route picks "the first real
+  // practice" — confirmed live: 28 of them, none ever billed by this new
+  // mechanism before now) as a real MISSING mismatch — which is CORRECT
+  // reconciliation behavior, not a bug this test should paper over by only
+  // checking the total count. Scoping the assertion to this test's own
+  // enrolment is what actually proves BUG-1's fix without depending on the
+  // shared fixture practice's total, unrelated billing history.
+  const ownMismatches = chargeResult.reconciliation.mismatches.filter(
+    (m: { patientPlanEnrolmentId: string | null }) => m.patientPlanEnrolmentId === fixture.enrolmentId,
+  );
+  expect(ownMismatches).toEqual([]);
 
   // A second createCharge call for the SAME enrolment/period must not create
   // a second row (BUG-1's idempotency guard, exercised end-to-end here too).

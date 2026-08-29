@@ -18,7 +18,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   useIsMobileViewport,
+  CommandPalette,
+  useCommandPaletteHotkey,
   type SidebarNavItem,
+  type CommandPaletteItem,
   type ModuleId,
 } from "@elio/ui";
 
@@ -57,6 +60,24 @@ export function ShellLayout({ activeId = "plans", practiceName, userEmail, isOwn
   const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
   const collapsed = userOverride ?? isMobile;
   const setCollapsed = (next: boolean) => setUserOverride(next);
+
+  // F.5 Final QA (2026-08-29): see apps/pay/components/shell-layout.tsx's
+  // identical comment — wires APPLICATION_FLOW.md §3a's command palette,
+  // which existed as a component but was never mounted anywhere real.
+  const [paletteOpen, setPaletteOpen] = useCommandPaletteHotkey();
+  const paletteItems = React.useMemo<CommandPaletteItem[]>(
+    () =>
+      NAV_ITEMS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        group: "Navigate",
+        icon: item.icon ? <item.icon className="size-4" /> : undefined,
+        onSelect: () => {
+          window.location.href = item.href;
+        },
+      })),
+    [],
+  );
 
   return (
     <div className="flex h-screen bg-(--color-bg)">
@@ -118,6 +139,7 @@ export function ShellLayout({ activeId = "plans", practiceName, userEmail, isOwn
         </header>
         <main className="min-w-0 flex-1 overflow-auto">{children}</main>
       </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} items={paletteItems} />
     </div>
   );
 }

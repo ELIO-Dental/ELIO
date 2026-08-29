@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@elio/auth";
+import { prisma } from "@elio/db";
 import { billingPeriodFromDate } from "@elio/plans-engine";
 import { runReconciliation } from "@/lib/plans-service";
 
@@ -16,7 +17,21 @@ export const runtime = "nodejs";
  * functionally, re-housed on top of scopedDb() for tenant isolation — every
  * practice's active plan is reconciled in its own scope, one at a time.
  *
+ * F.5 Final QA (2026-08-29) — REAL GAP FOUND AND FIXED: this route required
+ * an explicit `practiceId` query param even for real Vercel-Cron-secret
+ * calls, and apps/plans had NO vercel.json at all (confirmed: this route was
+ * never actually scheduled to run in production, same class of gap as
+ * apps/plans/app/api/cron/create-charges' own closeout comment — see there
+ * for the full story). A bare Vercel Cron trigger (no query params, which is
+ * exactly how Vercel invokes a scheduled cron) would have 400'd immediately
+ * even once genuinely scheduled. Fixed to iterate every real practice when
+ * called via cron secret with no explicit practiceId, mirroring apps/shell's
+ * own dentally-sync cron's real multi-practice pattern.
+ *
  * Query params: ?period=YYYY-MM (optional; defaults to the current month).
+ * ?practiceId=... (optional for cron-secret calls; reconciles only that one
+ * practice instead of every practice — still required/implicit for a signed-
+ * in staff session, which is always scoped to their own practice).
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -42,16 +57,27 @@ export async function GET(request: NextRequest) {
   }
 
   if (!practiceId) {
-    const requestedPracticeId = request.nextUrl.searchParams.get("practiceId");
-    if (!requestedPracticeId) {
-      return NextResponse.json({ error: "practiceId query param required for cron-secret calls" }, { status: 400 });
-    }
-    practiceId = requestedPracticeId;
+    practiceId = request.nextUrl.searchParams.get("practiceId");
   }
 
   try {
-    const result = await runReconciliation(practiceId, period);
-    return NextResponse.json(result);
+    if (practiceId) {
+      const result = await runReconciliation(practiceId, period);
+      return NextResponse.json(result);
+    }
+
+    // Real Vercel Cron invocation (cron secret, no explicit practiceId) —
+    // reconcile every real, non-suspended practice, one at a time.
+    const practices = await prisma.practice.findMany({ where: { suspendedAt: null }, select: { id: true } });
+    const results = await Promise.allSettled(
+      practices.map(async (p) => ({ practiceId: p.id, ...(await runReconciliation(p.id, period)) })),
+    );
+    const succeeded = results
+      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof runReconciliation>> & { practiceId: string }> => r.status === "fulfilled")
+      .map((r) => r.value);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    const totalMismatches = succeeded.reduce((sum, r) => sum + r.counts.mismatches, 0);
+    return NextResponse.json({ period, practices: practices.length, failed, totalMismatches, results: succeeded });
   } catch (error) {
     console.error("[Reconcile] Error:", error);
     const detail = error instanceof Error ? error.message : String(error);

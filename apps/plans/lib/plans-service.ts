@@ -17,6 +17,7 @@ import {
   createBillingRequest,
   createBillingRequestFlow,
   createSubscription,
+  createPayment,
   getMandate,
   getCustomer,
   getPayment,
@@ -354,20 +355,72 @@ export async function recordMandate(
  * idempotentCreate() so a retried/duplicate call collapses onto one row
  * instead of double-charging the patient.
  */
+/**
+ * F.5 Final QA (2026-08-29) — REAL GAP FOUND AND FIXED: this function
+ * previously only ever wrote a local PlanPayment row with
+ * gocardlessPaymentId left null — it never actually called GoCardless's
+ * createPayment() API at all, meaning even once something DID call this
+ * function on a schedule (see apps/plans/app/api/cron/create-charges'
+ * closeout comment for the full story), no real money would ever move; the
+ * local row would sit as a permanent PENDING/reconciliation-mismatch ghost.
+ * Fixed to genuinely create the GoCardless payment FIRST (the real charge),
+ * then record it locally using the real, GoCardless-confirmed payment id —
+ * idempotentCreate()'s own race-safety (see its doc comment) still applies
+ * to the local bookkeeping half of this, exactly as before.
+ */
 export async function createCharge(
   practiceId: string,
   input: {
     planPatientId: string;
     patientPlanEnrolmentId: string;
     mandateId?: string;
+    gocardlessMandateId: string;
     amountPence: number;
     chargeDate: Date;
-    gocardlessPaymentId?: string;
+    planName?: string;
   },
 ) {
   const db = scopedDb(practiceId);
   const billingPeriod = billingPeriodFromDate(input.chargeDate);
 
+  // F.5 Final QA (2026-08-29) — a second real bug found while fixing the
+  // first one above: calling createPayment() unconditionally BEFORE the
+  // idempotency check would create a genuine SECOND real GoCardless charge
+  // on any retry/duplicate call for the same enrolment/period, even though
+  // the local DB row was correctly deduped — exactly the double-charge BUG-1
+  // exists to prevent, just moved to the GoCardless side instead of the
+  // local DB side. Checking for an existing local row FIRST (before ever
+  // calling GoCardless) closes that: a genuine retry short-circuits here and
+  // never reaches the real charge call at all.
+  const existing = await db.planPayment.findUnique({
+    where: { patientPlanEnrolmentId_billingPeriod: { patientPlanEnrolmentId: input.patientPlanEnrolmentId, billingPeriod } },
+  });
+  if (existing) return existing;
+
+  // Real GoCardless charge attempt — this is the actual money-moving call.
+  // metadata.patientPlanEnrolmentId lets the webhook-driven idempotency path
+  // (processWebhookEvent/handlePaymentEvent) and reconciliation both
+  // correlate this GoCardless payment back to the right local row, matching
+  // the same metadata-correlation pattern already used for billing requests.
+  const gcPayment = await createPayment(
+    input.gocardlessMandateId,
+    input.amountPence,
+    "GBP",
+    input.planName ? `${input.planName} membership` : "Membership plan payment",
+    input.chargeDate.toISOString().slice(0, 10),
+    { patientPlanEnrolmentId: input.patientPlanEnrolmentId, billingPeriod },
+  );
+  const gocardlessPaymentId = (gcPayment as { id?: string })?.id;
+
+  // idempotentCreate() still guards the narrower race window between the
+  // existence check above and this create (two concurrent calls both
+  // passing the check before either writes) — it can't do anything about a
+  // genuine GoCardless double-charge in that same narrow window, which is a
+  // real, inherent limit of "check locally, then call an external API" with
+  // no true distributed lock; BUG-1's own acceptance criteria (packages/
+  // plans-engine's real tests) covers the DB-side race, and this is the
+  // same trade-off the pre-existing billing-request-creation path already
+  // makes elsewhere in this file.
   return idempotentCreate({
     create: () =>
       db.planPayment.create({
@@ -377,7 +430,7 @@ export async function createCharge(
           patientPlanEnrolmentId: input.patientPlanEnrolmentId,
           mandateId: input.mandateId ?? null,
           billingPeriod,
-          gocardlessPaymentId: input.gocardlessPaymentId ?? null,
+          gocardlessPaymentId: gocardlessPaymentId ?? null,
           amountPence: input.amountPence,
           status: "PENDING",
         },

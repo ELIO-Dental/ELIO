@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@elio/db";
-import { createCharge, runReconciliation } from "@/lib/plans-service";
-import { __mockGoCardlessSeedPayment } from "@elio/plans-engine";
+import { createCharge, runReconciliation, processWebhookEvent } from "@/lib/plans-service";
 
 /**
  * TEST-ONLY route (see e2e-signup/route.ts for the guard rationale). Given a
  * practiceId + enrolmentId created by e2e-signup, calls the REAL
  * createCharge()/runReconciliation() service functions (same code the real
- * billing cron/webhook path uses) so the e2e suite proves an actual PlanPayment
- * row and a zero-mismatch reconciliation, not a UI-only stub.
+ * billing cron path uses — see apps/plans/app/api/cron/create-charges'
+ * closeout comment for why that cron itself is new this session) so the e2e
+ * suite proves an actual GoCardless payment + PlanPayment row + zero-mismatch
+ * reconciliation, not a UI-only stub.
+ *
+ * F.5 Final QA (2026-08-29): createCharge() now genuinely calls GoCardless's
+ * createPayment() itself (previously it only wrote a local row with a null
+ * gocardlessPaymentId — a real gap, see plans-service.ts's own comment on
+ * createCharge for the full story) — under GOCARDLESS_MOCK_MODE, the mock
+ * client's payments.create() already returns a real "confirmed" mock
+ * payment recorded in its own in-memory store, so the manual
+ * __mockGoCardlessSeedPayment() + separate status-update step this route
+ * used to need is gone: reconciliation now sees a genuinely matching pair
+ * from createCharge()'s own real call, not a hand-simulated one.
  */
 export const runtime = "nodejs";
 
@@ -34,29 +45,31 @@ export async function POST(req: Request) {
     planPatientId,
     patientPlanEnrolmentId: enrolmentId,
     mandateId,
+    gocardlessMandateId,
     amountPence,
     chargeDate,
   });
 
-  // Simulate GoCardless having also confirmed this exact charge, so
-  // reconciliation (which compares our local PlanPayment rows against
-  // GoCardless's own payment list for the period) sees a matching pair
-  // instead of flagging a mismatch for a payment GoCardless "never received".
-  const gcPaymentId = `PM_MOCK_RECON_${payment.id}`;
-  __mockGoCardlessSeedPayment({
-    id: gcPaymentId,
-    amount: amountPence,
-    status: "confirmed",
-    chargeDate: chargeDate.toISOString().slice(0, 10),
-    mandateId: gocardlessMandateId,
-  });
-  const updated = await prisma.planPayment.update({
-    where: { id: payment.id },
-    data: { gocardlessPaymentId: gcPaymentId, status: "CONFIRMED" },
-  });
+  // F.5 Final QA (2026-08-29): simulate the real webhook confirming this
+  // exact payment — the same event shape/path the real GoCardless webhook
+  // route (processWebhookEvent) handles in production, calling it directly
+  // rather than over real signed HTTP since this route is itself already
+  // mock-mode-gated. Without this, the freshly-created payment stays
+  // PENDING locally while the mock GoCardless client already reports it as
+  // "confirmed" — a real, correct STATUS mismatch reconciliation would (and
+  // should) flag until the webhook actually arrives, exactly like production.
+  if (payment.gocardlessPaymentId) {
+    await processWebhookEvent({
+      id: `EV_MOCK_${payment.id}`,
+      resource_type: "payments",
+      action: "confirmed",
+      links: { payment: payment.gocardlessPaymentId },
+    });
+  }
 
   const period = payment.billingPeriod!;
   const reconciliation = await runReconciliation(practiceId, period);
+  const confirmedPayment = await prisma.planPayment.findUniqueOrThrow({ where: { id: payment.id } });
 
-  return NextResponse.json({ payment: updated, reconciliation });
+  return NextResponse.json({ payment: confirmedPayment, reconciliation });
 }
