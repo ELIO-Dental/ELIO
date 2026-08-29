@@ -100,21 +100,34 @@ test("suspend and reactivate a tenant, verified against real DB state", async ({
     await prisma.practice.update({ where: { id: "seed-practice" }, data: { suspendedAt: null } });
   }
 
-  await loginAsSuperAdmin(page);
-  await page.getByTestId(`tenant-link-seed-practice`).click();
-  await page.waitForURL(/\/tenants\/seed-practice$/);
+  // Found live (2026-08-29): a prior run of this exact test hit a dev-server
+  // flake mid-assertion, left seed-practice genuinely suspended, and every
+  // OTHER test that ran afterward (in the same suite, including a totally
+  // unrelated impersonation test in a different file) then failed too —
+  // correctly, since packages/auth/config.ts's jwt() callback invalidates any
+  // session for a suspended practice, real security behavior working exactly
+  // as designed. The bug was this TEST's own lack of a guaranteed cleanup,
+  // not the app. try/finally ensures the restore always runs even if an
+  // assertion above it throws, so this shared practice can never be left
+  // suspended for the rest of the suite (or a completely different spec
+  // file) to inherit.
+  try {
+    await loginAsSuperAdmin(page);
+    await page.getByTestId(`tenant-link-seed-practice`).click();
+    await page.waitForURL(/\/tenants\/seed-practice$/);
 
-  await expect(page.getByTestId("suspend-toggle")).toHaveText(/suspend/i);
-  await page.getByTestId("suspend-toggle").click();
-  await expect(page.getByTestId("suspend-toggle")).toHaveText(/reactivate/i, { timeout: 10_000 });
-  await expect(page.getByTestId("suspend-toggle")).not.toBeDisabled();
+    await expect(page.getByTestId("suspend-toggle")).toHaveText(/suspend/i);
+    await page.getByTestId("suspend-toggle").click();
+    await expect(page.getByTestId("suspend-toggle")).toHaveText(/reactivate/i, { timeout: 10_000 });
+    await expect(page.getByTestId("suspend-toggle")).not.toBeDisabled();
 
-  const afterSuspend = await prisma.practice.findUniqueOrThrow({ where: { id: "seed-practice" } });
-  expect(afterSuspend.suspendedAt).not.toBeNull();
-
-  // Restore immediately — this is the shared seed-practice, other suites depend on it.
-  await page.getByTestId("suspend-toggle").click();
-  await expect(page.getByTestId("suspend-toggle")).toHaveText(/suspend/i, { timeout: 10_000 });
+    const afterSuspend = await prisma.practice.findUniqueOrThrow({ where: { id: "seed-practice" } });
+    expect(afterSuspend.suspendedAt).not.toBeNull();
+  } finally {
+    // Restore immediately, unconditionally — this is the shared seed-practice,
+    // other suites (and other spec files) depend on it never staying suspended.
+    await prisma.practice.update({ where: { id: "seed-practice" }, data: { suspendedAt: null } });
+  }
 
   const restored = await prisma.practice.findUniqueOrThrow({ where: { id: "seed-practice" } });
   expect(restored.suspendedAt).toBeNull();
@@ -135,28 +148,77 @@ test("toggling a module licence updates real DB state and the flow app enforces 
     await prisma.licence.update({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } }, data: { active: true, revokedAt: null } });
   }
 
-  await loginAsSuperAdmin(page);
-  await page.getByTestId("tenant-link-seed-practice").click();
-  await page.waitForURL(/\/tenants\/seed-practice$/);
+  // try/finally — same rationale as the suspend test above: a shared row
+  // (this Licence is what apps/flow's own requirePermission() reads on every
+  // real request) must never be left toggled off if an assertion above
+  // throws, or every OTHER test/spec-file that assumes FLOW is licensed
+  // fails too, for a completely unrelated reason.
+  try {
+    await loginAsSuperAdmin(page);
+    await page.getByTestId("tenant-link-seed-practice").click();
+    await page.waitForURL(/\/tenants\/seed-practice$/);
 
-  await page.getByTestId("licence-toggle-FLOW").click();
-  await expect(async () => {
-    const licence = await prisma.licence.findUniqueOrThrow({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } } });
-    expect(licence.active).toBe(false);
-  }).toPass({ timeout: 10_000 });
-  // packages/ui/components/switch.tsx's `pending` prop is a visual spinner
-  // only — it does NOT disable the control (deliberately, per its own
-  // comment: "track stays interactive-looking"). Clicking again while a
-  // request is still in flight, or before router.refresh() finishes
-  // re-rendering the tree, can race the in-flight request. Waiting for the
-  // request to settle (no spinner) before the next click avoids that,
-  // matching how a real user would naturally pause between clicks anyway.
-  await expect(page.getByTestId("licence-toggle-FLOW").locator("svg.animate-spin")).toHaveCount(0);
+    await page.getByTestId("licence-toggle-FLOW").click();
+    await expect(async () => {
+      const licence = await prisma.licence.findUniqueOrThrow({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } } });
+      expect(licence.active).toBe(false);
+    }).toPass({ timeout: 10_000 });
+    // packages/ui/components/switch.tsx's `pending` prop is a visual spinner
+    // only — it does NOT disable the control (deliberately, per its own
+    // comment: "track stays interactive-looking"). Clicking again while a
+    // request is still in flight, or before router.refresh() finishes
+    // re-rendering the tree, can race the in-flight request. Waiting for the
+    // request to settle (no spinner) before the next click avoids that,
+    // matching how a real user would naturally pause between clicks anyway.
+    await expect(page.getByTestId("licence-toggle-FLOW").locator("svg.animate-spin")).toHaveCount(0);
+  } finally {
+    await prisma.licence.update({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } }, data: { active: true, revokedAt: null } });
+  }
 
-  // Restore immediately.
-  await page.getByTestId("licence-toggle-FLOW").click();
-  await expect(async () => {
-    const licence = await prisma.licence.findUniqueOrThrow({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } } });
-    expect(licence.active).toBe(true);
-  }).toPass({ timeout: 10_000 });
+  const restored = await prisma.licence.findUniqueOrThrow({ where: { practiceId_moduleId: { practiceId: "seed-practice", moduleId: "FLOW" } } });
+  expect(restored.active).toBe(true);
+});
+
+test("toggling a feature flag updates real DB state, and audit-logs the change", async ({ page }) => {
+  // Step 2.5 DoD audit (00_SCOPE.md §10): "manages every ... feature-flag"
+  // was previously unverified live — only the licence/suspend controls had
+  // e2e coverage. Uses the real 'beta-pay-engine' flag row already seeded in
+  // the DB rather than inventing a throwaway one, so this proves the actual
+  // flag an admin would toggle in production, not a test-only fixture.
+  const flag = await prisma.featureFlag.findUniqueOrThrow({ where: { key: "beta-pay-engine" } });
+  const before = await prisma.practiceFeatureFlag.findUnique({ where: { practiceId_featureFlagId: { practiceId: "seed-practice", featureFlagId: flag.id } } });
+  if (before?.enabled) {
+    await prisma.practiceFeatureFlag.update({ where: { id: before.id }, data: { enabled: false } });
+  }
+
+  try {
+    await loginAsSuperAdmin(page);
+    await page.getByTestId("tenant-link-seed-practice").click();
+    await page.waitForURL(/\/tenants\/seed-practice$/);
+
+    const toggle = page.getByTestId(`flag-toggle-${flag.key}`);
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(async () => {
+      const pf = await prisma.practiceFeatureFlag.findUniqueOrThrow({ where: { practiceId_featureFlagId: { practiceId: "seed-practice", featureFlagId: flag.id } } });
+      expect(pf.enabled).toBe(true);
+    }).toPass({ timeout: 10_000 });
+
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.feature-flag.enable", targetType: "PracticeFeatureFlag", practiceId: "seed-practice" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(log).not.toBeNull();
+    expect((log?.metadata as { featureFlagId?: string } | null)?.featureFlagId).toBe(flag.id);
+  } finally {
+    // Guaranteed direct-DB restore, not a second UI click — this flag isn't
+    // read by any other app's real request path today (unlike the Licence
+    // row above), but a stray "enabled" row from a failed run would still
+    // pollute what a real Super Admin sees on their very next visit to this
+    // tenant, so it's worth the same unconditional cleanup discipline.
+    await prisma.practiceFeatureFlag.updateMany({ where: { practiceId: "seed-practice", featureFlagId: flag.id }, data: { enabled: false } });
+  }
+
+  const restored = await prisma.practiceFeatureFlag.findUniqueOrThrow({ where: { practiceId_featureFlagId: { practiceId: "seed-practice", featureFlagId: flag.id } } });
+  expect(restored.enabled).toBe(false);
 });
