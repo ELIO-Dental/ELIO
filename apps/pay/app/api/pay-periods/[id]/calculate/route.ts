@@ -61,8 +61,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
         });
 
-        // No natural unique key on (payPeriodId, dentistId) in the schema — find-then-write.
-        const existingHourly = await db.payslipEntry.findFirst({ where: { payPeriodId, dentistId: dentist.id } });
+        // F.1 Final QA money-path audit (2026-08-29): was find-then-write with
+        // no DB guard — now a real upsert against the new
+        // @@unique([payPeriodId, dentistId]) constraint (packages/db/prisma/
+        // schema.prisma), closing a genuine duplicate-payslip race between
+        // two concurrent calculate calls for the same dentist/period.
         const hourlyData = {
           practiceId: session.practiceId,
           payPeriodId,
@@ -75,9 +78,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           adjustmentReason: input.adjustmentReason ?? null,
           finalPayPence,
         };
-        const payslip = existingHourly
-          ? await db.payslipEntry.update({ where: { id: existingHourly.id }, data: hourlyData })
-          : await db.payslipEntry.create({ data: hourlyData });
+        const payslip = await db.payslipEntry.upsert({
+          where: { payPeriodId_dentistId: { payPeriodId, dentistId: dentist.id } },
+          update: hourlyData,
+          create: hourlyData,
+        });
 
         results.push(payslip);
         continue;
@@ -125,7 +130,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
       });
 
-      const existing = await db.payslipEntry.findFirst({ where: { payPeriodId, dentistId: dentist.id } });
+      // F.1 Final QA money-path audit (2026-08-29): was find-then-write with
+      // no DB guard — now a real upsert against the new
+      // @@unique([payPeriodId, dentistId]) constraint, same rationale as the
+      // HOURLY branch above.
       const data = {
         practiceId: session.practiceId,
         payPeriodId,
@@ -144,9 +152,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         adjustmentReason: input.adjustmentReason ?? null,
         finalPayPence,
       };
-      const payslip = existing
-        ? await db.payslipEntry.update({ where: { id: existing.id }, data })
-        : await db.payslipEntry.create({ data });
+      const payslip = await db.payslipEntry.upsert({
+        where: { payPeriodId_dentistId: { payPeriodId, dentistId: dentist.id } },
+        update: data,
+        create: data,
+      });
 
       if (input.privateRevenueItems?.length) {
         await db.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });

@@ -638,6 +638,19 @@ model PayslipEntry {
 
   privateRevenueLineItems PrivateRevenueLineItem[]
 
+  // F.1 Final QA money-path audit (2026-08-29): apps/pay/lib/pay-service.ts's
+  // calculatePayslipForDentist() and the /api/pay-periods/[id]/calculate
+  // route both used a find-then-write pattern with no DB-level guard —
+  // explicitly flagged inline in the route's own comment ("No natural unique
+  // key on (payPeriodId, dentistId) in the schema — find-then-write") as a
+  // known gap. Two concurrent calculate requests for the same dentist/period
+  // (a real scenario: a double-click, or a retried request after a slow
+  // response) could both read `existing` as null and both CREATE, producing
+  // two PayslipEntry rows instead of one update — a real duplicate-payslip
+  // risk under retry, exactly what BUG-1/NFR-1 forbid for a money path.
+  // Closing the gap at the schema level (not just adding a mutex in code)
+  // matches PlanPayment's own idempotency pattern.
+  @@unique([payPeriodId, dentistId])
   @@index([practiceId])
   @@index([payPeriodId])
   @@index([dentistId])

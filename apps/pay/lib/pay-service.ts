@@ -415,11 +415,21 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
       finalPayPence,
     };
 
-    const entry = existing
-      ? await db.payslipEntry.update({ where: { id: existing.id }, data })
-      : await db.payslipEntry.create({ data });
+    // F.1 Final QA money-path audit (2026-08-29): switched from find-then-write
+    // to a real DB-level upsert against the new @@unique([payPeriodId, dentistId])
+    // constraint (packages/db/prisma/schema.prisma) — closes a genuine
+    // duplicate-payslip race between two concurrent calculate calls for the
+    // same dentist/period (a double-click, or a retried request), matching
+    // PlanPayment's own idempotency pattern rather than a check-then-create
+    // race window.
+    const wasExisting = !!existing;
+    const entry = await db.payslipEntry.upsert({
+      where: { payPeriodId_dentistId: { payPeriodId, dentistId } },
+      update: data,
+      create: data,
+    });
 
-    if (!existing) {
+    if (!wasExisting) {
       for (const li of earnings.lineItems) {
         await db.privateRevenueLineItem.create({
           data: {
@@ -451,7 +461,11 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
     finalPayPence,
   };
 
-  return existing
-    ? db.payslipEntry.update({ where: { id: existing.id }, data })
-    : db.payslipEntry.create({ data });
+  // F.1 Final QA money-path audit (2026-08-29): same upsert fix as the
+  // PERCENTAGE_SPLIT branch above — see its comment for the full rationale.
+  return db.payslipEntry.upsert({
+    where: { payPeriodId_dentistId: { payPeriodId, dentistId } },
+    update: data,
+    create: data,
+  });
 }
