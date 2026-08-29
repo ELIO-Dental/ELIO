@@ -49,11 +49,14 @@ export function ShellLayout({ activeId = "flow", practiceName, userEmail, isOwne
   // F.2 Final QA (2026-08-29): see packages/ui/lib/use-is-mobile-viewport.ts's
   // comment — defaults collapsed on a mobile-width viewport, still fully
   // user-togglable via the Sidebar's own collapse button.
+  //
+  // F.4 Final QA (2026-08-29): see apps/shell/components/shell-layout.tsx's
+  // identical comment — avoids a real eslint(react-hooks/set-state-in-effect)
+  // violation the original useEffect version had.
   const isMobile = useIsMobileViewport();
-  const [collapsed, setCollapsed] = React.useState(false);
-  React.useEffect(() => {
-    if (isMobile) setCollapsed(true);
-  }, [isMobile]);
+  const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
+  const collapsed = userOverride ?? isMobile;
+  const setCollapsed = (next: boolean) => setUserOverride(next);
 
   return (
     <div className="flex h-screen bg-(--color-bg)">

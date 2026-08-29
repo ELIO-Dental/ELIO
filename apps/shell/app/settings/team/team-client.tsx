@@ -75,7 +75,18 @@ export function TeamClient({
   const [mfaToggle, setMfaToggle] = React.useState(initialRequireMfaForAllStaff);
   const [mfaPending, setMfaPending] = React.useState(false);
 
-  const load = React.useCallback(() => {
+  // F.4 Final QA (2026-08-29): the effect below used to call a shared
+  // `load()` helper that itself called setLoading(true)/setError(null)
+  // synchronously before its first await — eslint(react-hooks/
+  // set-state-in-effect) correctly flags synchronous setState reachable
+  // from an effect's body, even through an intermediate function call, once
+  // this app's genuinely-broken ESLint config (see eslint.config.mjs's own
+  // comment) actually ran for the first time. `refetch` (used by
+  // handleInvite's event handler, where synchronous setState is fine) keeps
+  // the old eager behavior; the effect instead only calls the plain async
+  // fetch and defers its OWN state updates to a microtask via `.then()`,
+  // which the rule doesn't flag (only synchronous-in-body calls are).
+  const refetch = React.useCallback(() => {
     setLoading(true);
     setError(null);
     fetchUsers()
@@ -85,8 +96,11 @@ export function TeamClient({
   }, []);
 
   React.useEffect(() => {
-    load();
-  }, [load]);
+    fetchUsers()
+      .then((u) => setUsers(u))
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -105,7 +119,7 @@ export function TeamClient({
       }
       setInviteMsg(`Invite sent to ${inviteEmail}.`);
       setInviteEmail("");
-      load();
+      refetch();
     } catch {
       setInviteMsg("Could not send invite.");
     } finally {
@@ -216,7 +230,7 @@ export function TeamClient({
               icon={Users}
               title="Couldn't load users"
               description={error}
-              action={{ label: "Retry", onClick: load }}
+              action={{ label: "Retry", onClick: refetch }}
             />
           ) : showSkeleton ? (
             <div className="space-y-2">

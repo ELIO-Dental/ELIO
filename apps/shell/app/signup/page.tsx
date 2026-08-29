@@ -127,7 +127,7 @@ export default function SignupPage() {
           {stepIndex === 1 && (
             <div className="space-y-4" data-testid="signup-step-dentally">
               <p className="text-body-sm text-(--color-text-secondary)">
-                Enter your practice's own Dentally API key to sync patients and appointments. You can skip this and connect it later from Settings.
+                Enter your practice&apos;s own Dentally API key to sync patients and appointments. You can skip this and connect it later from Settings.
               </p>
               <div>
                 <Label htmlFor="dentallyApiKey">Dentally API key</Label>

@@ -61,29 +61,44 @@ function PublicSignupContent() {
 
   const [stepIndex, setStepIndex] = React.useState(0);
 
-  const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/plans/api/public/signup/${token}`);
-      const body = await res.json();
-      if (!res.ok) {
-        setLoadError(body.error ?? "This signup link could not be loaded.");
-        return;
-      }
-      setData(body);
-      if (body.hasMandate) setStepIndex(3);
-      else if (body.alreadySigned) setStepIndex(2);
-    } catch {
-      setLoadError("Could not reach the server. Check your connection and retry.");
-    } finally {
-      setLoading(false);
-    }
+  // F.4 Final QA (2026-08-29): eslint(react-hooks/set-state-in-effect) flags
+  // synchronous setState reachable from an effect's body, even through an
+  // intermediate function call — see apps/shell/app/settings/team/
+  // team-client.tsx's identical comment for the full rationale. `runFetch`
+  // is the shared "do the actual request and apply its result" logic;
+  // `fetchData` (used by the "Retry" button below, where a synchronous
+  // loading/error reset is correct) wraps it with that reset, while the
+  // effect calls `runFetch` directly — `loading`/`loadError` already start
+  // at their correct initial values (true/null) via useState above, and
+  // this effect only runs once for the lifetime of this page (`token` is a
+  // route param from useParams(), never reassigned in place), so it never
+  // needed that reset in the first place.
+  const runFetch = React.useCallback(() => {
+    return fetch(`/plans/api/public/signup/${token}`)
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok) {
+          setLoadError(body.error ?? "This signup link could not be loaded.");
+          return;
+        }
+        setData(body);
+        if (body.hasMandate) setStepIndex(3);
+        else if (body.alreadySigned) setStepIndex(2);
+      })
+      .catch(() => setLoadError("Could not reach the server. Check your connection and retry."))
+      .finally(() => setLoading(false));
   }, [token]);
 
+  const fetchData = React.useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    runFetch();
+  }, [runFetch]);
+
   React.useEffect(() => {
-    if (token) fetchData();
-  }, [token, fetchData]);
+    if (!token) return;
+    runFetch();
+  }, [token, runFetch]);
 
   // Returning from GoCardless's Billing Request Flow: try the redirect-based
   // resolve first (fast path, works when GoCardless's redirect actually

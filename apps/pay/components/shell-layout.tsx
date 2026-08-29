@@ -50,11 +50,15 @@ export function ShellLayout({ activeId = "pay", practiceName, userEmail, isOwner
   // the real 375px screenshot that found the full 240px sidebar eating most
   // of the mobile viewport. Still fully user-togglable afterward via the
   // Sidebar's own collapse button.
+  //
+  // F.4 Final QA (2026-08-29): see apps/shell/components/shell-layout.tsx's
+  // identical comment — avoids a real eslint(react-hooks/set-state-in-effect)
+  // violation the original useEffect version had (only surfaced once this
+  // app's genuinely-broken ESLint config, see eslint.config.mjs, actually ran).
   const isMobile = useIsMobileViewport();
-  const [collapsed, setCollapsed] = React.useState(false);
-  React.useEffect(() => {
-    if (isMobile) setCollapsed(true);
-  }, [isMobile]);
+  const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
+  const collapsed = userOverride ?? isMobile;
+  const setCollapsed = (next: boolean) => setUserOverride(next);
 
   return (
     <div className="flex h-screen bg-(--color-bg)">

@@ -82,9 +82,16 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
       // Cross-ZONE navigation (multi-zone: /plans is a separate Next.js app
       // proxied by apps/shell's rewrites, per apps/shell/next.config.ts) —
       // this must be a hard navigation, not router.push(), since router.push
-      // only works for routes within THIS app's own zone.
+      // only works for routes within THIS app's own zone. F.4 Final QA
+      // (2026-08-29): both eslint(react-hooks/immutability) and
+      // @next/next/no-location-assign-relative-destination fire here once
+      // this app's genuinely-broken ESLint config (see eslint.config.mjs)
+      // actually ran — both are usually right to flag this pattern, but
+      // window.location.href is the CORRECT choice for a real cross-zone
+      // navigation like this one, not a mistake to fix.
       const params = new URLSearchParams({ fromFlow: consult.id });
       if (consult.patientId) params.set("patientId", consult.patientId);
+      // eslint-disable-next-line react-hooks/immutability, @next/next/no-location-assign-relative-destination
       window.location.href = `/plans/patients?${params.toString()}`;
     } catch (err) {
       toast.error("Couldn't start ElioPlans signup", {

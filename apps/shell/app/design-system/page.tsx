@@ -445,7 +445,7 @@ export default function DesignSystemPage() {
             <span className="text-body-sm">ElioPlans module color (#6366f1)</span>
           </div>
           <span className="text-caption text-(--color-text-tertiary)">
-            Side-by-side check per §8.1's note — the two remain visually distinguishable.
+            Side-by-side check per §8.1&apos;s note — the two remain visually distinguishable.
           </span>
         </div>
       </Section>

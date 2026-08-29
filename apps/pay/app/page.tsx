@@ -96,7 +96,7 @@ export default async function PayDashboardPage() {
         <div className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>This period's payslips</CardTitle>
+              <CardTitle>This period&apos;s payslips</CardTitle>
             </CardHeader>
             <CardContent>
               {entries.length === 0 ? (

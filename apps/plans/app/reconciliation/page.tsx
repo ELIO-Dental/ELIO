@@ -17,7 +17,7 @@ export default async function ReconciliationPage() {
         <h1 className="text-h2 text-(--color-text-primary)">Reconciliation</h1>
         <p className="mt-1 text-body text-(--color-text-secondary)">
           Compare expected charges and local payments against GoCardless for a billing period.
-          This mirrors the daily cron job (BUG-1's reconciliation logic) run on demand.
+          This mirrors the daily cron job (BUG-1&apos;s reconciliation logic) run on demand.
         </p>
 
         <div className="mt-8">

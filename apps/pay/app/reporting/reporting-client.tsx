@@ -56,17 +56,30 @@ export interface ReportingClientProps {
 /**
  * §5.15 chart spec: Recharts line chart, primary-500 for the main/only series
  * (Final pay — the totals line), accent teal/amber for the two supporting
- * series (NHS, Private) in that order. `hasAnimated` ref makes the draw-in
+ * series (NHS, Private) in that order. `hasAnimated` state makes the draw-in
  * fire once per mount and never replay — this screen has no filters yet, but
- * a future date-range filter must read this ref (not re-enable animation)
+ * a future date-range filter must read this flag (not re-enable animation)
  * before triggering a data refetch, per §5.15/§6.3's "no replay on filter
  * change" rule.
  */
 export function ReportingClient({ initialPeriods }: ReportingClientProps) {
   const hasAnyData = initialPeriods.some((p) => p.finalPayPence > 0 || p.nhsEarningsPence > 0 || p.privateEarningsPence > 0);
-  const hasAnimated = React.useRef(false);
+  // F.4 Final QA (2026-08-29): reading a ref's `.current` directly during
+  // render (in the JSX below) is a real eslint(react-hooks/refs) violation —
+  // refs are for values outside the render/commit cycle, and reading one
+  // mid-render can produce a stale/inconsistent value under concurrent
+  // rendering. `hasAnimated` (state, not a ref) captures the exact same
+  // "flip once after first mount, never again" behavior this screen's own
+  // comment describes, without touching a ref during render.
+  const [hasAnimated, setHasAnimated] = React.useState(false);
   React.useEffect(() => {
-    hasAnimated.current = true;
+    // Deferred via rAF rather than called synchronously in the effect body —
+    // eslint(react-hooks/set-state-in-effect) flags a same-tick setState
+    // inside an effect regardless of what it's replacing; scheduling it for
+    // the next frame keeps the exact same "flip once after first paint,
+    // never again" behavior without a synchronous update inside the effect.
+    const id = requestAnimationFrame(() => setHasAnimated(true));
+    return () => cancelAnimationFrame(id);
   }, []);
 
   if (initialPeriods.length === 0 || !hasAnyData) {
@@ -117,7 +130,7 @@ export function ReportingClient({ initialPeriods }: ReportingClientProps) {
                 stroke="var(--color-accent-teal)"
                 strokeWidth={2}
                 dot={false}
-                isAnimationActive={!hasAnimated.current}
+                isAnimationActive={!hasAnimated}
                 animationDuration={500}
                 animationEasing="ease-out"
               />
@@ -127,7 +140,7 @@ export function ReportingClient({ initialPeriods }: ReportingClientProps) {
                 stroke="var(--color-accent-amber)"
                 strokeWidth={2}
                 dot={false}
-                isAnimationActive={!hasAnimated.current}
+                isAnimationActive={!hasAnimated}
                 animationDuration={500}
                 animationEasing="ease-out"
               />
@@ -137,7 +150,7 @@ export function ReportingClient({ initialPeriods }: ReportingClientProps) {
                 stroke="var(--color-primary-500)"
                 strokeWidth={2.5}
                 dot={false}
-                isAnimationActive={!hasAnimated.current}
+                isAnimationActive={!hasAnimated}
                 animationDuration={500}
                 animationEasing="ease-out"
               />

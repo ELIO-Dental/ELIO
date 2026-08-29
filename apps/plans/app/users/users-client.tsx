@@ -52,7 +52,13 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   const [error, setError] = React.useState<string | null>(null);
   const showSkeleton = useSkeleton(loading);
 
-  const load = React.useCallback(() => {
+  // F.4 Final QA (2026-08-29): eslint(react-hooks/set-state-in-effect) flags
+  // synchronous setState reachable from an effect's body, even through an
+  // intermediate function call — see apps/shell/app/settings/team/
+  // team-client.tsx's identical comment for the full rationale. `refetch`
+  // (also used by the "Retry" button below) keeps the old eager behavior;
+  // the effect instead only calls the plain async fetch directly.
+  const refetch = React.useCallback(() => {
     setLoading(true);
     setError(null);
     fetchUsers()
@@ -62,8 +68,11 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   }, []);
 
   React.useEffect(() => {
-    load();
-  }, [load]);
+    fetchUsers()
+      .then((u) => setUsers(u))
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function updateUser(id: string, patch: { role?: Role; active?: boolean }) {
     const prev = users;
@@ -79,7 +88,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   if (error) {
     return (
       <div className="rounded-(--radius-lg) border border-(--color-border)">
-        <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: load }} />
+        <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: refetch }} />
       </div>
     );
   }

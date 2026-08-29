@@ -42,14 +42,23 @@ export interface ShellLayoutProps {
 /** Shared shell layout (sidebar nav + header + account switcher) — wraps every
  * module once migrated (Steps 1.6-1.8), per APPLICATION_FLOW.md section 1. */
 export function ShellLayout({ activeId = "launcher", activeModuleId = "pay", practiceName, userEmail, isOwner, children }: ShellLayoutProps) {
-  // F.2 Final QA (2026-08-29): see packages/ui/lib/use-is-mobile-viewport.ts's
-  // comment — defaults collapsed on a mobile-width viewport, still fully
+  // F.2 Final QA (2026-08-29): defaults collapsed on a mobile-width viewport
+  // (see packages/ui/lib/use-is-mobile-viewport.ts's comment), still fully
   // user-togglable via the Sidebar's own collapse button.
+  //
+  // F.4 Final QA (2026-08-29): the original version synced this via a
+  // `useEffect` that called `setCollapsed` directly in its body — a real
+  // eslint(react-hooks/set-state-in-effect) violation surfaced once this
+  // app's genuinely-broken ESLint config (see eslint.config.mjs's own
+  // comment) was fixed and actually ran for the first time. `userOverride`
+  // is null until the person explicitly toggles the button; while null, the
+  // effective collapsed state tracks `isMobile` directly on every render —
+  // no effect, no synchronous setState-in-effect, and the override still
+  // works exactly like before once set.
   const isMobile = useIsMobileViewport();
-  const [collapsed, setCollapsed] = React.useState(false);
-  React.useEffect(() => {
-    if (isMobile) setCollapsed(true);
-  }, [isMobile]);
+  const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
+  const collapsed = userOverride ?? isMobile;
+  const setCollapsed = (next: boolean) => setUserOverride(next);
 
   return (
     <div className="flex h-screen bg-(--color-bg)">

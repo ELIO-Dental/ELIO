@@ -1,0 +1,79 @@
+name: CI
+
+# F.4 Final QA (2026-08-29): 00_SCOPE.md's own architecture diagram references
+# .github/workflows/ as part of the repo layout, and NFR-1 requires "CI on
+# every change, nothing merges red" — this file genuinely did not exist
+# anywhere in the repo before this. Confirmed via a repo-wide search: no
+# .yml/.yaml at all, no .github directory.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Fast, no external dependencies (no live DB, no dev servers) — runs on
+  # every push/PR unconditionally. Covers the whole monorepo's TypeScript
+  # correctness, lint rules, and the two pure-logic packages' unit tests
+  # (pay-engine 95.5% coverage, plans-engine's core logic — see
+  # project-docs/PROJECT_STATE.md's F.1/F.3 closeout entries).
+  lint-typecheck-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx turbo run type-check
+      - run: npx turbo run lint
+      - run: npx turbo run build
+
+  unit-tests-no-db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx turbo run test --filter=@elio/pay-engine --filter=@elio/plans-engine
+
+  # Gated behind a real DATABASE_URL/DIRECT_DATABASE_URL secret existing on
+  # this repo — packages/db's tests (tenant.isolation.test.ts,
+  # tenant.allowlist-completeness.test.ts) exercise the REAL scopedDb()
+  # wrapper against a real Postgres connection, deliberately (see that
+  # file's own header comment: "not a mock"). Without a real DB configured,
+  # this job is skipped rather than failing CI outright — until a dedicated
+  # CI/staging database is provisioned (NFR-4: "GoCardless sandbox in
+  # staging... nothing tested against live money" implies a staging DB
+  # should exist separately from this session's shared dev/production Neon
+  # instance), this job should point at that once available. Runs against
+  # the SAME database configured in DATABASE_URL — whoever sets this secret
+  # is responsible for making sure that's a real staging DB, never the
+  # production one a CI run could pollute with test rows.
+  unit-tests-with-db:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HAS_DATABASE_URL == 'true' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx turbo run test --filter=@elio/db
+
+  # e2e suites (Playwright) are deliberately NOT run in this workflow yet —
+  # every existing suite (apps/*/e2e/*.spec.ts) boots real dev servers, logs
+  # in with real seeded credentials, and several (admin's MFA suite,
+  # plans' GoCardless mock-mode suite) need additional secrets
+  # (SEED_SUPER_ADMIN_MFA_SECRET, INITIAL_ADMIN_EMAIL/PASSWORD) that aren't
+  # configured on this repository yet. Wiring these in is real, scoped
+  # follow-up work — flagged here explicitly rather than silently omitted,
+  # per F.4's own "flag every gap, don't hide it" instruction.
