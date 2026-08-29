@@ -78,9 +78,16 @@ export function Stepper({ steps, currentIndex, className }: StepperProps) {
                   </AnimatePresence>
                 </motion.span>
               </span>
+              {/* Found live (2026-08-29, independent Phase 2 audit):
+                  whitespace-nowrap combined with the last step's flex-none
+                  sizing meant a long label (e.g. "Choose modules") couldn't
+                  shrink or wrap, forcing the whole stepper past the viewport
+                  edge on mobile (confirmed clipped at 375px). Constraining
+                  width + allowing a natural 2-line wrap keeps every step's
+                  own column compact regardless of label length. */}
               <span
                 className={cn(
-                  "text-caption text-center whitespace-nowrap",
+                  "max-w-[70px] text-center text-caption break-words",
                   status === "upcoming" ? "text-(--color-text-tertiary)" : "text-(--color-text-secondary)"
                 )}
               >

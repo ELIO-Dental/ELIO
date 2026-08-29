@@ -31,3 +31,28 @@ export async function getLicensedModules(practiceId: string): Promise<ModuleId[]
   const now = Date.now();
   return licences.filter((l) => !l.trialEndsAt || l.trialEndsAt.getTime() >= now).map((l) => l.moduleId);
 }
+
+export interface LicenceStatus {
+  licensed: boolean;
+  /** Set only when this licence is a still-running trial (not yet expired). */
+  trialEndsAt: Date | null;
+}
+
+/** Richer variant of isModuleLicensed() for UI that needs to actually show
+ * the trial window, not just a yes/no gate. Found live (2026-08-29,
+ * independent Phase 2 audit): APPLICATION_FLOW.md §9's required "Trial — N
+ * days left" launcher indicator was never implemented anywhere — neither
+ * isModuleLicensed() nor getLicensedModules() ever returned trialEndsAt to
+ * any caller, so no UI could have shown it even if someone had tried. Kept
+ * as a SEPARATE function rather than changing isModuleLicensed()'s existing
+ * boolean signature, which every access-gate call site across all 3 module
+ * apps already relies on unchanged. */
+export async function getLicenceStatus(practiceId: string, moduleId: ModuleId): Promise<LicenceStatus> {
+  const licence = await prisma.licence.findUnique({
+    where: { practiceId_moduleId: { practiceId, moduleId } },
+  });
+  if (!licence || !licence.active) return { licensed: false, trialEndsAt: null };
+  const trialExpired = !!licence.trialEndsAt && licence.trialEndsAt.getTime() < Date.now();
+  if (trialExpired) return { licensed: false, trialEndsAt: null };
+  return { licensed: true, trialEndsAt: licence.trialEndsAt };
+}
