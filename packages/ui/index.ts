@@ -5,6 +5,7 @@
 export * from "./fonts";
 export * from "./lib/cn";
 export * from "./lib/get-module-color";
+export * from "./lib/use-is-mobile-viewport";
 export * from "./tokens/motion";
 
 export * from "./components/button";

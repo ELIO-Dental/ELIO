@@ -33,14 +33,22 @@ export function PayNav({ isOwner = false }: { isOwner?: boolean }) {
 
   return (
     <div className="border-b border-(--color-border)" style={{ borderTopColor: color.accentBorder, borderTopWidth: 2 }}>
-      <nav className="mx-auto flex max-w-6xl gap-1 px-6">
+      {/* Found live (2026-08-29, F.2 Final QA): 7 links (8 for OWNER) at a
+          fixed px-3 each silently overflowed past 375px with no way to reach
+          the clipped-off tabs — no overflow-x-auto, no wrap, nothing. Adding
+          horizontal scroll (whitespace-nowrap keeps each link on one line so
+          it scrolls as a unit rather than wrapping mid-label) makes every
+          tab reachable on a real mobile viewport, matching the same
+          horizontal-scroll pattern already used for wide tables elsewhere in
+          this codebase. */}
+      <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6">
         {links.map((link) => {
           const active = link.href === "/pay" ? pathname === "/pay" : pathname?.startsWith(link.href);
           return (
             <a
               key={link.href}
               href={link.href}
-              className="relative flex h-12 items-center px-3 text-body-sm font-medium text-(--color-text-secondary) transition-colors hover:text-(--color-text-primary)"
+              className="relative flex h-12 shrink-0 items-center whitespace-nowrap px-3 text-body-sm font-medium text-(--color-text-secondary) transition-colors hover:text-(--color-text-primary)"
               style={active ? { color: color.hex } : undefined}
               aria-current={active ? "page" : undefined}
             >

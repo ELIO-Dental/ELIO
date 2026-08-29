@@ -16,10 +16,19 @@ export const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-(--radius-md) border bg-(--color-surface) px-3 text-body text-(--color-text-primary) outline-none transition-[border-color,box-shadow] duration-150",
+      "flex h-10 w-full items-center justify-between gap-2 rounded-(--radius-md) border bg-(--color-surface) px-3 text-body text-(--color-text-primary) outline-none transition-[border-color,box-shadow] duration-150",
       "border-(--color-border) data-[state=open]:border-(--color-primary-500) data-[state=open]:shadow-(--shadow-glow-primary)",
       error && "border-(--color-danger)",
       "disabled:cursor-not-allowed disabled:bg-(--color-bg-subtle) disabled:text-(--color-text-disabled)",
+      // Found live (2026-08-29, F.2 Final QA): a long option label (e.g.
+      // "Percentage split (dentist)") wrapped onto a second line inside this
+      // fixed h-10 trigger — confirmed via a real 375px screenshot of
+      // apps/pay/app/dentists' pay-type select overlapping the label below
+      // it. `min-w-0` lets the flex child actually shrink (without it,
+      // truncate on a flex item is silently ignored); `[&>span]:truncate`
+      // targets Radix's own SelectValue span, which renders with no class
+      // props of its own to hook into directly.
+      "[&>span]:min-w-0 [&>span]:truncate",
       className
     )}
     {...props}

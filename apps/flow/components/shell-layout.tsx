@@ -17,6 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  useIsMobileViewport,
   type SidebarNavItem,
   type ModuleId,
 } from "@elio/ui";
@@ -45,7 +46,14 @@ export interface ShellLayoutProps {
 /** ElioFlow's copy of the shared shell layout — sidebar/header persist,
  * module content renders inside `children`. See MASTER_BUILD_GUIDE.md Step 1.8. */
 export function ShellLayout({ activeId = "flow", practiceName, userEmail, isOwner, children }: ShellLayoutProps) {
+  // F.2 Final QA (2026-08-29): see packages/ui/lib/use-is-mobile-viewport.ts's
+  // comment — defaults collapsed on a mobile-width viewport, still fully
+  // user-togglable via the Sidebar's own collapse button.
+  const isMobile = useIsMobileViewport();
   const [collapsed, setCollapsed] = React.useState(false);
+  React.useEffect(() => {
+    if (isMobile) setCollapsed(true);
+  }, [isMobile]);
 
   return (
     <div className="flex h-screen bg-(--color-bg)">

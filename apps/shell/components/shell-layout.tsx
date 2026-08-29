@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  useIsMobileViewport,
   type SidebarNavItem,
   type ModuleId,
 } from "@elio/ui";
@@ -41,7 +42,14 @@ export interface ShellLayoutProps {
 /** Shared shell layout (sidebar nav + header + account switcher) — wraps every
  * module once migrated (Steps 1.6-1.8), per APPLICATION_FLOW.md section 1. */
 export function ShellLayout({ activeId = "launcher", activeModuleId = "pay", practiceName, userEmail, isOwner, children }: ShellLayoutProps) {
+  // F.2 Final QA (2026-08-29): see packages/ui/lib/use-is-mobile-viewport.ts's
+  // comment — defaults collapsed on a mobile-width viewport, still fully
+  // user-togglable via the Sidebar's own collapse button.
+  const isMobile = useIsMobileViewport();
   const [collapsed, setCollapsed] = React.useState(false);
+  React.useEffect(() => {
+    if (isMobile) setCollapsed(true);
+  }, [isMobile]);
 
   return (
     <div className="flex h-screen bg-(--color-bg)">
