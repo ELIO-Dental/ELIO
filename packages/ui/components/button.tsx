@@ -9,21 +9,21 @@ import { cn } from "../lib/cn";
 import { duration, easing } from "../tokens/motion";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-md) text-body font-medium transition-[background-color,border-color,color,box-shadow] duration-150 ease-out disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--color-primary-500)",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-md) text-body font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--color-primary-500) focus-visible:ring-offset-(--color-bg)",
   {
     variants: {
       variant: {
         primary:
-          "bg-(--color-primary-500) text-white hover:bg-(--color-primary-600) hover:shadow-(--shadow-glow-primary) active:bg-(--color-primary-700) active:scale-[0.98] disabled:bg-(--color-primary-200) disabled:text-(--color-text-disabled)",
+          "bg-(--color-primary-600) text-white shadow-(--shadow-xs) hover:bg-(--color-primary-700) hover:shadow-(--shadow-sm) active:bg-(--color-primary-800) active:scale-[0.98] disabled:bg-(--color-primary-200) disabled:text-(--color-text-disabled) disabled:shadow-none",
         secondary:
-          "bg-(--color-surface) text-(--color-text-primary) border border-(--color-border) hover:bg-(--color-bg-subtle) active:border-(--color-text-tertiary) disabled:opacity-50",
+          "bg-(--color-surface) text-(--color-text-primary) border border-(--color-border) shadow-(--shadow-xs) hover:bg-(--color-bg-subtle) hover:border-(--color-text-tertiary) hover:shadow-(--shadow-sm) active:bg-(--color-border-subtle) disabled:opacity-60",
         outline:
-          "bg-transparent text-(--color-primary-600) border border-(--color-primary-300) hover:bg-(--color-primary-50) active:bg-(--color-primary-100) disabled:opacity-50",
+          "bg-(--color-surface) text-(--color-primary-700) border border-(--color-primary-500) shadow-(--shadow-xs) hover:bg-(--color-primary-50) hover:shadow-(--shadow-sm) active:bg-(--color-primary-100) disabled:opacity-60",
         ghost:
-          "bg-transparent text-(--color-text-primary) hover:bg-(--color-bg-subtle) active:bg-(--color-border-subtle) disabled:opacity-40",
+          "border border-transparent text-(--color-text-secondary) hover:border-(--color-border) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary) hover:shadow-(--shadow-xs) active:bg-(--color-border-subtle) disabled:opacity-50",
         destructive:
-          "bg-(--color-danger) text-white hover:brightness-[0.92] active:brightness-[0.85] disabled:opacity-50",
-        link: "bg-transparent text-(--color-primary-600) underline-offset-4 hover:underline active:text-(--color-primary-700) disabled:opacity-50 p-0 h-auto",
+          "bg-(--color-danger) text-white shadow-(--shadow-xs) hover:brightness-[0.92] hover:shadow-(--shadow-sm) active:brightness-[0.85] disabled:opacity-50",
+        link: "bg-transparent text-(--color-primary-700) underline-offset-4 hover:underline active:text-(--color-primary-800) disabled:opacity-50 p-0 h-auto",
       },
       size: {
         sm: "h-8 px-3 text-body-sm",

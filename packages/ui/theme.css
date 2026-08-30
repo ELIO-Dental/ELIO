@@ -51,15 +51,15 @@
 
   /* §2.5 Neutrals — light mode defaults (redefined for dark below) */
   --color-bg: #ffffff;
-  --color-bg-subtle: #fafafa;
+  --color-bg-subtle: #f5f5f7;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-border: #e5e7eb;
-  --color-border-subtle: #f0f0f2;
+  --color-border: #d4d4dc;
+  --color-border-subtle: #e4e4ea;
   --color-text-primary: #0f0f14;
-  --color-text-secondary: #5b5b66;
-  --color-text-tertiary: #9494a0;
-  --color-text-disabled: #c4c4cc;
+  --color-text-secondary: #4a4a56;
+  --color-text-tertiary: #767682;
+  --color-text-disabled: #a8a8b3;
 
   /* §2.7 Glass / depth tokens */
   --glass-bg-light: rgba(255, 255, 255, 0.72);
@@ -146,12 +146,12 @@
   /* ---------------------------------------------------------------------
    * §4.3 Shadows (light mode)
    * ------------------------------------------------------------------- */
-  --shadow-xs: 0 1px 2px rgba(15, 15, 20, 0.04);
-  --shadow-sm: 0 2px 8px rgba(15, 15, 20, 0.06);
-  --shadow-md: 0 4px 16px rgba(15, 15, 20, 0.08);
-  --shadow-lg: 0 12px 32px rgba(15, 15, 20, 0.12);
-  --shadow-xl: 0 24px 48px rgba(15, 15, 20, 0.16);
-  --shadow-glow-primary: 0 0 0 4px rgba(124, 92, 252, 0.15);
+  --shadow-xs: 0 1px 2px rgba(15, 15, 20, 0.06);
+  --shadow-sm: 0 2px 8px rgba(15, 15, 20, 0.09);
+  --shadow-md: 0 4px 16px rgba(15, 15, 20, 0.11);
+  --shadow-lg: 0 12px 32px rgba(15, 15, 20, 0.14);
+  --shadow-xl: 0 24px 48px rgba(15, 15, 20, 0.18);
+  --shadow-glow-primary: 0 0 0 4px rgba(124, 92, 252, 0.2);
   --shadow-glow-success: 0 0 0 4px rgba(22, 163, 74, 0.15);
 
   /* ---------------------------------------------------------------------
@@ -270,6 +270,18 @@ body {
 
 :root[data-theme="light"] body {
   color-scheme: light;
+}
+
+/* Explicit light-mode polish — stronger surfaces when user toggles light theme. */
+:root[data-theme="light"] {
+  --color-bg-subtle: #f5f5f7;
+  --color-border: #d4d4dc;
+  --color-border-subtle: #e4e4ea;
+  --color-text-secondary: #4a4a56;
+  --color-text-tertiary: #767682;
+  --shadow-xs: 0 1px 2px rgba(15, 15, 20, 0.06);
+  --shadow-sm: 0 2px 8px rgba(15, 15, 20, 0.09);
+  --shadow-glow-primary: 0 0 0 4px rgba(124, 92, 252, 0.2);
 }
 
 /* §3.3 Money values always use tabular figures */

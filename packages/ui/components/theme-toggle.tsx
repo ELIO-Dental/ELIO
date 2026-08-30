@@ -39,9 +39,9 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <Button
       type="button"
-      variant="secondary"
+      variant="outline"
       size="sm"
-      className={cn("size-9 shrink-0 px-0", className)}
+      className={cn("size-9 shrink-0 border-(--color-border) bg-(--color-surface) px-0 shadow-(--shadow-sm)", className)}
       onClick={toggle}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       data-testid="theme-toggle"

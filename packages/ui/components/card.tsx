@@ -16,7 +16,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <motion.div
       ref={ref}
       className={cn(
-        "rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface) p-4 shadow-(--shadow-xs) md:p-6",
+        "rounded-(--radius-lg) border border-(--color-border) bg-(--color-surface) p-4 shadow-(--shadow-sm) md:p-6",
         interactive && "cursor-pointer",
         className
       )}

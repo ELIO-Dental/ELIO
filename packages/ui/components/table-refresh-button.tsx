@@ -31,7 +31,7 @@ export function TableRefreshButton({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="secondary"
       size="sm"
       className={cn("size-8 shrink-0 px-0", className)}
       onClick={handleClick}

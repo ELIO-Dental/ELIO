@@ -18,8 +18,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             disabled={disabled}
             className={cn(
-              "h-10 w-full rounded-(--radius-md) border bg-(--color-surface) px-3 text-body text-(--color-text-primary) outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-(--color-text-tertiary)",
-              "border-(--color-border) focus:border-(--color-primary-500) focus:shadow-(--shadow-glow-primary)",
+              "h-10 w-full rounded-(--radius-md) border bg-(--color-surface) px-3 text-body text-(--color-text-primary) shadow-(--shadow-xs) outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-(--color-text-tertiary)",
+              "border-(--color-border) focus:border-(--color-primary-600) focus:shadow-(--shadow-glow-primary)",
               error && "border-(--color-danger) animate-[shakeX_400ms_ease-in-out_1]",
               success && "border-(--color-success) pr-9",
               disabled && "cursor-not-allowed bg-(--color-bg-subtle) text-(--color-text-disabled)",
