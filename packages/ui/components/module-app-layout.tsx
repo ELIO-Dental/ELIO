@@ -14,7 +14,7 @@ export interface ModuleNavLink {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** When true, active only on an exact pathname match (e.g. /pay dashboard root). */
+  /** When true, active only on an exact pathname match (e.g. zone dashboard root "/"). */
   exact?: boolean;
 }
 

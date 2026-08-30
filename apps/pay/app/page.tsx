@@ -68,7 +68,7 @@ export default async function PayDashboardPage() {
           </>
         }
         actions={
-          <Link href={`/pay/pay-periods/${currentPeriod.id}`}>
+          <Link href={`/pay-periods/${currentPeriod.id}`}>
             <Button variant="primary">Upload Compass statement</Button>
           </Link>
         }
@@ -91,7 +91,7 @@ export default async function PayDashboardPage() {
                 <p className="text-body-sm text-(--color-text-secondary)">Unmatched performer numbers or a name mismatch since the last statement.</p>
               </div>
             </div>
-            <Link href={`/pay/pay-periods/${currentPeriod.id}`}>
+            <Link href={`/pay-periods/${currentPeriod.id}`}>
               <Button variant="secondary">Review now</Button>
             </Link>
           </Card>

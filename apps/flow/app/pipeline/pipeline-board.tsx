@@ -11,6 +11,7 @@
 // spec (shadow + rotate(2deg) + scale(1.02)) is applied via `whileDrag`, and
 // the drop settle uses springSnappy (packages/ui/tokens/motion.ts).
 import * as React from "react";
+import Link from "next/link";
 import { motion, type PanInfo } from "framer-motion";
 import { toast, getModuleColor, easing, Button, formatMoneyGBP } from "@elio/ui";
 
@@ -207,13 +208,13 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
                   )}
                   {card.kind === "consult" && (
                     <div className="mt-2 flex flex-wrap items-center gap-2" onPointerDownCapture={(e) => e.stopPropagation()}>
-                      <a
-                        href={`/flow/consults/${card.id}`}
+                      <Link
+                        href={`/consults/${card.id}`}
                         className="text-caption font-medium underline-offset-2 hover:underline"
                         style={{ color: color.hex }}
                       >
                         View details
-                      </a>
+                      </Link>
                       {card.outcome === "ACCEPTED" &&
                         (card.planSignedUp ? (
                           <span className="text-caption text-(--color-text-tertiary)">ElioPlans signup started</span>

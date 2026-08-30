@@ -43,7 +43,7 @@ export function PayNav({ isOwner = false }: { isOwner?: boolean }) {
           this codebase. */}
       <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6">
         {links.map((link) => {
-          const active = link.href === "/pay" ? pathname === "/pay" : pathname?.startsWith(link.href);
+          const active = link.href === "/pay" ? pathname === "/pay" || pathname === "/" : pathname?.startsWith(link.href);
           return (
             <a
               key={link.href}

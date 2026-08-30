@@ -59,7 +59,7 @@ export default async function ActionRequiredPage() {
               <Card>
                 <CardHeader className="flex items-center justify-between">
                   <CardTitle>Redemptions pending approval ({pendingRedeems.length})</CardTitle>
-                  <Link href="/plans/redeems?status=PENDING_APPROVAL">
+                  <Link href="/redeems?status=PENDING_APPROVAL">
                     <Button variant="secondary" size="sm">Review in Redeems</Button>
                   </Link>
                 </CardHeader>
@@ -85,7 +85,7 @@ export default async function ActionRequiredPage() {
               <Card accentColor="var(--color-danger)">
                 <CardHeader className="flex items-center justify-between">
                   <CardTitle>Failed / charged-back payments ({failedPayments.length})</CardTitle>
-                  <Link href="/plans/payments?status=FAILED">
+                  <Link href="/payments?status=FAILED">
                     <Button variant="secondary" size="sm">Review in Payments</Button>
                   </Link>
                 </CardHeader>
@@ -111,7 +111,7 @@ export default async function ActionRequiredPage() {
               <Card>
                 <CardHeader className="flex items-center justify-between">
                   <CardTitle>Unsigned documents ({unsignedRequests.length})</CardTitle>
-                  <Link href="/plans/documents">
+                  <Link href="/documents">
                     <Button variant="secondary" size="sm">Review in Documents</Button>
                   </Link>
                 </CardHeader>
@@ -139,7 +139,7 @@ export default async function ActionRequiredPage() {
                   <CardTitle>
                     Reconciliation mismatches for {reconciliation.period} ({reconciliation.mismatches.length})
                   </CardTitle>
-                  <Link href="/plans/reconciliation">
+                  <Link href="/reconciliation">
                     <Button variant="secondary" size="sm">Review in Reconciliation</Button>
                   </Link>
                 </CardHeader>

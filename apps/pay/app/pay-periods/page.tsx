@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
@@ -70,9 +71,9 @@ export default async function PayPeriodsPage({
                 {payPeriods.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <a href={`/pay-periods/${p.id}`} className="text-(--color-primary-500) hover:underline">
+                      <Link href={`/pay-periods/${p.id}`} className="text-(--color-primary-500) hover:underline">
                         {p.periodStart.toISOString().slice(0, 10)} – {p.periodEnd.toISOString().slice(0, 10)}
-                      </a>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Badge variant={p.status === "LOCKED" ? "success" : "neutral"}>{p.status}</Badge>

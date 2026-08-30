@@ -71,7 +71,7 @@ export default async function DashboardPage() {
           </>
         }
         actions={
-          <Link href="/plans/patients">
+          <Link href="/patients">
             <Button variant="primary">Enrol a patient</Button>
           </Link>
         }
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
                 Review patients below and check their mandate status.
               </p>
             </div>
-            <Link href="/plans/patients">
+            <Link href="/patients">
               <Button variant="secondary">Review patients</Button>
             </Link>
           </Card>
