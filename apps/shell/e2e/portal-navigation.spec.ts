@@ -43,6 +43,7 @@ test("portal sidebar navigates between settings routes", async ({ page }) => {
   await page.getByRole("link", { name: "Profile" }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await expect(page.getByRole("heading", { level: 1, name: "Profile" })).toBeVisible();
+  await expect(page.getByTestId("change-password-form")).toBeVisible();
 
   await page.getByRole("link", { name: "Team" }).click();
   await expect(page).toHaveURL(/\/settings\/team$/);

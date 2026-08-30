@@ -5,10 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   User,
-  CreditCard,
-  Activity,
   Users,
-  Plug,
   LifeBuoy,
   Settings,
   ChevronDown,
@@ -32,10 +29,7 @@ import type { Role } from "@elio/db";
 const PORTAL_NAV: Omit<SidebarNavItem, "icon">[] = [
   { id: "dashboard", label: "Dashboard", href: "/launcher" },
   { id: "profile", label: "Profile", href: "/settings/profile" },
-  { id: "billing", label: "Billing", href: "/settings/billing" },
-  { id: "activity", label: "Activity", href: "/settings/activity" },
   { id: "team", label: "Team", href: "/settings/team" },
-  { id: "integrations", label: "Integrations", href: "/settings/integrations" },
   { id: "support", label: "Support", href: "/settings/support" },
   { id: "settings", label: "Settings", href: "/settings" },
 ];
@@ -43,10 +37,7 @@ const PORTAL_NAV: Omit<SidebarNavItem, "icon">[] = [
 const NAV_ICONS = {
   dashboard: LayoutDashboard,
   profile: User,
-  billing: CreditCard,
-  activity: Activity,
   team: Users,
-  integrations: Plug,
   support: LifeBuoy,
   settings: Settings,
 } as const;
@@ -85,9 +76,6 @@ function resolveActiveId(pathname: string): string {
   if (pathname === "/settings") return "settings";
   if (pathname.startsWith("/settings/team")) return "team";
   if (pathname.startsWith("/settings/profile")) return "profile";
-  if (pathname.startsWith("/settings/billing")) return "billing";
-  if (pathname.startsWith("/settings/activity")) return "activity";
-  if (pathname.startsWith("/settings/integrations")) return "integrations";
   if (pathname.startsWith("/settings/support")) return "support";
   return "dashboard";
 }
