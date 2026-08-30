@@ -13,7 +13,7 @@ export function ShellLayout({ userEmail, isOwner, children }: ShellLayoutProps) 
   const navItems = isOwner ? PAY_MODULE_NAV : PAY_MODULE_NAV.filter((item) => item.id !== "settings");
 
   return (
-    <ModuleAppLayout brandTitle="ELIO PAY" moduleId="pay" navItems={navItems} userEmail={userEmail}>
+    <ModuleAppLayout brandTitle="ELIO PAY" moduleId="pay" navItems={navItems} userEmail={userEmail} pwaAppId="pay">
       {children}
     </ModuleAppLayout>
   );

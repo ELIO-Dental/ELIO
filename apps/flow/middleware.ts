@@ -20,6 +20,19 @@ import { auth, isModuleLicensed } from "@elio/auth";
 // Step 2.2 (FR-3) — server-side licence gate, checked fresh on every request
 // (see apps/pay/middleware.ts's comment for the full rationale).
 export default auth(async (req) => {
+  const { pathname } = req.nextUrl;
+  if (
+    pathname === "/sw.js" ||
+    pathname.endsWith("/sw.js") ||
+    pathname.startsWith("/icons/") ||
+    pathname.includes("/icons/") ||
+    pathname === "/offline.html" ||
+    pathname.endsWith("/offline.html") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.endsWith("/manifest.webmanifest")
+  ) {
+    return NextResponse.next();
+  }
   if (!req.auth?.userId) {
     return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
   }
@@ -35,5 +48,5 @@ export default auth(async (req) => {
 // browser session cookie, and must not be redirected to /login — same
 // rationale as apps/plans/middleware.ts.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
 };

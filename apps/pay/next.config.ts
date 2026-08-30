@@ -9,7 +9,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   basePath: "/pay",
-  transpilePackages: ["@elio/ui"],
+  transpilePackages: ["@elio/ui", "@elio/pwa"],
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
   // pdfkit ships .afm font files it reads from disk at runtime by relative path;
   // Next's bundler otherwise rewrites its module path and breaks that lookup
   // (ENOENT for Helvetica.afm). Keep it external/un-bundled instead.

@@ -1,12 +1,25 @@
 import type { Metadata } from "next";
 import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
+import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth } from "@/lib/auth";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import "./globals.css";
 
+const pwa = getPwaConfig("portal");
+
 export const metadata: Metadata = {
   title: "ELIO",
-  description: "ELIO — one platform for a dental practice.",
+  description: pwa.description,
+  applicationName: pwa.shortName,
+  appleWebApp: {
+    capable: true,
+    title: pwa.shortName,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default async function RootLayout({
@@ -19,12 +32,14 @@ export default async function RootLayout({
       <body>
         <ThemeScript />
         <ThemeProvider>
+        <PwaProvider config={pwa}>
         <NavigationProgress />
         {session?.impersonating && session.impersonatedUserEmail && (
           <ImpersonationBanner impersonatedUserEmail={session.impersonatedUserEmail} />
         )}
         <PageTransition>{children}</PageTransition>
         <Toaster />
+        </PwaProvider>
         </ThemeProvider>
       </body>
     </html>

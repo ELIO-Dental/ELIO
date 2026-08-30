@@ -42,7 +42,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
     <motion.aside
       animate={{ width: collapsed ? 72 : 240 }}
       transition={{ duration: duration.base / 1000, ease: easing.out }}
-      className="flex h-full flex-col border-r border-(--color-border) bg-(--color-bg-subtle)"
+      className="flex h-full flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
       <div className="relative flex h-20 shrink-0 items-center border-b border-(--color-border-subtle) px-2">
         <div className="flex min-w-0 flex-1 items-center justify-center pr-9">{launcher}</div>

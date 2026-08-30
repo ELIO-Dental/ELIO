@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { auth } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/offline.html", "/manifest.webmanifest"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -28,5 +28,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|sw\\.js|icons/).*)"],
 };

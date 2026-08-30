@@ -24,7 +24,10 @@ import {
   type SidebarNavItem,
   ThemeToggle,
 } from "@elio/ui";
+import { PwaSidebarInstall, getPwaConfig } from "@elio/pwa";
 import type { Role } from "@elio/db";
+
+const portalPwa = getPwaConfig("portal");
 
 const PORTAL_NAV: Omit<SidebarNavItem, "icon">[] = [
   { id: "dashboard", label: "Dashboard", href: "/launcher" },
@@ -116,10 +119,12 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
         activeId={activeId}
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
-        activeModuleId="pay"
-        launcher={<SidebarBrand collapsed={collapsed} title="ELIO PORTAL" testId="portal-brand" shortLabel="EP" />}
+        activeModuleId="flow"
+        launcher={<SidebarBrand collapsed={collapsed} title="ELIO PORTAL" testId="portal-brand" shortLabel="EP" showLogo />}
         footer={
-          <DropdownMenu>
+          <div className="space-y-2">
+            <PwaSidebarInstall config={portalPwa} collapsed={collapsed} />
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 className="flex w-full items-center gap-2.5 rounded-(--radius-md) p-2 text-left transition-colors hover:bg-(--color-border-subtle)"
@@ -158,9 +163,10 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         }
       />
-      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg)">
+      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/60">
         <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
           <div className="pointer-events-auto">
             <ThemeToggle />

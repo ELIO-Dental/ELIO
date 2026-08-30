@@ -64,6 +64,10 @@ const PUBLIC_PATH_PREFIXES = [
   "/plans/api/cron",
 ];
 
+function isPwaAsset(pathname: string): boolean {
+  return pathname === "/sw.js" || pathname.startsWith("/icons/") || pathname === "/manifest.webmanifest" || pathname === "/offline.html" || pathname.endsWith("/offline.html");
+}
+
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
   return PUBLIC_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -90,6 +94,14 @@ const OLD_DOMAIN_HOSTS = new Set([
   "www.elioflow.co.uk",
 ]);
 const NEW_APP_HOST = "app.elioportal.co.uk";
+const ADMIN_APP_ORIGIN = process.env.ADMIN_APP_ORIGIN ?? "https://admin.elioportal.co.uk";
+
+/** apps/admin is a separate Vercel project on admin.elioportal.co.uk — not a shell zone. */
+function adminAppRedirect(pathname: string, search: string): NextResponse | null {
+  if (pathname !== "/admin" && !pathname.startsWith("/admin/")) return null;
+  const subpath = pathname === "/admin" ? "/" : pathname.slice("/admin".length) || "/";
+  return NextResponse.redirect(new URL(`${subpath}${search}`, ADMIN_APP_ORIGIN), 307);
+}
 
 function oldDomainRedirect(req: NextRequest): NextResponse | null {
   const host = req.headers.get("host")?.split(":")[0]?.toLowerCase();
@@ -100,6 +112,13 @@ function oldDomainRedirect(req: NextRequest): NextResponse | null {
 
 export default auth((req: NextRequest & { auth?: unknown }) => {
   const { pathname, search } = req.nextUrl;
+
+  if (isPwaAsset(pathname)) {
+    return NextResponse.next();
+  }
+
+  const adminRedirect = adminAppRedirect(pathname, search);
+  if (adminRedirect) return adminRedirect;
 
   const domainRedirect = oldDomainRedirect(req);
   if (domainRedirect) return domainRedirect;
@@ -119,5 +138,5 @@ export default auth((req: NextRequest & { auth?: unknown }) => {
 
 export const config = {
   // Protect everything except static assets, Next internals, and API auth routes.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|api/forgot-password|api/reset-password).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password).*)"],
 };

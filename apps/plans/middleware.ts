@@ -39,6 +39,19 @@ function isPublicPath(pathname: string): boolean {
 // matters there is the PRACTICE's, already implicitly required for the
 // signing staff member to have reached the point of sending that link.
 export default auth(async (req) => {
+  const { pathname } = req.nextUrl;
+  if (
+    pathname === "/sw.js" ||
+    pathname.endsWith("/sw.js") ||
+    pathname.startsWith("/icons/") ||
+    pathname.includes("/icons/") ||
+    pathname === "/offline.html" ||
+    pathname.endsWith("/offline.html") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.endsWith("/manifest.webmanifest")
+  ) {
+    return NextResponse.next();
+  }
   if (isPublicPath(req.nextUrl.pathname)) {
     return NextResponse.next();
   }
@@ -60,5 +73,5 @@ export default auth(async (req) => {
 // routes). /signup is excluded here too so the page route itself never even
 // reaches the auth() wrapper's redirect branch above.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
 };

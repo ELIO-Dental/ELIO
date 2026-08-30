@@ -12,5 +12,9 @@
     { "source": "/plans/:path*", "destination": "https://plans.elioportal.co.uk/plans/:path*" },
     { "source": "/flow", "destination": "https://flow.elioportal.co.uk/flow" },
     { "source": "/flow/:path*", "destination": "https://flow.elioportal.co.uk/flow/:path*" }
+  ],
+  "redirects": [
+    { "source": "/admin", "destination": "https://admin.elioportal.co.uk", "permanent": false },
+    { "source": "/admin/:path*", "destination": "https://admin.elioportal.co.uk/:path*", "permanent": false }
   ]
 }

@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { geistSans, geistMono, Toaster } from "@elio/ui";
+import { PwaProvider, PwaInstallButton, getPwaConfig } from "@elio/pwa";
 import "./globals.css";
+
+const pwa = getPwaConfig("admin");
 
 export const metadata: Metadata = {
   title: "ELIO Super Admin",
-  description: "ELIO platform control centre — internal, ELIO staff only.",
+  description: pwa.description,
+  applicationName: pwa.shortName,
+  appleWebApp: { capable: true, title: pwa.shortName },
 };
 
 // No auth check here — this wraps EVERY route including /login itself, so
@@ -15,8 +20,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
+        <PwaProvider config={pwa}>
         {children}
         <Toaster />
+        </PwaProvider>
       </body>
     </html>
   );

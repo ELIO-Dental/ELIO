@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
+import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { isModuleLicensed } from "@elio/auth";
 import { requireSession, redirectToLauncher } from "@/lib/session";
 import { ShellLayout } from "@/components/shell-layout";
 
+const pwa = getPwaConfig("flow");
+
 export const metadata: Metadata = {
-  title: "ELIO",
-  description: "ELIO — one platform for a dental practice.",
+  title: "ElioFlow",
+  description: pwa.description,
+  applicationName: pwa.shortName,
+  appleWebApp: { capable: true, title: pwa.shortName },
 };
 
 // Found live (2026-08-28, independent Phase 1 audit): apps/pay renders the
@@ -34,9 +39,11 @@ export default async function RootLayout({
         <body>
           <ThemeScript />
           <ThemeProvider>
+            <PwaProvider config={pwa}>
             <NavigationProgress />
             <PageTransition>{children}</PageTransition>
             <Toaster />
+            </PwaProvider>
           </ThemeProvider>
         </body>
       </html>
@@ -48,11 +55,13 @@ export default async function RootLayout({
       <body>
         <ThemeScript />
         <ThemeProvider>
+          <PwaProvider config={pwa}>
           <NavigationProgress />
           <ShellLayout userEmail={session.user?.email ?? undefined}>
             <PageTransition>{children}</PageTransition>
           </ShellLayout>
           <Toaster />
+          </PwaProvider>
         </ThemeProvider>
       </body>
     </html>

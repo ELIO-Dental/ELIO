@@ -35,6 +35,21 @@ import { auth, isModuleLicensed } from "@elio/auth";
 // than this local dev environment — never treat this file alone as proof the
 // gate works; the real enforcement is in the layout.
 export default auth(async (req) => {
+  const { pathname } = req.nextUrl;
+  if (
+    pathname === "/sw.js" ||
+    pathname.endsWith("/sw.js") ||
+    pathname.startsWith("/icons/") ||
+    pathname.includes("/icons/") ||
+    pathname === "/offline" ||
+    pathname.endsWith("/offline") ||
+    pathname === "/offline.html" ||
+    pathname.endsWith("/offline.html") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.endsWith("/manifest.webmanifest")
+  ) {
+    return NextResponse.next();
+  }
   if (!req.auth?.userId) {
     return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
   }
@@ -46,5 +61,5 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
 };

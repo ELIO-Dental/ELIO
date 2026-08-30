@@ -9,6 +9,7 @@ import { Avatar } from "./avatar";
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobileViewport } from "../lib/use-is-mobile-viewport";
 import type { ModuleId } from "../lib/get-module-color";
+import { PwaSidebarInstall, getPwaConfig, type PwaAppId } from "@elio/pwa";
 
 export interface ModuleNavLink {
   id: string;
@@ -26,6 +27,8 @@ export interface ModuleAppLayoutProps {
   userEmail?: string;
   /** Optional override for nested routes not listed in navItems (e.g. /flow/consults/[id]). */
   resolveActiveId?: (pathname: string, defaultId: string) => string;
+  /** When set, shows a desktop PWA install action in the sidebar footer. */
+  pwaAppId?: PwaAppId;
   children: React.ReactNode;
 }
 
@@ -58,7 +61,7 @@ function initialsFromEmail(email: string): string {
 }
 
 /** App-module chrome — sidebar with page tabs, ELIO Portal back link, profile-only footer. */
-export function ModuleAppLayout({ brandTitle, moduleId, navItems, userEmail, resolveActiveId: resolveActiveIdOverride, children }: ModuleAppLayoutProps) {
+export function ModuleAppLayout({ brandTitle, moduleId, navItems, userEmail, resolveActiveId: resolveActiveIdOverride, pwaAppId, children }: ModuleAppLayoutProps) {
   const pathname = usePathname() ?? "";
   const isMobile = useIsMobileViewport();
   const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
@@ -78,6 +81,7 @@ export function ModuleAppLayout({ brandTitle, moduleId, navItems, userEmail, res
   const email = userEmail ?? "";
   const displayName = email ? displayNameFromEmail(email) : "User";
   const initials = email ? initialsFromEmail(email) : "U";
+  const pwaConfig = pwaAppId ? getPwaConfig(pwaAppId) : null;
 
   return (
     <div className="flex h-screen bg-(--color-bg)">
@@ -105,6 +109,7 @@ export function ModuleAppLayout({ brandTitle, moduleId, navItems, userEmail, res
               <ArrowLeft className="size-4 shrink-0" />
               {!collapsed && <span className="truncate">ELIO Portal</span>}
             </a>
+            {pwaConfig && <PwaSidebarInstall config={pwaConfig} collapsed={collapsed} />}
             <div className="flex items-center gap-2.5 rounded-(--radius-md) p-2" data-testid="module-profile-footer">
               <Avatar size="md" initials={initials} />
               {!collapsed && (

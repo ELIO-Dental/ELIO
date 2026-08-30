@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const PAY_APP_ORIGIN = process.env.PAY_APP_ORIGIN ?? "http://localhost:3001";
 const PLANS_APP_ORIGIN = process.env.PLANS_APP_ORIGIN ?? "http://localhost:3002";
 const FLOW_APP_ORIGIN = process.env.FLOW_APP_ORIGIN ?? "http://localhost:3003";
+const ADMIN_APP_ORIGIN = process.env.ADMIN_APP_ORIGIN ?? "https://admin.elioportal.co.uk";
 
 // Step 1.9 (MASTER_BUILD_GUIDE.md §1.9, line 940/950) — path-preserving 301
 // redirects from the 3 retired Aura/ElioFlow domains to the equivalent path
@@ -16,9 +17,20 @@ const OLD_DOMAINS = ["aurapayments.co.uk", "auraplans.co.uk", "elioflow.co.uk"];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["@elio/ui"],
+  transpilePackages: ["@elio/ui", "@elio/pwa"],
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
   async redirects() {
-    return OLD_DOMAINS.flatMap((domain) => [
+    return [
+      { source: "/admin", destination: ADMIN_APP_ORIGIN, permanent: false },
+      { source: "/admin/:path*", destination: `${ADMIN_APP_ORIGIN}/:path*`, permanent: false },
+      ...OLD_DOMAINS.flatMap((domain) => [
       {
         source: "/:path*",
         has: [{ type: "host" as const, value: domain }],
@@ -31,7 +43,8 @@ const nextConfig: NextConfig = {
         destination: "https://app.elioportal.co.uk/:path*",
         permanent: true,
       },
-    ]);
+    ]),
+    ];
   },
   // Multi-zone integration (Step 1.6, MASTER_BUILD_GUIDE.md): ElioPay renders
   // "inside the shared shell" (shared sidebar/header, single NextAuth session,

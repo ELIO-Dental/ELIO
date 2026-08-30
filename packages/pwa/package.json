@@ -1,0 +1,23 @@
+{
+  "name": "@elio/pwa",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "generate-assets": "node ./scripts/generate-assets.mjs",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^1.31.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.7.0"
+  }
+}

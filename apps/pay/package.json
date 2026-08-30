@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
     "build": "next build",
+    "prebuild": "npm run generate-assets --workspace=@elio/pwa",
     "start": "next start -p 3001",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
@@ -16,6 +17,7 @@
     "@elio/db": "*",
     "@elio/dentally": "*",
     "@elio/pay-engine": "*",
+    "@elio/pwa": "*",
     "@elio/types": "*",
     "@elio/ui": "*",
     "@sentry/nextjs": "^10.70.0",

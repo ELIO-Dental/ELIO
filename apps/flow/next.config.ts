@@ -14,7 +14,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   basePath: "/flow",
-  transpilePackages: ["@elio/ui"],
+  transpilePackages: ["@elio/ui", "@elio/pwa"],
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

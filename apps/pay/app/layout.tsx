@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
+import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth, isModuleLicensed } from "@elio/auth";
 import { ShellLayout } from "@/components/shell-layout";
 import "./globals.css";
 
+const pwa = getPwaConfig("pay");
+
 export const metadata: Metadata = {
   title: "ElioPay",
-  description: "Payroll, Compass statements, and dentist pay for a dental practice.",
+  description: pwa.description,
+  applicationName: pwa.shortName,
+  appleWebApp: { capable: true, title: pwa.shortName },
 };
 
 // IMPORTANT (corrects an earlier assumption left in this file): Next.js
@@ -41,11 +46,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <ThemeScript />
         <ThemeProvider>
+        <PwaProvider config={pwa}>
         <NavigationProgress />
         <ShellLayout userEmail={session?.user?.email ?? undefined} isOwner={session?.role === "OWNER"}>
           <PageTransition>{children}</PageTransition>
         </ShellLayout>
         <Toaster />
+        </PwaProvider>
         </ThemeProvider>
       </body>
     </html>
