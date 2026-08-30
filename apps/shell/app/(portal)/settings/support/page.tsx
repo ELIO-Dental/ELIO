@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, PageContent, PageHeader } from "@elio/ui";
-import { BookOpen, Mail, MessageCircle, Shield } from "lucide-react";
+import { BookOpen, Mail } from "lucide-react";
 
 const SUPPORT_EMAIL = "support@elioportal.co.uk";
 
@@ -68,22 +68,6 @@ export default function SupportSettingsPage() {
               <p className="font-medium text-(--color-text-primary)">Module not showing?</p>
               <p className="mt-1">Check the launcher dashboard — only licensed modules appear for your practice. Contact support if you expect access.</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-(--color-border-subtle) shadow-(--shadow-sm)">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="size-5 text-(--color-primary-500)" aria-hidden />
-              Coming soon
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-body-sm leading-relaxed text-(--color-text-secondary)">
-            <p>We&apos;re building in-app help guides, live chat during UK business hours, and a searchable knowledge base for ElioPay, ElioPlans, and ElioFlow.</p>
-            <p className="flex items-start gap-2">
-              <Shield className="mt-0.5 size-4 shrink-0 text-(--color-text-tertiary)" aria-hidden />
-              For urgent billing or data issues, mention &ldquo;urgent&rdquo; in your email subject so we can prioritise your request.
-            </p>
           </CardContent>
         </Card>
       </div>
