@@ -25,6 +25,7 @@ import {
   useIsMobileViewport,
   Avatar,
   type SidebarNavItem,
+  ThemeToggle,
 } from "@elio/ui";
 import type { Role } from "@elio/db";
 
@@ -171,7 +172,14 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
           </DropdownMenu>
         }
       />
-      <main className="min-w-0 flex-1 overflow-auto bg-(--color-bg)">{children}</main>
+      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg)">
+        <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
+          <div className="pointer-events-auto">
+            <ThemeToggle />
+          </div>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

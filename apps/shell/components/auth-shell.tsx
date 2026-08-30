@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { NoiseOverlay, cn } from "@elio/ui";
+import { NoiseOverlay, cn, ThemeToggle } from "@elio/ui";
 
 export interface AuthShellProps {
   headline?: string;
@@ -14,6 +14,11 @@ export interface AuthShellProps {
 export function AuthShell({ headline, description, wide, children }: AuthShellProps) {
   return (
     <div className="relative flex min-h-screen bg-(--color-bg)">
+      <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end sm:right-6 sm:top-6">
+        <div className="pointer-events-auto">
+          <ThemeToggle />
+        </div>
+      </div>
       <aside className="relative hidden w-[44%] overflow-hidden border-r border-(--color-border-subtle) bg-(--color-bg-subtle) lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-14">
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div className="absolute -left-24 -top-24 size-[28rem] rounded-full bg-(--color-primary-500)/25 blur-3xl" />

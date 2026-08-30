@@ -47,6 +47,7 @@ export * from "./components/page-transition";
 export * from "./lib/theme";
 export * from "./components/navigation-progress";
 export * from "./components/theme-provider";
+export * from "./components/theme-toggle";
 export * from "./components/appearance-settings";
 export * from "./components/stagger-list";
 export * from "./components/tooltip";

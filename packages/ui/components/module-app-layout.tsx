@@ -6,6 +6,7 @@ import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { Sidebar, type SidebarNavItem } from "./sidebar";
 import { SidebarBrand } from "./sidebar-brand";
 import { Avatar } from "./avatar";
+import { ThemeToggle } from "./theme-toggle";
 import { useIsMobileViewport } from "../lib/use-is-mobile-viewport";
 import type { ModuleId } from "../lib/get-module-color";
 
@@ -116,7 +117,14 @@ export function ModuleAppLayout({ brandTitle, moduleId, navItems, userEmail, res
           </div>
         }
       />
-      <main className="min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/50">{children}</main>
+      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/50">
+        <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
+          <div className="pointer-events-auto">
+            <ThemeToggle />
+          </div>
+        </div>
+        {children}
+      </main>
     </div>
   );
 }
