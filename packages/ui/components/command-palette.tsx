@@ -91,7 +91,7 @@ export function CommandPalette({ open, onOpenChange, items, placeholder = "Searc
                       }}
                       className={cn(
                         "flex h-10 cursor-pointer select-none items-center gap-2 rounded-(--radius-md) px-2 text-body-sm text-(--color-text-primary)",
-                        "data-[selected=true]:bg-(--color-primary-50) data-[selected=true]:text-(--color-primary-700)"
+                        "data-[selected=true]:bg-(--color-primary-50) data-[selected=true]:text-(--color-primary-600)"
                       )}
                     >
                       {item.icon}

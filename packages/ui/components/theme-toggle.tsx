@@ -3,15 +3,9 @@
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "../lib/cn";
+import { isDarkModeActive } from "../lib/theme";
 import { Button } from "./button";
 import { useTheme } from "./theme-provider";
-
-function isDarkModeActive(): boolean {
-  const attr = document.documentElement.getAttribute("data-theme");
-  if (attr === "dark") return true;
-  if (attr === "light") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
 
 /** Compact light/dark toggle for portal and module chrome (top-right). */
 export function ThemeToggle({ className }: { className?: string }) {

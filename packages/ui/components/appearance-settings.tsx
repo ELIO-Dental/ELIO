@@ -32,7 +32,7 @@ export function AppearanceSettings({ className }: { className?: string }) {
               "flex flex-col items-start gap-3 rounded-(--radius-lg) border p-4 text-left transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500) focus-visible:ring-offset-2",
               selected
-                ? "border-(--color-primary-600) bg-(--color-primary-50) shadow-(--shadow-sm)"
+                ? "border-(--color-primary-600) bg-(--color-primary-50) shadow-(--shadow-sm) ring-1 ring-(--color-primary-500)/25"
                 : "border-(--color-border) bg-(--color-surface) shadow-(--shadow-xs) hover:border-(--color-text-tertiary) hover:bg-(--color-bg-subtle) hover:shadow-(--shadow-sm)"
             )}
             data-testid={`theme-option-${option.mode}`}

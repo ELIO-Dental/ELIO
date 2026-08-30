@@ -26,7 +26,7 @@ export const Switch = React.forwardRef<React.ElementRef<typeof SwitchPrimitive.R
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "flex size-5 translate-x-0.5 items-center justify-center rounded-full bg-white shadow-(--shadow-sm) transition-transform duration-150 ease-out will-change-transform",
+          "flex size-5 translate-x-0.5 items-center justify-center rounded-full bg-(--color-surface-raised) shadow-(--shadow-sm) transition-transform duration-150 ease-out will-change-transform",
           "data-[state=checked]:translate-x-[22px]"
         )}
         style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}

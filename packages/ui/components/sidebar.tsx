@@ -7,6 +7,7 @@ import { ChevronsLeft, ChevronsRight, Lock, type LucideIcon } from "lucide-react
 import { cn } from "../lib/cn";
 import { duration, easing } from "../tokens/motion";
 import { getModuleColor, type ModuleId } from "../lib/get-module-color";
+import { useIsDark } from "../hooks/use-is-dark";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 export interface SidebarNavItem {
@@ -34,6 +35,7 @@ export interface SidebarProps {
  * accent tints to the CURRENT module's color, not always primary.
  */
 export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeModuleId, onNavigate, launcher, footer }: SidebarProps) {
+  const isDark = useIsDark();
   const moduleColor = getModuleColor(activeModuleId);
 
   return (
@@ -57,6 +59,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
         {items.map((item) => {
           const isActive = item.id === activeId;
           const Icon = item.icon;
+          const activeBadge = isDark ? moduleColor.badgeDark : moduleColor.badgeLight;
           return (
             <Link
               key={item.id}
@@ -71,7 +74,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
                 "relative flex h-10 items-center gap-3 rounded-(--radius-md) px-3 text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)",
                 isActive ? "text-(--color-text-primary)" : "text-(--color-text-secondary) hover:bg-(--color-border-subtle)"
               )}
-              style={isActive ? { backgroundColor: moduleColor.badgeLight.bg, color: moduleColor.hex } : undefined}
+              style={isActive ? { backgroundColor: activeBadge.bg, color: activeBadge.fg } : undefined}
               aria-current={isActive ? "page" : undefined}
             >
               {isActive && (
@@ -82,7 +85,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
                   transition={easing.spring}
                 />
               )}
-              <Icon className="size-5 shrink-0 transition-transform duration-150 group-hover:scale-105" style={isActive ? { color: moduleColor.hex } : undefined} />
+              <Icon className="size-5 shrink-0 transition-transform duration-150 group-hover:scale-105" style={isActive ? { color: activeBadge.fg } : undefined} />
               <AnimatePresence initial={false}>
                 {!collapsed && (
                   <motion.span
@@ -117,6 +120,8 @@ export interface LauncherTile {
 /** §5.5 — app launcher: popover grid of module tiles, module-color icon badges,
  * greyed/desaturated + lock badge for unlicensed modules. */
 export function AppLauncher({ tiles, trigger }: { tiles: LauncherTile[]; trigger: React.ReactNode }) {
+  const isDark = useIsDark();
+
   return (
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -124,6 +129,7 @@ export function AppLauncher({ tiles, trigger }: { tiles: LauncherTile[]; trigger
         <div className="grid grid-cols-2 gap-2">
           {tiles.map((tile) => {
             const color = getModuleColor(tile.moduleId);
+            const badge = isDark ? color.badgeDark : color.badgeLight;
             return (
               <a
                 key={tile.moduleId}
@@ -137,7 +143,7 @@ export function AppLauncher({ tiles, trigger }: { tiles: LauncherTile[]; trigger
               >
                 <span
                   className="flex size-8 items-center justify-center rounded-(--radius-md) text-body-sm font-semibold"
-                  style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
+                  style={{ backgroundColor: badge.bg, color: badge.fg }}
                 >
                   {tile.name.replace("Elio", "").slice(0, 1)}
                 </span>

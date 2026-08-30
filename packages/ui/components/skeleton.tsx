@@ -55,7 +55,7 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
       )}
       style={{
         backgroundImage:
-          "linear-gradient(90deg, var(--color-border-subtle) 25%, var(--color-border) 50%, var(--color-border-subtle) 75%)",
+          "linear-gradient(90deg, var(--color-bg-subtle) 25%, var(--color-border-subtle) 50%, var(--color-bg-subtle) 75%)",
         animation: "shimmer 1.6s ease-in-out infinite",
       }}
       aria-hidden

@@ -21,6 +21,7 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  Skeleton,
 } from "@elio/ui";
 
 interface ReconMismatch {
@@ -106,6 +107,17 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
           </div>
         </CardContent>
       </Card>
+
+      {running && !result && (
+        <div className="space-y-6" aria-busy="true" aria-label="Running reconciliation">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-(--radius-lg)" />
+            ))}
+          </div>
+          <Skeleton className="h-64 w-full rounded-(--radius-lg)" />
+        </div>
+      )}
 
       {result && (
         <>

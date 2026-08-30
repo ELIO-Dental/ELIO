@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getModuleColor } from "@elio/ui";
+import { getModuleColor, ModuleIconBadge, ModuleAccentChip } from "@elio/ui";
 import { getLicenceStatus } from "@elio/auth";
 import {
   Card,
@@ -84,20 +84,16 @@ export default async function LauncherPage() {
                   >
                     <CardHeader>
                       <div className="flex items-start justify-between gap-3">
-                        <span
-                          className="flex size-12 items-center justify-center rounded-(--radius-md) text-body font-semibold"
-                          style={{ backgroundColor: color.badgeLight.bg, color: color.badgeLight.fg }}
-                        >
+                        <ModuleIconBadge moduleId={mod.moduleId} size="lg">
                           {mod.name.replace("Elio", "").slice(0, 1)}
-                        </span>
+                        </ModuleIconBadge>
                         {licensed ? (
-                          <span
-                            className="flex size-9 items-center justify-center rounded-(--radius-full) transition-transform group-hover:scale-110"
-                            style={{ backgroundColor: color.badgeLight.bg, color: color.hex }}
-                            aria-hidden
+                          <ModuleAccentChip
+                            moduleId={mod.moduleId}
+                            className="size-9 transition-transform group-hover:scale-110"
                           >
-                            <ArrowUpRight className="size-4" />
-                          </span>
+                            <ArrowUpRight className="size-4" aria-hidden />
+                          </ModuleAccentChip>
                         ) : (
                           <Lock className="size-4 shrink-0 text-(--color-text-tertiary)" aria-label="Locked" />
                         )}

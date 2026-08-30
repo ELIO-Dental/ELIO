@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Input, Label, Button, toast, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, TablePanel, TableToolbar } from "@elio/ui";
+import { Input, Label, Button, toast, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, TablePanel, TableToolbar, Skeleton } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
 
 export interface ConversionReport {
@@ -85,6 +85,17 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
         </Button>
       </div>
 
+      {loading ? (
+        <>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-(--radius-lg)" />
+            ))}
+          </div>
+          <Skeleton className="mt-8 h-64 w-full rounded-(--radius-lg)" />
+        </>
+      ) : (
+        <>
       <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         <FlowStatCard label="Total consultations" value={report.totalConsultations} />
         <FlowStatCard label="Attended" value={report.attended} />
@@ -129,6 +140,8 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
           </Table>
         )}
       </TablePanel>
+        </>
+      )}
     </div>
   );
 }

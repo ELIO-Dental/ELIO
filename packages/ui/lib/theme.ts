@@ -2,6 +2,14 @@ export const THEME_STORAGE_KEY = "elio-theme";
 
 export type ThemeMode = "light" | "dark" | "system";
 
+export function isDarkModeActive(): boolean {
+  if (typeof document === "undefined") return false;
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark") return true;
+  if (attr === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 export function applyTheme(mode: ThemeMode): void {
   if (typeof document === "undefined") return;
   if (mode === "light") {
