@@ -34,6 +34,7 @@ test("successful login lands on the launcher", async ({ page }) => {
   await page.getByTestId("login-submit").click();
   await page.waitForURL(/\/launcher$/, { timeout: 30_000 });
   await expect(page.getByTestId("launcher-grid")).toBeVisible();
+  await expect(page.getByTestId("portal-brand")).toHaveText("ELIO PORTAL");
 });
 
 test("wrong password shows a clear error", async ({ page }) => {

@@ -14,6 +14,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  formatMoneyGBP,
 } from "@elio/ui";
 
 interface CorePatient {
@@ -129,7 +130,7 @@ export function EnrolPatientForm({
               <SelectContent>
                 {plans.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} — £{(p.monthlyPricePence / 100).toFixed(2)}/mo
+                    {p.name} — {formatMoneyGBP(p.monthlyPricePence)}/mo
                   </SelectItem>
                 ))}
               </SelectContent>

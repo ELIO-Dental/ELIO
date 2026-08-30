@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge } from "@elio/ui";
+import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, formatMoneyGBPOrDash } from "@elio/ui";
 
 export interface ReviewLine {
   id: string;
@@ -64,7 +64,7 @@ export function ManualReviewList({ lines, dentists }: { lines: ReviewLine[]; den
               <span className="font-medium">{line.rawDentistName ?? "Unknown name"}</span>{" "}
               <span className="text-(--color-text-tertiary)">(performer #{line.performerNumber ?? "?"})</span>
               <span className="ml-2 text-(--color-text-secondary)">
-                UDAs: {line.udas ?? "—"} · Superann.: {line.superannuationPence != null ? `£${(line.superannuationPence / 100).toFixed(2)}` : "—"}
+                UDAs: {line.udas ?? "—"} · Superann.: {formatMoneyGBPOrDash(line.superannuationPence)}
               </span>
               {errors[line.id] && <p className="mt-1 text-body-sm text-(--color-danger)">{errors[line.id]}</p>}
             </div>

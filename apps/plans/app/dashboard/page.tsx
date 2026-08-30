@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { requireLicensedSession } from "@/lib/session";
 import { prisma } from "@elio/db";
-import { StatCard, Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@elio/ui";
-import { PlansNav } from "@/components/plans-nav";
+import {
+  StatCard,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  Button,
+  PageContent,
+  PageHeader,
+  formatMoneyGBP,
+} from "@elio/ui";
 import { MoneyStatCard } from "@/components/money-stat-card";
-
-function money(pence: number) {
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function currentBillingPeriod() {
   const now = new Date();
@@ -56,22 +62,23 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div>
-      <PlansNav />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-h2 text-(--color-text-primary)">ElioPlans</h1>
-            <p className="mt-1 text-body text-(--color-text-secondary)">
-              Membership plans, billing period <Badge variant="neutral">{period}</Badge>
-            </p>
-          </div>
+    <PageContent>
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
+            Membership plans, billing period <Badge variant="neutral">{period}</Badge>
+          </>
+        }
+        actions={
           <Link href="/plans/patients">
             <Button variant="primary">Enrol a patient</Button>
           </Link>
-        </div>
+        }
+      />
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 flex flex-col gap-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Active plan patients" value={activePatients} />
           <MoneyStatCard label="Monthly recurring revenue" value={mrrPence} />
           <MoneyStatCard label="Collected this period" value={collectedThisPeriodPence} />
@@ -79,7 +86,7 @@ export default async function DashboardPage() {
         </div>
 
         {overdueOrFailed > 0 && (
-          <Card className="mt-6 flex items-center justify-between" accentColor="var(--color-danger)">
+          <Card className="flex items-center justify-between" accentColor="var(--color-danger)">
             <div>
               <p className="text-body font-medium text-(--color-text-primary)">
                 {overdueOrFailed} payment(s) failed or charged back
@@ -94,7 +101,7 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        <Card className="mt-6">
+        <Card>
           <CardHeader>
             <CardTitle>Recent payments</CardTitle>
           </CardHeader>
@@ -117,8 +124,8 @@ export default async function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge variant={statusVariant[p.status] ?? "neutral"}>{p.status}</Badge>
-                        <span className="tabular-nums font-(--font-mono) text-body-sm text-(--color-text-primary)">
-                          {money(p.amountPence)}
+                        <span className="font-(--font-mono) text-body-sm tabular-nums text-(--color-text-primary)">
+                          {formatMoneyGBP(p.amountPence)}
                         </span>
                       </div>
                     </li>
@@ -129,6 +136,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageContent>
   );
 }

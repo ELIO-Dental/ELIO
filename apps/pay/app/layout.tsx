@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirectToLogin, redirectToLauncher } from "@/lib/session";
-import { geistSans, geistMono, Toaster, PageTransition } from "@elio/ui";
+import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { auth, isModuleLicensed } from "@elio/auth";
-import { prisma } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
 import "./globals.css";
 
@@ -37,18 +36,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     await redirectToLauncher("unlicensed=pay");
   }
 
-  const practice = await prisma.practice.findUnique({
-    where: { id: session.practiceId },
-    select: { name: true },
-  });
-
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
-        <ShellLayout practiceName={practice?.name} userEmail={session?.user?.email ?? undefined} isOwner={session?.role === "OWNER"}>
+        <ThemeScript />
+        <ThemeProvider>
+        <NavigationProgress />
+        <ShellLayout userEmail={session?.user?.email ?? undefined} isOwner={session?.role === "OWNER"}>
           <PageTransition>{children}</PageTransition>
         </ShellLayout>
         <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

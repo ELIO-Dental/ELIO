@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Stepper, getModuleColor } from "@elio/ui";
+import { Button, Input, Label, Stepper, getModuleColor } from "@elio/ui";
+import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 const STEPS = [
   { id: "practice", label: "Practice" },
@@ -89,13 +90,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4 py-12">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Create your ELIO account</CardTitle>
-          <Stepper steps={STEPS} currentIndex={stepIndex} className="mt-4" />
-        </CardHeader>
-        <CardContent>
+    <AuthShell wide headline="Create your account" description="Set up your practice and start your ELIO trial in minutes.">
+      <AuthFormCard title="Get started">
+        <Stepper steps={STEPS} currentIndex={stepIndex} className="mb-8" />
           {stepIndex === 0 && (
             <div className="space-y-4" data-testid="signup-step-practice">
               <div>
@@ -190,8 +187,7 @@ export default function SignupPage() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+      </AuthFormCard>
+    </AuthShell>
   );
 }

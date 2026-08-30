@@ -12,7 +12,7 @@
 // the drop settle uses springSnappy (packages/ui/tokens/motion.ts).
 import * as React from "react";
 import { motion, type PanInfo } from "framer-motion";
-import { toast, getModuleColor, easing, Button } from "@elio/ui";
+import { toast, getModuleColor, easing, Button, formatMoneyGBP } from "@elio/ui";
 
 type EnquiryCard = {
   id: string;
@@ -54,9 +54,9 @@ const COLUMN_ORDER: { key: ColumnKey; label: string }[] = [
   { key: "closed", label: "Closed" },
 ];
 
-function money(pence: number | null) {
+function quoteLabel(pence: number | null) {
   if (pence === null || pence === undefined) return null;
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  return formatMoneyGBP(pence, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
@@ -200,7 +200,7 @@ export function PipelineBoard({ initialData }: { initialData: PipelineData }) {
                     </p>
                   ) : (
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-(--color-text-tertiary)">
-                      {money(card.quotePence) && <span style={{ color: color.hex }}>{money(card.quotePence)}</span>}
+                      {quoteLabel(card.quotePence) && <span style={{ color: color.hex }}>{quoteLabel(card.quotePence)}</span>}
                       {card.practitionerName && <span>{card.practitionerName}</span>}
                       <span>{card.daysSinceConsult}d since consult</span>
                     </div>

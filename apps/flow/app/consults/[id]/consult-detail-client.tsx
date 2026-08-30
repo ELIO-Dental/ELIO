@@ -19,6 +19,14 @@ import {
   SelectItem,
   toast,
   Badge,
+  TablePanel,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  formatMoneyGBPOrDash,
 } from "@elio/ui";
 
 type Appointment = {
@@ -58,11 +66,6 @@ const STUCK_REASONS = [
   { value: "BAD_EXPERIENCE", label: "Bad experience" },
   { value: "OUT_OF_BUDGET", label: "Out of budget" },
 ];
-
-function money(pence: number | null) {
-  if (pence === null || pence === undefined) return "—";
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export function ConsultDetailClient({
   consult,
@@ -200,7 +203,7 @@ export function ConsultDetailClient({
               />
               {consult.quotePenceOverride !== null && (
                 <p className="mt-1 text-caption text-(--color-text-tertiary)">
-                  Override applied: {money(consult.quotePenceOverride)}
+                  Override applied: {formatMoneyGBPOrDash(consult.quotePenceOverride)}
                 </p>
               )}
             </div>
@@ -314,27 +317,39 @@ export function ConsultDetailClient({
               ) : linkableAppointments.length === 0 ? (
                 <p className="text-body-sm text-(--color-text-tertiary)">No candidate appointments found.</p>
               ) : (
-                <ul className="flex flex-col gap-2">
-                  {linkableAppointments.map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2"
-                    >
-                      <span className="text-body-sm text-(--color-text-secondary)">
-                        {a.startsAt ? new Date(a.startsAt).toLocaleString("en-GB") : "unknown date"}
-                        {a.reason ? ` · ${a.reason}` : ""}
-                        {a.dentallyState ? ` · ${a.dentallyState}` : ""}
-                      </span>
-                      <Button size="sm" variant="secondary" loading={linkingId === a.id} onClick={() => linkAppointment(a.id)}>
-                        Link
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                <TablePanel>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Appointment</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linkableAppointments.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="text-body-sm">
+                            {a.startsAt ? new Date(a.startsAt).toLocaleString("en-GB") : "unknown date"}
+                            {a.reason ? ` · ${a.reason}` : ""}
+                          </TableCell>
+                          <TableCell className="text-body-sm text-(--color-text-secondary)">{a.dentallyState ?? "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="secondary" loading={linkingId === a.id} onClick={() => linkAppointment(a.id)}>
+                              Link
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TablePanel>
               )}
 
               <div>
-                <p className="text-body-sm text-(--color-text-secondary)">Paid to date: {money(consult.totalPaidPence)}</p>
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  Paid to date: <span className="font-(--font-mono) tabular-nums">{formatMoneyGBPOrDash(consult.totalPaidPence)}</span>
+                </p>
                 <Button className="mt-2" size="sm" variant="secondary" loading={syncing} onClick={syncFinancials}>
                   Sync financials from Dentally
                 </Button>
@@ -352,14 +367,28 @@ export function ConsultDetailClient({
           {reminders.length === 0 ? (
             <p className="text-body-sm text-(--color-text-tertiary)">No reminders scheduled.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {reminders.map((r) => (
-                <li key={r.id} className="text-body-sm text-(--color-text-secondary)">
-                  {new Date(r.dueAt).toLocaleString("en-GB")}
-                  {r.channel ? ` · ${r.channel}` : ""} — {r.sentAt ? "sent" : "pending"}
-                </li>
-              ))}
-            </ul>
+            <TablePanel>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Due</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reminders.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-body-sm">{new Date(r.dueAt).toLocaleString("en-GB")}</TableCell>
+                      <TableCell className="text-body-sm text-(--color-text-secondary)">{r.channel ?? "—"}</TableCell>
+                      <TableCell className="text-body-sm">
+                        <Badge variant={r.sentAt ? "success" : "neutral"}>{r.sentAt ? "Sent" : "Pending"}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TablePanel>
           )}
         </CardContent>
       </Card>

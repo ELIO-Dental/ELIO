@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { PageTransition, Toaster } from "@elio/ui";
+import { PageTransition, Toaster, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { auth } from "@elio/auth";
-import { prisma } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
 import "./globals.css";
 
@@ -25,26 +24,29 @@ export default async function RootLayout({
   const session = await auth();
   if (!session?.practiceId) {
     return (
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body>
-          <PageTransition>{children}</PageTransition>
+          <ThemeScript />
+          <ThemeProvider>
+            <NavigationProgress />
+            <PageTransition>{children}</PageTransition>
+          </ThemeProvider>
         </body>
       </html>
     );
   }
 
-  const practice = await prisma.practice.findUnique({
-    where: { id: session.practiceId },
-    select: { name: true },
-  });
-
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <ShellLayout practiceName={practice?.name} userEmail={session?.user?.email ?? undefined} isOwner={session?.role === "OWNER"}>
-          <PageTransition>{children}</PageTransition>
-        </ShellLayout>
-        <Toaster />
+        <ThemeScript />
+        <ThemeProvider>
+          <NavigationProgress />
+          <ShellLayout userEmail={session?.user?.email ?? undefined}>
+            <PageTransition>{children}</PageTransition>
+          </ShellLayout>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

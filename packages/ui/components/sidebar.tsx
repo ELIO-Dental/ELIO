@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronsLeft, ChevronsRight, Lock, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
@@ -41,12 +42,12 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       transition={{ duration: duration.base / 1000, ease: easing.out }}
       className="flex h-full flex-col border-r border-(--color-border) bg-(--color-bg-subtle)"
     >
-      <div className="flex h-16 items-center justify-between px-3">
-        {!collapsed && launcher}
+      <div className="relative flex h-20 shrink-0 items-center border-b border-(--color-border-subtle) px-2">
+        <div className="flex min-w-0 flex-1 items-center justify-center pr-9">{launcher}</div>
         <button
           onClick={() => onCollapsedChange(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="ml-auto flex size-8 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)"
+          className="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)"
         >
           {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
         </button>
@@ -57,7 +58,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
           const isActive = item.id === activeId;
           const Icon = item.icon;
           return (
-            <a
+            <Link
               key={item.id}
               href={item.href}
               onClick={(e) => {
@@ -95,7 +96,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
                   </motion.span>
                 )}
               </AnimatePresence>
-            </a>
+            </Link>
           );
         })}
       </nav>

@@ -1,7 +1,7 @@
 import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
-import { PayNav } from "@/components/pay-nav";
+import { PageContent, PageHeader } from "@elio/ui";
 import { LabBillsClient } from "./lab-bills-client";
 
 export default async function LabBillsPage() {
@@ -18,13 +18,10 @@ export default async function LabBillsPage() {
   ]);
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-(--color-text-primary)">Lab Bills</h1>
-        </div>
+    <PageContent>
+      <PageHeader title="Lab Bills" description="Track lab work deductions per dentist." />
 
+      <div className="mt-8">
         <LabBillsClient
           initialLabBills={labBills.map((b) => ({
             id: b.id,
@@ -37,6 +34,6 @@ export default async function LabBillsPage() {
           dentists={dentists}
         />
       </div>
-    </div>
+    </PageContent>
   );
 }

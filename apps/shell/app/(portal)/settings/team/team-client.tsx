@@ -25,6 +25,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  TablePanel,
+  TableToolbar,
 } from "@elio/ui";
 import { Users } from "lucide-react";
 
@@ -241,7 +243,8 @@ export function TeamClient({
           ) : !users || users.length === 0 ? (
             <EmptyState icon={Users} title="No users yet" description="Invite your first team member above." />
           ) : (
-            <Table data-testid="team-users-table">
+            <TablePanel toolbar={<TableToolbar title="Team members" onRefresh={refetch} />}>
+              <Table data-testid="team-users-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
@@ -296,6 +299,7 @@ export function TeamClient({
                 ))}
               </TableBody>
             </Table>
+            </TablePanel>
           )}
         </CardContent>
       </Card>

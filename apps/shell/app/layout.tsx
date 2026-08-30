@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { geistSans, geistMono, Toaster, PageTransition } from "@elio/ui";
+import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { auth } from "@/lib/auth";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import "./globals.css";
@@ -15,13 +15,17 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
+        <ThemeScript />
+        <ThemeProvider>
+        <NavigationProgress />
         {session?.impersonating && session.impersonatedUserEmail && (
           <ImpersonationBanner impersonatedUserEmail={session.impersonatedUserEmail} />
         )}
         <PageTransition>{children}</PageTransition>
         <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

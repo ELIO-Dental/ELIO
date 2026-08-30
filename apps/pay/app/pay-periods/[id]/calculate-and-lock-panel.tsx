@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@elio/ui";
+import { Button, Input, Label } from "@elio/ui";
 import type { Dentist } from "@elio/db";
 
 /**
@@ -65,27 +65,33 @@ export function CalculateAndLockPanel({
   }
 
   if (locked) {
-    return <p className="mt-3 text-body-sm text-(--color-text-secondary)">This period is locked — figures are final and immune to later rate changes.</p>;
+    return <p className="text-body-sm text-(--color-text-secondary)">This period is locked — figures are final and immune to later rate changes.</p>;
   }
 
+  const splitDentists = dentists.filter((d) => d.payType === "PERCENTAGE_SPLIT");
+
   return (
-    <div className="mt-4 space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {dentists
-          .filter((d) => d.payType === "PERCENTAGE_SPLIT")
-          .map((d) => (
-            <label key={d.id} className="flex items-center justify-between gap-2 rounded-(--radius-md) border border-(--color-border) p-2 text-body-sm">
-              {d.name} — private revenue this period (£)
-              <input
+    <div className="space-y-4">
+      {splitDentists.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {splitDentists.map((d) => (
+            <div key={d.id} className="rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-3">
+              <Label htmlFor={`private-${d.id}`}>{d.name} — private revenue (£)</Label>
+              <Input
+                id={`private-${d.id}`}
                 type="number"
                 step="0.01"
-                className="w-28 rounded-(--radius-sm) border border-(--color-border) px-2 py-1 text-right"
+                min="0"
+                className="mt-2 text-right"
                 value={privateRevenue[d.id] ?? ""}
                 onChange={(e) => setPrivateRevenue((s) => ({ ...s, [d.id]: e.target.value }))}
               />
-            </label>
+            </div>
           ))}
-      </div>
+        </div>
+      ) : (
+        <p className="text-body-sm text-(--color-text-tertiary)">No percentage-split dentists — run calculation to generate hourly payslips.</p>
+      )}
       {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
       <div className="flex gap-3">
         <Button onClick={runCalculation} loading={running} disabled={locking}>

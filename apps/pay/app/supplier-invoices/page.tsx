@@ -1,7 +1,7 @@
 import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
-import { PayNav } from "@/components/pay-nav";
+import { PageContent, PageHeader } from "@elio/ui";
 import { SupplierInvoicesClient } from "./supplier-invoices-client";
 
 export default async function SupplierInvoicesPage() {
@@ -18,13 +18,10 @@ export default async function SupplierInvoicesPage() {
   ]);
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-(--color-text-primary)">Supplier Invoices</h1>
-        </div>
+    <PageContent>
+      <PageHeader title="Supplier Invoices" description="Record supplier invoices for bulk payment runs." />
 
+      <div className="mt-8">
         <SupplierInvoicesClient
           initialSupplierInvoices={supplierInvoices.map((i) => ({
             id: i.id,
@@ -38,6 +35,6 @@ export default async function SupplierInvoicesPage() {
           suppliers={suppliers}
         />
       </div>
-    </div>
+    </PageContent>
   );
 }

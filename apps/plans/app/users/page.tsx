@@ -1,6 +1,6 @@
 import { requireLicensedSession, can } from "@/lib/session";
 import type { Role } from "@elio/db";
-import { PlansNav } from "@/components/plans-nav";
+import { PageContent, PageHeader } from "@elio/ui";
 import { UsersClient } from "./users-client";
 
 export default async function UsersPage() {
@@ -8,19 +8,15 @@ export default async function UsersPage() {
   const canManage = can({ role: session.role as Role }, "team:manage");
 
   return (
-    <div>
-      <PlansNav />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">Users</h1>
-        <p className="mt-1 text-body text-(--color-text-secondary)">
-          Everyone with access to your practice. User accounts are shared across every ELIO
-          module — changes here apply everywhere, not just Plans.
-        </p>
+    <PageContent>
+      <PageHeader
+        title="Users"
+        description="Everyone with access to your practice. User accounts are shared across every ELIO module — changes here apply everywhere, not just Plans."
+      />
 
-        <div className="mt-8">
-          <UsersClient currentUserId={session.userId} canManage={canManage} />
-        </div>
+      <div className="mt-8">
+        <UsersClient currentUserId={session.userId} canManage={canManage} />
       </div>
-    </div>
+    </PageContent>
   );
 }

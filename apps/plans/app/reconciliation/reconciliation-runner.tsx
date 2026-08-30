@@ -17,6 +17,10 @@ import {
   TableCell,
   Badge,
   EmptyState,
+  TablePanel,
+  TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 
 interface ReconMismatch {
@@ -47,6 +51,12 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
   const [running, setRunning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<ReconResult | null>(null);
+  const mismatches = result?.mismatches ?? [];
+  const { items: pagedMismatches, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(
+    mismatches,
+    undefined,
+    [result?.period]
+  );
 
   async function runReconciliation() {
     setRunning(true);
@@ -123,14 +133,18 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
           </p>
 
           {result.mismatches.length === 0 ? (
-            <div className="rounded-(--radius-lg) border border-(--color-border)">
+            <TablePanel toolbar={<TableToolbar title="Mismatches" onRefresh={runReconciliation} />}>
               <EmptyState
                 title="No mismatches"
                 description={`${result.period} reconciles cleanly — every expected charge matches GoCardless.`}
+                className="py-12"
               />
-            </div>
+            </TablePanel>
           ) : (
-            <div className="rounded-(--radius-lg) border border-(--color-border)">
+            <TablePanel
+              toolbar={<TableToolbar title="Mismatches" onRefresh={runReconciliation} />}
+              footer={showPagination ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} /> : undefined}
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -141,7 +155,7 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {result.mismatches.map((m, i) => (
+                  {pagedMismatches.map((m, i) => (
                     <TableRow key={i}>
                       <TableCell>
                         <Badge variant={TYPE_VARIANT[m.type]}>{m.type}</Badge>
@@ -157,7 +171,7 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </TablePanel>
           )}
         </>
       )}

@@ -1,5 +1,5 @@
+import { PageContent, PageHeader } from "@elio/ui";
 import { requireSession, redirectToLogin } from "@/lib/session";
-import { FlowNav } from "@/components/flow-nav";
 import { listPipeline } from "@/lib/flow-service";
 import { PipelineEmptyState } from "@/components/pipeline-empty-state";
 import { PipelineBoard, type PipelineData } from "./pipeline-board";
@@ -36,26 +36,23 @@ export default async function PipelinePage() {
   };
 
   return (
-    <div>
-      <FlowNav />
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">Pipeline</h1>
-        <p className="mt-1 text-body text-(--color-text-secondary)">
-          Enquiry-to-consult funnel. Drag a card to move it between stages.
-        </p>
+    <PageContent width="xl">
+      <PageHeader
+        title="Pipeline"
+        description="Enquiry-to-consult funnel. Drag a card to move it between stages."
+      />
 
-        <div className="mt-8">
-          {isEmpty ? (
+      <div className="mt-8">
+        {isEmpty ? (
             <PipelineEmptyState
               title="No enquiries yet"
               description="New leads captured for this practice will appear here as cards you can move through the funnel."
             />
-          ) : (
-            <PipelineBoard initialData={data} />
-          )}
-        </div>
+        ) : (
+          <PipelineBoard initialData={data} />
+        )}
       </div>
-    </div>
+    </PageContent>
   );
 }
 

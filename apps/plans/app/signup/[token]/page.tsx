@@ -14,6 +14,7 @@ import {
   Label,
   Skeleton,
   useSkeleton,
+  formatMoneyGBP,
 } from "@elio/ui";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
@@ -35,10 +36,6 @@ interface SignupData {
   alreadySigned: boolean;
   hasMandate: boolean;
   enrolmentStatus: string | null;
-}
-
-function money(pence: number) {
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 const STEPS = [
@@ -270,7 +267,7 @@ function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void })
           <div className="rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle) p-4">
             <div className="flex items-center justify-between">
               <span className="text-h3 text-(--color-text-primary)">{data.plan.name}</span>
-              <span className="text-h3 text-(--color-primary-600)">{money(data.plan.monthlyPricePence)}/mo</span>
+              <span className="text-h3 text-(--color-primary-600)">{formatMoneyGBP(data.plan.monthlyPricePence)}/mo</span>
             </div>
             {data.plan.publicDescription && (
               <p className="mt-1 text-body-sm text-(--color-text-secondary)">{data.plan.publicDescription}</p>

@@ -1,7 +1,6 @@
 import { requireLicensedSession } from "@/lib/session";
 import { prisma } from "@elio/db";
-import { Card, CardHeader, CardTitle, CardContent, StatCard } from "@elio/ui";
-import { PlansNav } from "@/components/plans-nav";
+import { Card, CardHeader, CardTitle, CardContent, StatCard, PageContent, PageHeader } from "@elio/ui";
 import { MoneyStatCard } from "@/components/money-stat-card";
 
 function currentBillingPeriod() {
@@ -59,15 +58,17 @@ export default async function ReportsPage() {
   }
 
   return (
-    <div>
-      <PlansNav />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">Reports</h1>
-        <p className="mt-1 text-body text-(--color-text-secondary)">
-          Summary of plan performance for billing period <strong>{period}</strong>.
-        </p>
+    <PageContent>
+      <PageHeader
+        title="Reports"
+        description={
+          <>
+            Summary of plan performance for billing period <strong>{period}</strong>.
+          </>
+        }
+      />
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Active plans" value={activePatients} />
           <MoneyStatCard label="Monthly recurring revenue" value={mrrPence} />
           <StatCard label="Churn / cancellations" value={cancelledPatients} />
@@ -136,7 +137,6 @@ export default async function ReportsPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PageContent>
   );
 }

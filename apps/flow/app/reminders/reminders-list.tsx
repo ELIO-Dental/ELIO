@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, toast } from "@elio/ui";
+import { Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, toast, TablePanel, TableToolbar, TablePagination, useClientTablePagination } from "@elio/ui";
 
 export interface ReminderRow {
   id: string;
@@ -16,6 +16,11 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
   const router = useRouter();
   const [rows, setRows] = React.useState(initialRows);
   const [markingId, setMarkingId] = React.useState<string | null>(null);
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(rows);
+
+  React.useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
 
   async function markSent(id: string) {
     setMarkingId(id);
@@ -37,7 +42,10 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
   }
 
   return (
-    <div className="rounded-(--radius-lg) border border-(--color-border)">
+    <TablePanel
+      toolbar={<TableToolbar title="Outstanding reminders" onRefresh={() => router.refresh()} />}
+      footer={showPagination ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} /> : undefined}
+    >
       <Table>
         <TableHeader>
           <TableRow>
@@ -48,7 +56,7 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
+          {items.map((r) => (
             <TableRow key={r.id}>
               <TableCell>{new Date(r.dueAt).toLocaleDateString("en-GB")}</TableCell>
               <TableCell>{r.patientName}</TableCell>
@@ -62,6 +70,6 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </TablePanel>
   );
 }

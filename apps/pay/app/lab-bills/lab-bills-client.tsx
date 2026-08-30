@@ -21,7 +21,13 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableCellMoney,
+  TablePanel,
+  formatMoneyGBP,
   EmptyState,
+  TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 
 interface DentistOption {
@@ -87,6 +93,8 @@ export function LabBillsClient({
       ? initialLabBills
       : initialLabBills.filter((b) => b.dentistId === filterDentistId);
 
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(filteredLabBills, undefined, [filterDentistId]);
+
   return (
     <>
       <div className="mt-6">
@@ -131,30 +139,33 @@ export function LabBillsClient({
         </Card>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-h3 text-(--color-text-primary)">All lab bills</h2>
-        <div className="w-64">
-          <Select value={filterDentistId} onValueChange={setFilterDentistId}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_DENTISTS}>All dentists</SelectItem>
-              {dentists.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        {filteredLabBills.length === 0 ? (
-          <EmptyState title="No lab bills" description="Add a lab bill above, or adjust the filter." />
-        ) : (
-          <Table>
+      <div className="mt-8">
+        <TablePanel
+          toolbar={
+            <TableToolbar title="All lab bills" onRefresh={() => router.refresh()}>
+              <div className="w-64">
+                <Select value={filterDentistId} onValueChange={setFilterDentistId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_DENTISTS}>All dentists</SelectItem>
+                    {dentists.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </TableToolbar>
+          }
+          footer={showPagination ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} /> : undefined}
+        >
+          {filteredLabBills.length === 0 ? (
+            <EmptyState title="No lab bills" description="Add a lab bill above, or adjust the filter." className="py-12" />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -164,17 +175,18 @@ export function LabBillsClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLabBills.map((b) => (
+              {items.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>{b.dentistName ?? "Unassigned"}</TableCell>
                   <TableCell>{b.description ?? "—"}</TableCell>
-                  <TableCell>£{(b.amountPence / 100).toFixed(2)}</TableCell>
+                  <TableCellMoney>{formatMoneyGBP(b.amountPence)}</TableCellMoney>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        )}
+            </Table>
+          )}
+        </TablePanel>
       </div>
     </>
   );

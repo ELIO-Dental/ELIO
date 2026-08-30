@@ -1,17 +1,29 @@
 import { notFound } from "next/navigation";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
-import { Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from "@elio/ui";
-import { PayNav } from "@/components/pay-nav";
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  PageContent,
+  PageHeader,
+  Table,
+  TableBody,
+  TableCell,
+  TableCellMoney,
+  TableHead,
+  TableHeader,
+  TablePanel,
+  TableRow,
+  formatMoneyGBPOrDash,
+} from "@elio/ui";
 import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
-
-function gbp(pence: number | null | undefined) {
-  if (pence == null) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(pence / 100);
-}
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -37,57 +49,65 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
     .filter((l) => l.matchConfidence === "NEEDS_REVIEW");
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center gap-3">
-          <h1 className="text-h2 text-(--color-text-primary)">
-            {payPeriod.periodStart.toISOString().slice(0, 10)} – {payPeriod.periodEnd.toISOString().slice(0, 10)}
-          </h1>
-          <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>{payPeriod.status}</Badge>
-        </div>
+    <PageContent>
+      <PageHeader
+        title={`${payPeriod.periodStart.toISOString().slice(0, 10)} – ${payPeriod.periodEnd.toISOString().slice(0, 10)}`}
+        description={<Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>{payPeriod.status}</Badge>}
+      />
 
-        <section className="mt-8">
-          <h2 className="text-h3 text-(--color-text-primary)">Compass statement</h2>
-          <p className="mt-1 text-body-sm text-(--color-text-secondary)">
-            Upload the NHSBSA Contract Monthly Pay Statement PDF for this period (§6.2).
-          </p>
-          <div className="mt-4">
+      <div className="mt-8 flex flex-col gap-8">
+        <Card>
+          <CardHeader className="flex-col items-start gap-1">
+            <CardTitle>Compass statement</CardTitle>
+            <p className="text-body-sm text-(--color-text-secondary)">
+              Upload the NHSBSA Contract Monthly Pay Statement PDF for this period (§6.2).
+            </p>
+          </CardHeader>
+          <CardContent>
             <CompassUploadForm payPeriodId={payPeriod.id} />
-          </div>
-          <ManualReviewList
-            lines={needsReviewLines.map((l) => ({
-              id: l.id,
-              performerNumber: l.performerNumber,
-              rawDentistName: l.rawDentistName,
-              udas: l.udas?.toString() ?? null,
-              superannuationPence: l.superannuationPence,
-            }))}
-            dentists={dentists.map((d) => ({ id: d.id, name: d.name }))}
-          />
-        </section>
+            <ManualReviewList
+              lines={needsReviewLines.map((l) => ({
+                id: l.id,
+                performerNumber: l.performerNumber,
+                rawDentistName: l.rawDentistName,
+                udas: l.udas?.toString() ?? null,
+                superannuationPence: l.superannuationPence,
+              }))}
+              dentists={dentists.map((d) => ({ id: d.id, name: d.name }))}
+            />
+          </CardContent>
+        </Card>
 
-        <section className="mt-10">
-          <h2 className="text-h3 text-(--color-text-primary)">Run &amp; lock</h2>
-          <CalculateAndLockPanel
-            payPeriodId={payPeriod.id}
-            dentists={dentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
-            locked={payPeriod.status === "LOCKED"}
-          />
-        </section>
+        <Card>
+          <CardHeader className="flex-col items-start gap-1">
+            <CardTitle>Run &amp; lock</CardTitle>
+            <p className="text-body-sm text-(--color-text-secondary)">
+              Enter private revenue per dentist, run the calculation, then lock the period when figures are final.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <CalculateAndLockPanel
+              payPeriodId={payPeriod.id}
+              dentists={dentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
+              locked={payPeriod.status === "LOCKED"}
+            />
+          </CardContent>
+        </Card>
 
-        <section className="mt-10">
+        <section>
           <h2 className="text-h3 text-(--color-text-primary)">Payslips</h2>
           {payPeriod.payslipEntries.length === 0 ? (
-            <EmptyState title="No payslips calculated yet" description="Run the calculation above once Compass data is loaded." className="mt-4" />
+            <TablePanel className="mt-4">
+              <EmptyState title="No payslips calculated yet" description="Run the calculation above once Compass data is loaded." className="py-12" />
+            </TablePanel>
           ) : (
-            <div className="mt-4 space-y-6">
+            <div className="mt-4 flex flex-col gap-6">
               {payPeriod.payslipEntries.map((p) => (
-                <div key={p.id} className="rounded-(--radius-lg) border border-(--color-border) p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-body font-semibold">{p.dentist.name}</span>
+                <Card key={p.id}>
+                  <CardHeader>
+                    <CardTitle>{p.dentist.name}</CardTitle>
                     <div className="flex items-center gap-4">
-                      <span className="text-money font-semibold tabular-nums">{gbp(p.finalPayPence)}</span>
+                      <span className="text-money font-semibold tabular-nums">{formatMoneyGBPOrDash(p.finalPayPence)}</span>
                       <a
                         href={`/pay/api/payslips/${p.id}/pdf`}
                         className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
@@ -95,44 +115,90 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         Download PDF
                       </a>
                     </div>
-                  </div>
-                  <Table className="mt-3">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Figure</TableHead>
-                        <TableHead>Value</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {p.payType === "PERCENTAGE_SPLIT" ? (
-                        <>
-                          <TableRow><TableCell>UDAs</TableCell><TableCell>{p.udas?.toString() ?? "—"}</TableCell></TableRow>
-                          <TableRow><TableCell>UDA rate</TableCell><TableCell>{gbp(p.udaRatePence)}</TableCell></TableRow>
-                          <TableRow><TableCell>NHS earnings</TableCell><TableCell>{gbp(p.nhsEarningsPence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Gross private revenue</TableCell><TableCell>{gbp(p.grossPrivateRevenuePence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Private split %</TableCell><TableCell>{p.privateSplitPercent?.toString() ?? "—"}%</TableCell></TableRow>
-                          <TableRow><TableCell>Private earnings</TableCell><TableCell>{gbp(p.privateEarningsPence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Consultation exclusions</TableCell><TableCell>{gbp(p.consultationExclusionsPence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Lab deduction</TableCell><TableCell>-{gbp(p.labDeductionPence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Superannuation</TableCell><TableCell>-{gbp(p.superannuationPence)}</TableCell></TableRow>
-                        </>
-                      ) : (
-                        <>
-                          <TableRow><TableCell>Hours worked</TableCell><TableCell>{p.hoursWorked?.toString() ?? "—"}</TableCell></TableRow>
-                          <TableRow><TableCell>Hourly rate</TableCell><TableCell>{gbp(p.hourlyRatePence)}</TableCell></TableRow>
-                          <TableRow><TableCell>Hourly earnings</TableCell><TableCell>{gbp(p.hourlyEarningsPence)}</TableCell></TableRow>
-                        </>
-                      )}
-                      <TableRow><TableCell>Adjustments</TableCell><TableCell>{gbp(p.manualAdjustmentsPence)}</TableCell></TableRow>
-                      <TableRow><TableCell className="font-semibold">Final pay</TableCell><TableCell className="font-semibold">{gbp(p.finalPayPence)}</TableCell></TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <TablePanel>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Figure</TableHead>
+                            <TableHead className="text-right">Value</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {p.payType === "PERCENTAGE_SPLIT" ? (
+                            <>
+                              <TableRow>
+                                <TableCell>UDAs</TableCell>
+                                <TableCellMoney>{p.udas?.toString() ?? "—"}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>UDA rate</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.udaRatePence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>NHS earnings</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.nhsEarningsPence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Gross private revenue</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.grossPrivateRevenuePence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Private split %</TableCell>
+                                <TableCellMoney>{p.privateSplitPercent?.toString() ?? "—"}%</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Private earnings</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.privateEarningsPence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Consultation exclusions</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.consultationExclusionsPence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Lab deduction</TableCell>
+                                <TableCellMoney>-{formatMoneyGBPOrDash(p.labDeductionPence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Superannuation</TableCell>
+                                <TableCellMoney>-{formatMoneyGBPOrDash(p.superannuationPence)}</TableCellMoney>
+                              </TableRow>
+                            </>
+                          ) : (
+                            <>
+                              <TableRow>
+                                <TableCell>Hours worked</TableCell>
+                                <TableCellMoney>{p.hoursWorked?.toString() ?? "—"}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Hourly rate</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.hourlyRatePence)}</TableCellMoney>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Hourly earnings</TableCell>
+                                <TableCellMoney>{formatMoneyGBPOrDash(p.hourlyEarningsPence)}</TableCellMoney>
+                              </TableRow>
+                            </>
+                          )}
+                          <TableRow>
+                            <TableCell>Adjustments</TableCell>
+                            <TableCellMoney>{formatMoneyGBPOrDash(p.manualAdjustmentsPence)}</TableCellMoney>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-semibold">Final pay</TableCell>
+                            <TableCellMoney className="font-semibold">{formatMoneyGBPOrDash(p.finalPayPence)}</TableCellMoney>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TablePanel>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
         </section>
       </div>
-    </div>
+    </PageContent>
   );
 }

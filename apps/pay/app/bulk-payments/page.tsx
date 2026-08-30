@@ -1,7 +1,7 @@
 import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
-import { PayNav } from "@/components/pay-nav";
 import { listLabBills, listSupplierInvoices } from "@/lib/pay-service";
+import { PageContent, PageHeader } from "@elio/ui";
 import { BulkPaymentsClient } from "./bulk-payments-client";
 
 export default async function BulkPaymentsPage() {
@@ -14,13 +14,10 @@ export default async function BulkPaymentsPage() {
   ]);
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-h2 text-(--color-text-primary)">Bulk Payments</h1>
-        </div>
+    <PageContent>
+      <PageHeader title="Bulk Payments" description="Review and export lab and supplier payments together." />
 
+      <div className="mt-8">
         <BulkPaymentsClient
           initialItems={[
             ...labBills.map((b) => ({
@@ -42,6 +39,6 @@ export default async function BulkPaymentsPage() {
           ]}
         />
       </div>
-    </div>
+    </PageContent>
   );
 }

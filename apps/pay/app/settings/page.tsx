@@ -3,7 +3,7 @@ import { redirectToLogin } from "@/lib/session";
 import { scopedDb } from "@elio/db";
 import { auth, can } from "@elio/auth";
 import type { Role } from "@elio/db";
-import { PayNav } from "@/components/pay-nav";
+import { PageContent, PageHeader } from "@elio/ui";
 import { SettingsClient } from "./settings-client";
 
 // Server-side gate — never rely on hiding the nav link alone
@@ -23,17 +23,9 @@ export default async function PaySettingsPage() {
   });
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="min-h-screen bg-(--color-bg) px-6 py-12">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="text-h2 text-(--color-text-primary)">Settings</h1>
-          <p className="mt-1 text-body text-(--color-text-secondary)">
-            Configure ElioPay settings for your practice.
-          </p>
-          <SettingsClient initialCode={practice.cosmeticConsultationTreatmentCode} />
-        </div>
-      </div>
-    </div>
+    <PageContent width="md">
+      <PageHeader title="Settings" description="Configure ElioPay settings for your practice." />
+      <SettingsClient initialCode={practice.cosmeticConsultationTreatmentCode} />
+    </PageContent>
   );
 }

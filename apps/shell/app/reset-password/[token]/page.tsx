@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@elio/ui";
+import { Button, Input, Label } from "@elio/ui";
+import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 export default function ResetPasswordPage() {
   const params = useParams<{ token: string }>();
@@ -45,46 +46,36 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-(--color-bg) px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Set a new password</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {done ? (
-            <p className="text-body-sm text-(--color-success)" data-testid="reset-password-success">
-              Your password has been reset. Redirecting to sign in&hellip;
-            </p>
-          ) : (
-            <form onSubmit={onSubmit} className="space-y-4" data-testid="reset-password-form">
-              <div>
-                <Label htmlFor="password">New password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  error={error ?? undefined}
-                />
-              </div>
-              <div>
-                <Label htmlFor="confirm">Confirm password</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  required
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full" loading={loading} data-testid="reset-password-submit">
-                Reset password
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell headline="New password" description="Choose a strong password for your ELIO account.">
+      <AuthFormCard title="Set a new password">
+        {done ? (
+          <p className="text-body leading-relaxed text-(--color-success)" data-testid="reset-password-success">
+            Your password has been reset. Redirecting to sign in&hellip;
+          </p>
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-5" data-testid="reset-password-form">
+            <div className="space-y-2">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={error ?? undefined}
+                className="h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input id="confirm" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-12" />
+            </div>
+            <Button type="submit" className="h-12 w-full" loading={loading} data-testid="reset-password-submit">
+              Reset password
+            </Button>
+          </form>
+        )}
+      </AuthFormCard>
+    </AuthShell>
   );
 }

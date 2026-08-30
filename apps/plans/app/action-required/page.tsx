@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { requireLicensedSession } from "@/lib/session";
 import { prisma } from "@elio/db";
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from "@elio/ui";
-import { PlansNav } from "@/components/plans-nav";
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button, PageContent, PageHeader } from "@elio/ui";
 import { ActionRequiredEmptyState } from "@/components/action-required-empty-state";
 import { listRedeems, runReconciliation } from "@/lib/plans-service";
 
@@ -40,18 +39,12 @@ export default async function ActionRequiredPage() {
     pendingRedeems.length + failedPayments.length + unsignedRequests.length + (reconciliation?.mismatches.length ?? 0);
 
   return (
-    <div>
-      <PlansNav />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-h2 text-(--color-text-primary)">Action Required</h1>
-            <p className="mt-1 text-body text-(--color-text-secondary)">
-              Everything currently waiting on staff attention across plans, payments, and documents.
-            </p>
-          </div>
-          {totalCount > 0 && <Badge variant="danger">{totalCount} item(s)</Badge>}
-        </div>
+    <PageContent>
+      <PageHeader
+        title="Action Required"
+        description="Everything currently waiting on staff attention across plans, payments, and documents."
+        actions={totalCount > 0 ? <Badge variant="danger">{totalCount} item(s)</Badge> : undefined}
+      />
 
         {totalCount === 0 ? (
           <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
@@ -164,7 +157,6 @@ export default async function ActionRequiredPage() {
             )}
           </div>
         )}
-      </div>
-    </div>
+    </PageContent>
   );
 }

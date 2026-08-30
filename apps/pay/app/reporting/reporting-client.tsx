@@ -12,13 +12,9 @@ import {
   Legend,
 } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
-import { Card, CardHeader, CardTitle, CardContent, EmptyState } from "@elio/ui";
+import { Card, CardHeader, CardTitle, CardContent, EmptyState, formatMoneyGBP } from "@elio/ui";
 import { BarChart3 } from "lucide-react";
 import type { ReportingPeriodPoint } from "@/lib/pay-service";
-
-function money(pence: number) {
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function periodLabel(p: ReportingPeriodPoint) {
   return new Date(p.periodStart).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
@@ -41,7 +37,7 @@ function ThemedTooltip({ active, payload, label }: ThemedTooltipProps) {
           <div key={entry.dataKey as string} className="flex items-center gap-2 text-caption text-(--color-text-secondary)">
             <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span>{entry.name}:</span>
-            <span className="font-medium text-(--color-text-primary)">{money(Number(entry.value ?? 0))}</span>
+            <span className="font-medium text-(--color-text-primary)">{formatMoneyGBP(Number(entry.value ?? 0))}</span>
           </div>
         ))}
       </div>
@@ -119,7 +115,7 @@ export function ReportingClient({ initialPeriods }: ReportingClientProps) {
                 tick={{ fill: "var(--color-text-tertiary)", fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v: number) => money(v)}
+                tickFormatter={(v: number) => formatMoneyGBP(v)}
                 width={80}
               />
               <Tooltip content={<ThemedTooltip />} cursor={{ stroke: "var(--color-border-subtle)" }} />

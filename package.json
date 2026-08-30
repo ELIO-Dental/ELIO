@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:staff": "turbo run dev --filter=shell --filter=pay --filter=plans --filter=flow",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",

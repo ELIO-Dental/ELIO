@@ -1,8 +1,7 @@
 import { requireLicensedSession, can } from "@/lib/session";
 import type { Role } from "@elio/db";
-import { PlansNav } from "@/components/plans-nav";
 import { listRedeemRules } from "@/lib/plans-service";
-import { Card, CardContent, CardHeader, CardTitle, Badge, EmptyState } from "@elio/ui";
+import { Card, CardContent, CardHeader, CardTitle, Badge, EmptyState, PageContent, PageHeader } from "@elio/ui";
 import { RedeemRuleToggle } from "./redeem-rule-toggle";
 
 /**
@@ -27,15 +26,10 @@ export default async function SettingsPage() {
   const environment = process.env.GOCARDLESS_ENVIRONMENT || "sandbox";
 
   return (
-    <div>
-      <PlansNav />
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">Settings</h1>
-        <p className="mt-1 text-body text-(--color-text-secondary)">
-          Plans-module configuration. Practice-wide settings (users, MFA) live under Users.
-        </p>
+    <PageContent width="md">
+      <PageHeader title="Settings" description="Plans-module configuration. Practice-wide settings (users, MFA) live under Users." />
 
-        <div className="mt-8 space-y-6">
+      <div className="mt-8 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>GoCardless connection</CardTitle>
@@ -104,7 +98,6 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+    </PageContent>
   );
 }

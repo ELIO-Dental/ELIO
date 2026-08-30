@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Input, Label, Button, toast } from "@elio/ui";
+import { Input, Label, Button, toast, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, TablePanel, TableToolbar } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
 
 export interface ConversionReport {
@@ -58,6 +58,14 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
     setReport(initialReport);
   }
 
+  async function refreshReport() {
+    if (from && to) {
+      await applyFilter();
+      return;
+    }
+    setReport(initialReport);
+  }
+
   return (
     <div>
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-(--radius-lg) border border-(--color-border) p-4">
@@ -92,36 +100,35 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
         />
       </div>
 
-      <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
-        <table className="w-full text-body-sm">
-          <thead>
-            <tr className="border-b border-(--color-border) text-left text-caption text-(--color-text-tertiary)">
-              <th className="px-4 py-3 font-medium">Practitioner</th>
-              <th className="px-4 py-3 font-medium">Consultations</th>
-              <th className="px-4 py-3 font-medium">Converted</th>
-              <th className="px-4 py-3 font-medium">Conversion rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.byDentist.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-(--color-text-tertiary)">
-                  No consults recorded yet.
-                </td>
-              </tr>
-            ) : (
-              report.byDentist.map((row) => (
-                <tr key={row.dentistId ?? "unassigned"} className="border-b border-(--color-border-subtle) last:border-0">
-                  <td className="px-4 py-3 text-(--color-text-primary)">{row.name}</td>
-                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.totalConsultations}</td>
-                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.converted}</td>
-                  <td className="px-4 py-3 text-(--color-text-secondary)">{row.conversionRate}%</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TablePanel
+        className="mt-8"
+        toolbar={<TableToolbar title="By practitioner" onRefresh={refreshReport} />}
+      >
+        {report.byDentist.length === 0 ? (
+          <EmptyState title="No consults recorded yet" description="Practitioner breakdown will appear once consults are logged." className="py-12" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Practitioner</TableHead>
+                <TableHead>Consultations</TableHead>
+                <TableHead>Converted</TableHead>
+                <TableHead>Conversion rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {report.byDentist.map((row) => (
+                <TableRow key={row.dentistId ?? "unassigned"}>
+                  <TableCell>{row.name}</TableCell>
+                  <TableCell className="text-(--color-text-secondary)">{row.totalConsultations}</TableCell>
+                  <TableCell className="text-(--color-text-secondary)">{row.converted}</TableCell>
+                  <TableCell className="text-(--color-text-secondary)">{row.conversionRate}%</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TablePanel>
     </div>
   );
 }

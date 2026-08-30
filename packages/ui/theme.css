@@ -186,6 +186,15 @@
  * ------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --color-primary-50: #1e1a2e;
+    --color-primary-100: #2a2540;
+    --color-primary-700: #c4b5fd;
+
+    --color-success-bg: #052e16;
+    --color-warning-bg: #422006;
+    --color-danger-bg: #450a0a;
+    --color-info-bg: #172554;
+
     --color-bg: #0b0b0f;
     --color-bg-subtle: #131318;
     --color-surface: #17171d;
@@ -210,6 +219,15 @@
 }
 
 :root[data-theme="dark"] {
+  --color-primary-50: #1e1a2e;
+  --color-primary-100: #2a2540;
+  --color-primary-700: #c4b5fd;
+
+  --color-success-bg: #052e16;
+  --color-warning-bg: #422006;
+  --color-danger-bg: #450a0a;
+  --color-info-bg: #172554;
+
   --color-bg: #0b0b0f;
   --color-bg-subtle: #131318;
   --color-surface: #17171d;
@@ -237,6 +255,21 @@ body {
   background: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body {
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] body {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] body {
+  color-scheme: light;
 }
 
 /* §3.3 Money values always use tabular figures */

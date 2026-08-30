@@ -3,11 +3,7 @@
 // Server Components can't pass a `format` callback across the RSC boundary
 // to StatCard (a Client Component) — same fix pattern as
 // apps/plans/components/money-stat-card.tsx.
-import { StatCard } from "@elio/ui";
-
-function money(pence: number) {
-  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { StatCard, formatMoneyGBP } from "@elio/ui";
 
 export function FlowStatCard({
   label,
@@ -20,6 +16,10 @@ export function FlowStatCard({
   suffix?: string;
   money?: boolean;
 }) {
-  const format = isMoney ? money : suffix ? (v: number) => `${v.toLocaleString()}${suffix}` : undefined;
+  const format = isMoney
+    ? (v: number) => formatMoneyGBP(v, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : suffix
+      ? (v: number) => `${v.toLocaleString()}${suffix}`
+      : undefined;
   return <StatCard label={label} value={value} format={format} />;
 }

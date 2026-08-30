@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { requireSession, redirectToLogin } from "@/lib/session";
-import { FlowNav } from "@/components/flow-nav";
 import { prisma } from "@elio/db";
 import { findLinkableAppointments } from "@/lib/flow-service";
+import { PageContent, PageHeader } from "@elio/ui";
 import { ConsultDetailClient } from "./consult-detail-client";
 
 export default async function ConsultDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,17 +35,18 @@ export default async function ConsultDetailPage({ params }: { params: Promise<{ 
     : "Unlinked lead";
 
   return (
-    <div>
-      <FlowNav />
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">{patientName}</h1>
-        <p className="mt-1 text-body text-(--color-text-secondary)">
-          {consult.enquiry.source ?? "Source unknown"} · captured{" "}
-          {consult.enquiry.capturedAt.toLocaleDateString("en-GB")}
-        </p>
+    <PageContent width="md">
+      <PageHeader
+        title={patientName}
+        description={
+          <>
+            {consult.enquiry.source ?? "Source unknown"} · captured {consult.enquiry.capturedAt.toLocaleDateString("en-GB")}
+          </>
+        }
+      />
 
-        <div className="mt-6">
-          <ConsultDetailClient
+      <div className="mt-8">
+        <ConsultDetailClient
             consult={{
               id: consult.id,
               quotePence: consult.quotePence,
@@ -84,7 +85,6 @@ export default async function ConsultDetailPage({ params }: { params: Promise<{ 
             }))}
           />
         </div>
-      </div>
-    </div>
+    </PageContent>
   );
 }

@@ -1,34 +1,62 @@
 import { redirectToLogin } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb } from "@elio/db";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, Badge } from "@elio/ui";
-import { PayNav } from "@/components/pay-nav";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  EmptyState,
+  Badge,
+  PageContent,
+  PageHeader,
+  TablePanel,
+  TableToolbar,
+  TablePagination,
+  parseTablePage,
+} from "@elio/ui";
 import { NewPayPeriodForm } from "./new-pay-period-form";
 
-export default async function PayPeriodsPage() {
+export default async function PayPeriodsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
+  const { page, skip, pageSize } = parseTablePage(await searchParams);
 
   const db = scopedDb(session.practiceId);
-  const payPeriods = await db.payPeriod.findMany({
-    orderBy: { periodStart: "desc" },
-    include: { _count: { select: { payslipEntries: true, compassStatements: true } } },
-  });
+  const [payPeriods, totalCount] = await Promise.all([
+    db.payPeriod.findMany({
+      orderBy: { periodStart: "desc" },
+      include: { _count: { select: { payslipEntries: true, compassStatements: true } } },
+      skip,
+      take: pageSize,
+    }),
+    db.payPeriod.count(),
+  ]);
 
   return (
-    <div>
-      <PayNav isOwner={session.role === "OWNER"} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-h2 text-(--color-text-primary)">Pay periods</h1>
+    <PageContent>
+      <PageHeader title="Pay periods" description="Create and manage monthly payroll runs." />
 
-        <div className="mt-6">
-          <NewPayPeriodForm />
-        </div>
+      <div className="mt-8">
+        <NewPayPeriodForm />
+      </div>
 
-        <div className="mt-8">
-          {payPeriods.length === 0 ? (
-            <EmptyState title="No pay periods yet" description="Start one above (§6.0 — the exact previous calendar month)." />
-          ) : (
+      <div className="mt-8">
+        {totalCount === 0 ? (
+          <TablePanel toolbar={<TableToolbar title="Pay periods" />}>
+            <EmptyState title="No pay periods yet" description="Start one above (§6.0 — the exact previous calendar month)." className="py-12" />
+          </TablePanel>
+        ) : (
+          <TablePanel
+            toolbar={<TableToolbar title="Pay periods" />}
+            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
+          >
             <Table>
               <TableHeader>
                 <TableRow>
@@ -55,9 +83,9 @@ export default async function PayPeriodsPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </div>
+          </TablePanel>
+        )}
       </div>
-    </div>
+    </PageContent>
   );
 }

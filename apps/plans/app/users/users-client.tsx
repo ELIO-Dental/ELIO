@@ -18,6 +18,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  TablePanel,
+  TableToolbar,
 } from "@elio/ui";
 import { Users as UsersIcon } from "lucide-react";
 
@@ -112,7 +114,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   }
 
   return (
-    <div className="rounded-(--radius-lg) border border-(--color-border)">
+    <TablePanel toolbar={<TableToolbar title="Practice users" onRefresh={refetch} />}>
       <Table data-testid="plans-users-table">
         <TableHeader>
           <TableRow>
@@ -167,6 +169,6 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
           ))}
         </TableBody>
       </Table>
-    </div>
+    </TablePanel>
   );
 }

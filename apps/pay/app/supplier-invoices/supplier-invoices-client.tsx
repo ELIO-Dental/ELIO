@@ -21,7 +21,13 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableCellMoney,
+  TablePanel,
+  formatMoneyGBP,
   EmptyState,
+  TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 
 interface SupplierOption {
@@ -91,6 +97,12 @@ export function SupplierInvoicesClient({
       )
     : initialSupplierInvoices;
 
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(
+    filteredSupplierInvoices,
+    undefined,
+    [filterSupplierName]
+  );
+
   return (
     <>
       <div className="mt-6">
@@ -139,22 +151,25 @@ export function SupplierInvoicesClient({
         </Card>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-h3 text-(--color-text-primary)">All supplier invoices</h2>
-        <div className="w-64">
-          <Input
-            placeholder="Filter by supplier name"
-            value={filterSupplierName}
-            onChange={(e) => setFilterSupplierName(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        {filteredSupplierInvoices.length === 0 ? (
-          <EmptyState title="No supplier invoices" description="Add a supplier invoice above, or adjust the filter." />
-        ) : (
-          <Table>
+      <div className="mt-8">
+        <TablePanel
+          toolbar={
+            <TableToolbar title="All supplier invoices" onRefresh={() => router.refresh()}>
+              <div className="w-64">
+                <Input
+                  placeholder="Filter by supplier name"
+                  value={filterSupplierName}
+                  onChange={(e) => setFilterSupplierName(e.target.value)}
+                />
+              </div>
+            </TableToolbar>
+          }
+          footer={showPagination ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} /> : undefined}
+        >
+          {filteredSupplierInvoices.length === 0 ? (
+            <EmptyState title="No supplier invoices" description="Add a supplier invoice above, or adjust the filter." className="py-12" />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice date</TableHead>
@@ -164,19 +179,20 @@ export function SupplierInvoicesClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSupplierInvoices.map((i) => (
+              {items.map((i) => (
                 <TableRow key={i.id}>
                   <TableCell>
                     {i.invoiceDate ? new Date(i.invoiceDate).toLocaleDateString() : new Date(i.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>{i.supplierName ?? "Unassigned"}</TableCell>
                   <TableCell>{i.description ?? "—"}</TableCell>
-                  <TableCell>£{(i.amountPence / 100).toFixed(2)}</TableCell>
+                  <TableCellMoney>{formatMoneyGBP(i.amountPence)}</TableCellMoney>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        )}
+            </Table>
+          )}
+        </TablePanel>
       </div>
     </>
   );
