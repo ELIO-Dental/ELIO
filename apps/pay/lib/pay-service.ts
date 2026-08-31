@@ -11,7 +11,7 @@ import {
   calculateLabDeduction,
   type TreatmentRecord,
 } from "@elio/pay-engine";
-import { privateRevenueItemsToTreatments } from "./private-revenue";
+import { financeFeesDeductionPence, privateRevenueItemsToTreatments, therapyDeductionPence } from "./private-revenue";
 
 // ---------------------------------------------------------------------------
 // Dentists
@@ -387,6 +387,13 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
     const udas = payLine?.udas ? Number(payLine.udas) : 0;
     const udaRatePence = dentist.udaRatePence ?? 0;
     const superannuationPence = payLine?.superannuationPence ?? 0;
+    const therapyDeduction = therapyDeductionPence(
+      existing?.therapyMinutes != null ? Number(existing.therapyMinutes) : 0,
+      existing?.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0
+    );
+    const financeDeduction = financeFeesDeductionPence(
+      lineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+    );
 
     const finalPayPence = calculateFinalPay({
       payType: "PERCENTAGE_SPLIT",
@@ -398,6 +405,8 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
       consultationExclusionsPence: earnings.consultationExclusionsPence,
       labDeductionPence,
       superannuationPence,
+      therapyDeductionPence: therapyDeduction,
+      financeFeesDeductionPence: financeDeduction,
     });
 
     const data = {
@@ -417,21 +426,15 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
       finalPayPence,
     };
 
-    // F.1 Final QA money-path audit (2026-08-29): switched from find-then-write
-    // to a real DB-level upsert against the new @@unique([payPeriodId, dentistId])
-    // constraint (packages/db/prisma/schema.prisma) — closes a genuine
-    // duplicate-payslip race between two concurrent calculate calls for the
-    // same dentist/period (a double-click, or a retried request), matching
-    // PlanPayment's own idempotency pattern rather than a check-then-create
-    // race window.
-    const wasExisting = !!existing;
     const entry = await db.payslipEntry.upsert({
       where: { payPeriodId_dentistId: { payPeriodId, dentistId } },
       update: data,
       create: data,
     });
 
-    if (!wasExisting) {
+    // Never wipe Dentally-fetched patient metadata. Only seed bare lines when
+    // this is a brand-new payslip with no lines yet (manual calc path).
+    if (!existing || existing.privateRevenueLineItems.length === 0) {
       for (const li of earnings.lineItems) {
         await db.privateRevenueLineItem.create({
           data: {

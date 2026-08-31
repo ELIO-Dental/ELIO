@@ -1,27 +1,18 @@
 import { NextResponse } from "next/server";
 import { scopedDb } from "@elio/db";
 import { calculatePrivateEarnings, calculateFinalPay, calculateLabDeduction } from "@elio/pay-engine";
-import type { TreatmentRecord } from "@elio/pay-engine";
-import { privateRevenueItemsToTreatments } from "@/lib/private-revenue";
+import {
+  financeFeesDeductionPence,
+  privateRevenueItemsToTreatments,
+  therapyDeductionPence,
+} from "@/lib/private-revenue";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
 /**
- * §6.3-6.5 — runs the pay-engine for every dentist in this pay period and writes one
- * PayslipEntry per dentist, snapshotting the dentist's CURRENT rate/split so a later rate
- * edit never retroactively changes this payslip (versioning, DATA_MODEL.md §3).
- *
- * KNOWN GAP (flagged per MASTER_BUILD_GUIDE.md §1.6's own escape hatch: "flag to Hisham if
- * it doesn't [expose a category]"): packages/db's synced `Treatment` model (Step 1.4) has
- * no `dentistId` column at all — Dentally's invoice-line-item sync has no per-treatment
- * clinician attribution today, and no treatment-category field either. §6.3's "that
- * specific dentist actually completed" and the £50-cosmetic-consultation match therefore
- * cannot be derived automatically from the live synced core yet. Until that sync gap is
- * closed (needs a schema change + Step 1.4 sync update — out of scope to do silently here),
- * this endpoint accepts each dentist's private-revenue line items as explicit input
- * (`privateRevenueItems`) rather than deriving them from `Treatment` — matching the
- * PrivateRevenueLineItem model's own nullable `treatmentId` (already designed to allow a
- * manually-entered line with no linked synced Treatment row).
+ * §6.3-6.5 — runs the pay-engine for every dentist in this pay period.
+ * Dentally-fetched PrivateRevenueLineItem rows are reused (metadata preserved).
+ * Explicit `privateRevenueItems` in the body replace lines (manual £ entry path).
  */
 
 interface CalcDentistInput {
@@ -51,19 +42,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const dentist = await db.dentist.findUnique({ where: { id: input.dentistId } });
       if (!dentist) continue;
 
-      let revenueItems = input.privateRevenueItems;
-      if (!revenueItems?.length) {
-        const existingPayslip = await db.payslipEntry.findFirst({
-          where: { payPeriodId, dentistId: dentist.id },
-          include: { privateRevenueLineItems: true },
-        });
-        revenueItems =
-          existingPayslip?.privateRevenueLineItems.map((li) => ({
-            amountPence: li.amountPence,
-            excludedAsConsultation: li.excludedAsConsultation,
-            treatmentId: li.treatmentId ?? undefined,
-          })) ?? [];
-      }
+      const existingPayslip = await db.payslipEntry.findFirst({
+        where: { payPeriodId, dentistId: dentist.id },
+        include: { privateRevenueLineItems: true },
+      });
+
+      const manualItems = input.privateRevenueItems;
+      const useManualItems = Boolean(manualItems?.length);
+      const existingLines = existingPayslip?.privateRevenueLineItems ?? [];
 
       if (dentist.payType === "HOURLY") {
         const hourEntries = await db.hourEntry.findMany({ where: { dentistId: dentist.id, payPeriodId } });
@@ -76,11 +62,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
         });
 
-        // F.1 Final QA money-path audit (2026-08-29): was find-then-write with
-        // no DB guard — now a real upsert against the new
-        // @@unique([payPeriodId, dentistId]) constraint (packages/db/prisma/
-        // schema.prisma), closing a genuine duplicate-payslip race between
-        // two concurrent calculate calls for the same dentist/period.
         const hourlyData = {
           practiceId: session.practiceId,
           payPeriodId,
@@ -103,7 +84,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         continue;
       }
 
-      // PERCENTAGE_SPLIT
       const payLine = await db.payLine.findFirst({
         where: { dentistId: dentist.id, compassStatement: { payPeriodId }, matchConfidence: "CONFIDENT" },
         orderBy: { createdAt: "desc" },
@@ -113,14 +93,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const udaRatePence = dentist.udaRatePence ?? 0;
       const privateSplitPercent = dentist.privateSplitPercent ? Number(dentist.privateSplitPercent) : 0;
 
-      const treatments: TreatmentRecord[] = privateRevenueItemsToTreatments(
+      const revenueForCalc = useManualItems
+        ? (manualItems ?? []).map((item, i) => ({
+            amountPence: item.amountPence,
+            excludedAsConsultation: item.excludedAsConsultation,
+            treatmentId: item.treatmentId,
+            id: item.treatmentId ?? `manual-${dentist.id}-${i}`,
+          }))
+        : existingLines.map((li) => ({
+            amountPence: li.amountPence,
+            excludedAsConsultation: li.excludedAsConsultation,
+            treatmentId: li.treatmentId,
+            id: li.id,
+          }));
+
+      const treatments = privateRevenueItemsToTreatments(
         dentist.id,
-        revenueItems.map((item, i) => ({
-          amountPence: item.amountPence,
-          excludedAsConsultation: item.excludedAsConsultation,
-          treatmentId: item.treatmentId,
-          id: item.treatmentId ?? `manual-${dentist.id}-${i}`,
-        })),
+        revenueForCalc,
         payPeriod.periodStart.toISOString()
       );
 
@@ -129,11 +118,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         treatments,
         payPeriod.periodStart.toISOString().substring(0, 10),
         payPeriod.periodEnd.toISOString().substring(0, 10),
-        privateSplitPercent,
+        privateSplitPercent
       );
 
-      const labBillsPence = input.labBillsPence ?? [];
-      const labDeductionPence = calculateLabDeduction(labBillsPence);
+      const labAgg = await db.labBillEntry.aggregate({
+        where: { dentistId: dentist.id },
+        _sum: { amountPence: true },
+      });
+      const labDeductionPence = calculateLabDeduction(
+        input.labBillsPence?.length ? input.labBillsPence : [labAgg._sum.amountPence ?? 0]
+      );
+
+      const therapyDeduction = therapyDeductionPence(
+        existingPayslip?.therapyMinutes != null ? Number(existingPayslip.therapyMinutes) : 0,
+        existingPayslip?.therapyRatePerMinute != null ? Number(existingPayslip.therapyRatePerMinute) : 0
+      );
+      const financeDeduction = financeFeesDeductionPence(
+        useManualItems ? [] : existingLines.map((li) => ({ financeFeePence: li.financeFeePence }))
+      );
 
       const finalPayPence = calculateFinalPay({
         payType: "PERCENTAGE_SPLIT",
@@ -145,13 +147,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         consultationExclusionsPence: earnings.consultationExclusionsPence,
         labDeductionPence,
         superannuationPence,
+        therapyDeductionPence: therapyDeduction,
+        financeFeesDeductionPence: financeDeduction,
         manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
       });
 
-      // F.1 Final QA money-path audit (2026-08-29): was find-then-write with
-      // no DB guard — now a real upsert against the new
-      // @@unique([payPeriodId, dentistId]) constraint, same rationale as the
-      // HOURLY branch above.
       const data = {
         practiceId: session.practiceId,
         payPeriodId,
@@ -173,12 +173,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const payslip = await db.payslipEntry.upsert({
         where: { payPeriodId_dentistId: { payPeriodId, dentistId: dentist.id } },
         update: data,
-        create: data,
+        create: {
+          ...data,
+          therapyMinutes: existingPayslip?.therapyMinutes ?? undefined,
+          therapyRatePerMinute: existingPayslip?.therapyRatePerMinute ?? undefined,
+          dentallyPatientsJson: existingPayslip?.dentallyPatientsJson ?? undefined,
+          dentallyAnalyticsJson: existingPayslip?.dentallyAnalyticsJson ?? undefined,
+          dentallyTherapyJson: existingPayslip?.dentallyTherapyJson ?? undefined,
+          dentallyDiscrepanciesJson: existingPayslip?.dentallyDiscrepanciesJson ?? undefined,
+        },
       });
 
-      if (revenueItems.length) {
+      if (useManualItems && manualItems) {
         await db.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });
-        for (const item of revenueItems) {
+        for (const item of manualItems) {
           await db.privateRevenueLineItem.create({
             data: {
               payslipEntryId: payslip.id,

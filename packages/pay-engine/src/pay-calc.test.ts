@@ -110,6 +110,24 @@ describe("calculateFinalPay — §6.5 final formula", () => {
     };
     expect(calculateFinalPay(input)).toBe(calculateFinalPay(input));
   });
+
+  it("PERCENTAGE_SPLIT: also deducts therapy and finance fees (AuraPay Y1.5)", () => {
+    const final = calculateFinalPay({
+      payType: "PERCENTAGE_SPLIT",
+      udas: 100,
+      udaRatePence: 1500,
+      grossPrivateRevenuePence: 50000,
+      privateSplitPercent: 50,
+      privateEarningsPence: 25000,
+      consultationExclusionsPence: 0,
+      labDeductionPence: 0,
+      superannuationPence: 0,
+      therapyDeductionPence: 3500,
+      financeFeesDeductionPence: 1000,
+    });
+    // NHS 150000 + private 25000 - therapy 3500 - finance 1000
+    expect(final).toBe(150000 + 25000 - 3500 - 1000);
+  });
 });
 
 describe("calculateLabDeduction — §6.4, 50% of attributable lab bills", () => {

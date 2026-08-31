@@ -758,6 +758,7 @@ model PrivateRevenueLineItem {
   hourlyRatePence          Int?
   flagged                  Boolean @default(false)
   flagReason               String?
+  financeFeePence          Int? // AuraPay financeFee on patient row; Tabeo rates applied in Y3.5 settings
 
   createdAt DateTime @default(now())
 

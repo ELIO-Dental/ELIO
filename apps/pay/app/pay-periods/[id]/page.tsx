@@ -206,6 +206,25 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                                 <TableCell>Superannuation</TableCell>
                                 <TableCellMoney>-{formatMoneyGBPOrDash(p.superannuationPence)}</TableCellMoney>
                               </TableRow>
+                              {p.therapyMinutes != null && Number(p.therapyMinutes) > 0 ? (
+                                <TableRow>
+                                  <TableCell>
+                                    Therapy ({Number(p.therapyMinutes)} mins
+                                    {p.therapyRatePerMinute != null
+                                      ? ` @ £${Number(p.therapyRatePerMinute).toFixed(4)}/min`
+                                      : ""}
+                                    )
+                                  </TableCell>
+                                  <TableCellMoney>
+                                    -
+                                    {formatMoneyGBPOrDash(
+                                      Math.round(
+                                        Number(p.therapyMinutes) * Number(p.therapyRatePerMinute ?? 0) * 100
+                                      )
+                                    )}
+                                  </TableCellMoney>
+                                </TableRow>
+                              ) : null}
                             </>
                           ) : (
                             <>

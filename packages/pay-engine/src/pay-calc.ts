@@ -85,6 +85,10 @@ export interface PercentageSplitPayslipInput {
   consultationExclusionsPence: number;
   labDeductionPence: number; // 50% of attributable lab bills (§6.4)
   superannuationPence: number; // from Compass, deducted in full (§6.4)
+  /** AuraPay therapy minutes × rate (£) as pence — Y1.5 */
+  therapyDeductionPence?: number;
+  /** AuraPay finance fees × split as pence — Y1.5 (0 until fees captured) */
+  financeFeesDeductionPence?: number;
   manualAdjustmentsPence?: number;
 }
 
@@ -105,11 +109,15 @@ export function calculateFinalPay(input: PayslipCalcInput): number {
     const udaRatePence = input.udaRatePence ?? 0;
     const udas = input.udas ?? 0;
     const nhsEarningsPence = Math.round(udas * udaRatePence);
+    const therapyDeductionPence = input.therapyDeductionPence ?? 0;
+    const financeFeesDeductionPence = input.financeFeesDeductionPence ?? 0;
     return (
       nhsEarningsPence +
       input.privateEarningsPence -
       input.labDeductionPence -
-      input.superannuationPence +
+      input.superannuationPence -
+      therapyDeductionPence -
+      financeFeesDeductionPence +
       adjustments
     );
   }

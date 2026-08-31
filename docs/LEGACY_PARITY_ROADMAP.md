@@ -1467,13 +1467,13 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 
 | Step | Legacy reference (📖) | New ELIO target (✏️) | Notes |
 |------|----------------------|----------------------|-------|
-| Y1.1 Port Dentally fetch | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `elio/apps/pay/app/api/pay-periods/[id]/fetch-dentally/route.ts` (to create) | **Highest priority** |
-| Y1.2 Fetch API route | Same + `src/lib/period.ts` | Same | Draft-only guard |
-| Y1.3 Env vars | `ElioPay/aurapay/.env.local`, `elio-deploy-env/pay.env` | Practice settings + deploy | Token alias |
-| Y1.4 Dentist attribution | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `elio/apps/pay/lib/pay-service.ts` | `dentallyPractitionerId` |
-| Y1.5 Exclusion rules | `ElioPay/aurapay/src/lib/calculations.ts` | `elio/packages/pay-engine/` or `pay-service.ts` | Therapy/finance/Tabeo |
-| Y1.6 Analytics JSON | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` (analytics cards) | Store on `PayslipEntry` metadata | Chair mins, £/hr |
-| Y1.7 Wire calculate | `ElioPay/aurapay/src/lib/calculations.ts` | `elio/apps/pay/lib/pay-service.ts` → `calculatePayslipForDentist` | Remove empty `treatments: []` |
+| Y1.1 Port Dentally fetch | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `elio/apps/pay/lib/dentally-fetch.ts` + fetch route | **Shipped** |
+| Y1.2 Fetch API route | Same + `src/lib/period.ts` | `elio/apps/pay/app/api/pay-periods/[id]/fetch-dentally/route.ts` | **Shipped** — draft-only guard |
+| Y1.3 Env vars | `ElioPay/aurapay/.env.local`, `elio-deploy-env/pay.env` | Pay Vercel env (`DENTALLY_SITE_ID`, therapist IDs/rate); practice UI = Y3.5 | **Shipped (env)** |
+| Y1.4 Dentist attribution | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `dentally-fetch.ts` + `Dentist.dentallyPractitionerId` | **Shipped** |
+| Y1.5 Exclusion rules | `ElioPay/aurapay/src/lib/calculations.ts` | `pay-engine` + `private-revenue.ts` (therapy/finance deducted; Tabeo £ rates = Y3.5) | **Shipped** |
+| Y1.6 Analytics JSON | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` (analytics cards) | `PayslipEntry.dentallyAnalyticsJson` + period UI | **Shipped** |
+| Y1.7 Wire calculate | `ElioPay/aurapay/src/lib/calculations.ts` | calculate route + `calculatePayslipForDentist` (preserves Dentally lines) | **Shipped** |
 | Y2.1 Period header actions | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `elio/apps/pay/app/pay-periods/[id]/page.tsx` | Fetch, Email All, Finalize |
 | Y2.1a Save entry | `ElioPay/aurapay/src/app/api/periods/entries/route.ts` | `elio/apps/pay/app/api/pay-periods/[id]/entries/route.ts` (to create) | Per-dentist save |
 | Y2.1b Patient row edit | `ElioPay/aurapay/src/app/api/periods/patients/route.ts` | Map to `PrivateRevenueLineItem` API | |
