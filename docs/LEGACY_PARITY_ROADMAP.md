@@ -159,7 +159,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 | Plans gc-sync | ElioPlans | `0 8 * * *` | None | — | ❌ |
 | Plans reconcile | ElioPlans | `0 9 * * *` | `/plans/api/cron/reconcile-payments` | `0 7 * * *` | ✅ (1h earlier) |
 | Plans create charges | N/A | — | `/plans/api/cron/create-charges` | `0 6 * * *` | ✅ New (keep) |
-| Pay Dentally fetch | AuraPay | Manual only | None | — | ❌ |
+| Pay Dentally fetch | AuraPay | Manual only | `POST /pay/api/pay-periods/[id]/fetch-dentally` | On demand (UI) | ✅ Y1 shipped |
 
 ### 0.4 Cross-cutting implementation steps
 
@@ -1348,14 +1348,14 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 
 | Step | Legacy reference (📖) | New ELIO target (✏️) | Notes |
 |------|----------------------|----------------------|-------|
-| A.1 Per-tenant API key | `ElioPlans/src/lib/dentally-sync.ts` (reads DB key), `ElioPay/aurapay/src/app/api/dentally/route.ts` (`DENTALLY_API_TOKEN`) | `elio/packages/dentally/src/sync.ts`, `elio/packages/dentally/src/client.ts` | Use `decryptSecret(practice.dentallyApiKey)` |
-| A.2 Sync now UI | `ElioFlow/pages/index.tsx` (Sync modal), `ElioPlans/.../patients/page.tsx` (Sync button) | `elio/apps/shell/app/settings/integrations/` (to create) | Calls existing `POST /api/dentally/sync` |
-| A.3 Sync run metadata | `ElioFlow/pages/index.tsx` (`lastSynced` banner) | `elio/packages/db/prisma/schema.prisma` — add `DentallySyncRun` or fields on `Practice` | |
-| A.4 Connection status API | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts` | `elio/apps/shell/app/api/dentally/status/route.ts` (to create) | Ping + last run |
-| A.5 Prod cron verify | `ElioFlow/vercel.json`, `ElioPlans/vercel.json`, `elio-deploy-env/shell.env` | `elio/apps/shell/vercel.json` | Compare schedules in Part 0.3a |
-| A.6 Env documentation | `ElioPay/aurapay/.env.local`, `elio-deploy-env/*.env` | `elio/docs/` deploy checklist | Pay: `DENTALLY_API_TOKEN` → `DENTALLY_API_KEY` |
-| A.7 Inngest verify | — | `elio/packages/dentally/src/inngest.ts`, `elio/apps/shell/app/api/inngest/route.ts` | No legacy equivalent |
-| A.8 Error surfacing | `ElioFlow/pages/index.tsx` (sync log errors) | Portal integrations banner | |
+| A.1 Per-tenant API key | `ElioPlans/src/lib/dentally-sync.ts` (reads DB key), `ElioPay/aurapay/src/app/api/dentally/route.ts` (`DENTALLY_API_TOKEN`) | `elio/packages/dentally/src/resolve-api-key.ts` | **Shipped** |
+| A.2 Sync now UI | `ElioFlow/pages/index.tsx` (Sync modal), `ElioPlans/.../patients/page.tsx` (Sync button) | `elio/apps/shell/app/(portal)/settings/integrations/` | **Shipped** |
+| A.3 Sync run metadata | `ElioFlow/pages/index.tsx` (`lastSynced` banner) | `DentallySyncRun` model + `sync-run.ts` | **Shipped** |
+| A.4 Connection status API | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts` | `elio/apps/shell/app/api/dentally/status/route.ts` | **Shipped** |
+| A.5 Prod cron verify | `ElioFlow/vercel.json`, `ElioPlans/vercel.json`, `elio-deploy-env/shell.env` | `elio/apps/shell/vercel.json` + `verify:dentally-sync` | **Shipped** |
+| A.6 Env documentation | `ElioPay/aurapay/.env.local`, `elio-deploy-env/*.env` | `elio/docs/deploy-checklist.md` | **Shipped** |
+| A.7 Inngest verify | — | `elio/packages/dentally/src/inngest.ts`, `elio/apps/shell/app/api/inngest/route.ts` | **Shipped** |
+| A.8 Error surfacing | `ElioFlow/pages/index.tsx` (sync log errors) | `sync-status-banner.tsx` on launcher | **Shipped** |
 
 ### Phase B — Extend central sync
 

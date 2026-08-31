@@ -72,6 +72,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       row("Consultation exclusions (excluded, not paid)", gbp(payslip.consultationExclusionsPence));
       row("Lab deduction", `-${gbp(payslip.labDeductionPence)}`);
       row("Superannuation", `-${gbp(payslip.superannuationPence)}`);
+      const therapyMins = payslip.therapyMinutes != null ? Number(payslip.therapyMinutes) : 0;
+      const therapyRate = payslip.therapyRatePerMinute != null ? Number(payslip.therapyRatePerMinute) : 0;
+      if (therapyMins > 0 && therapyRate > 0) {
+        const therapyPence = Math.round(therapyMins * therapyRate * 100);
+        row(
+          `Therapy (${therapyMins} mins @ £${therapyRate.toFixed(4)}/min)`,
+          `-${gbp(therapyPence)}`
+        );
+      }
     } else {
       row("Hours worked", payslip.hoursWorked?.toString() ?? "—");
       row("Hourly rate", gbp(payslip.hourlyRatePence));

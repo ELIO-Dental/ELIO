@@ -42,6 +42,8 @@ Expected: JSON from `/api/inngest` (not login HTML), cron returns `{ ok: true, p
 |----------|----------|-------|
 | `DATABASE_URL` | Yes | Shared Neon |
 | `NEXTAUTH_*` | Yes | Same session as shell |
+| `ENCRYPTION_KEY` | Yes | Same 32-byte hex as shell — required to decrypt per-practice `dentallyApiKey` from Integrations |
+| `DENTALLY_API_KEY` | Dev fallback | Optional if practice key is set in Portal; accepts legacy alias `DENTALLY_API_TOKEN` |
 | `DENTALLY_SITE_ID` | Yes for Pay fetch | **Y1 scope:** env on Pay Vercel (same as AuraPay clinic site). Practice-settings UI = Y3.5 |
 | `DENTALLY_THERAPIST_IDS` | Optional | Comma-separated Dentally user IDs for therapy attribution |
 | `DENTALLY_THERAPY_RATE` | Optional | £ per minute (default `0.5833` = £35/hr); applied as therapy deduction on calculate |
