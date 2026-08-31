@@ -8,15 +8,29 @@
 import { prisma, type ModuleId } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 
-export async function listTenants() {
+export async function listTenants(opts?: { skip?: number; take?: number }) {
   const practices = await prisma.practice.findMany({
     orderBy: { createdAt: "desc" },
     include: {
       licences: true,
       _count: { select: { users: true } },
     },
+    ...(opts?.take != null ? { skip: opts.skip ?? 0, take: opts.take } : {}),
   });
   return practices;
+}
+
+export async function countTenants() {
+  return prisma.practice.count();
+}
+
+export async function getTenantStats() {
+  const [total, active, dentallyConnected] = await Promise.all([
+    prisma.practice.count(),
+    prisma.practice.count({ where: { suspendedAt: null } }),
+    prisma.practice.count({ where: { dentallyConnectionStatus: "CONNECTED" } }),
+  ]);
+  return { total, active, dentallyConnected, suspended: total - active };
 }
 
 export async function getTenantDetail(practiceId: string) {

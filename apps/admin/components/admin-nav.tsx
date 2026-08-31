@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Building2, ChevronDown, LogOut, Shield } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Building2, ChevronDown, LogOut, Settings, Shield } from "lucide-react";
 import { signOut } from "next-auth/react";
 import {
   Sidebar,
@@ -21,7 +21,10 @@ import { PwaInstallButton, PwaSidebarInstall, getPwaConfig } from "@elio/pwa";
 
 const pwa = getPwaConfig("admin");
 
-const NAV_ITEMS: SidebarNavItem[] = [{ id: "tenants", label: "Tenants", icon: Building2, href: "/" }];
+const NAV_ITEMS: SidebarNavItem[] = [
+  { id: "tenants", label: "Tenants", icon: Building2, href: "/" },
+  { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
+];
 
 function initialsFromEmail(email: string): string {
   const local = email.split("@")[0] ?? "A";
@@ -41,10 +44,15 @@ function displayNameFromEmail(email: string): string {
 
 export function AdminNav({ userEmail, children }: { userEmail?: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isMobile = useIsMobileViewport();
   const [collapsed, setCollapsed] = React.useState(false);
 
-  const activeId = pathname.startsWith("/tenants") || pathname === "/" ? "tenants" : "tenants";
+  const activeId = pathname.startsWith("/settings")
+    ? "settings"
+    : pathname.startsWith("/tenants") || pathname === "/"
+      ? "tenants"
+      : "tenants";
   const email = userEmail ?? "admin@elio.dev";
   const displayName = displayNameFromEmail(email);
 
@@ -109,6 +117,10 @@ export function AdminNav({ userEmail, children }: { userEmail?: string; children
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled className="text-caption text-(--color-text-tertiary)">
                   {email}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/settings")}>
+                  <Settings className="size-4" aria-hidden />
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
                   <LogOut className="size-4" aria-hidden />

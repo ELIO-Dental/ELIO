@@ -48,20 +48,20 @@ export default defineConfig({
       // config boots below — overriding apps/admin/.env.local's real
       // (localhost:3000) value for this suite only, exactly like apps/pay's
       // own playwright.config.ts overrides PAY_APP_ORIGIN for its shell.
-      command: `npx cross-env NEXTAUTH_URL=${ADMIN_ORIGIN} SHELL_APP_ORIGIN=${SHELL_ORIGIN} next dev -p ${ADMIN_PORT}`,
+      command: `npx cross-env NEXTAUTH_URL=${ADMIN_ORIGIN} SHELL_APP_ORIGIN=${SHELL_ORIGIN} next dev --webpack -p ${ADMIN_PORT}`,
       cwd: __dirname,
       url: `${ADMIN_ORIGIN}/login`,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 240_000,
     },
     {
       // apps/shell needs its OWN NEXTAUTH_URL matching its own port so the
       // JWT minted by /api/impersonate/start (encode()'d there, decoded by
       // this same app's auth() on the next request) is valid.
-      command: `npx cross-env NEXTAUTH_URL=${SHELL_ORIGIN} next dev -p ${SHELL_PORT}`,
+      command: `npx cross-env NEXTAUTH_URL=${SHELL_ORIGIN} next dev --webpack -p ${SHELL_PORT}`,
       cwd: path.resolve(__dirname, "../shell"),
       url: `${SHELL_ORIGIN}/login`,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 240_000,
     },
   ],

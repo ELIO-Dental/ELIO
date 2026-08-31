@@ -1,11 +1,18 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getTenantDetail, listFeatureFlags, ALL_MODULES } from "@/lib/admin-service";
+import { auth } from "@/lib/auth";
+import { requireMfaComplete } from "@/lib/require-mfa-complete";
 import { Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, PageHeader } from "@elio/ui";
 import { TenantActions } from "./tenant-actions";
 
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  const userId = (session as { userId?: string } | null)?.userId;
+  if (!userId) redirect("/login");
+  await requireMfaComplete(userId);
+
   const { id } = await params;
   const detail = await getTenantDetail(id);
   if (!detail) notFound();

@@ -33,5 +33,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|sw\\.js|icons/).*)"],
+  // Page routes only — API handlers enforce their own auth (requireSuperAdmin).
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|sw\\.js|icons/).*)"],
 };

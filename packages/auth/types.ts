@@ -14,12 +14,15 @@ declare module "next-auth" {
     actualUserEmail?: string;
     impersonatedUserEmail?: string;
     impersonationSessionId?: string;
+    /** Super Admin only — must complete MFA in Settings before using the console. */
+    mfaSetupRequired?: boolean;
   }
 
   interface User {
     practiceId: string;
     role: string;
     permissions: string[];
+    mfaSetupRequired?: boolean;
   }
 }
 
@@ -38,5 +41,6 @@ declare module "@auth/core/jwt" {
     actualUserEmail?: string;
     impersonatedUserEmail?: string;
     impersonationSessionId?: string;
+    mfaSetupRequired?: boolean;
   }
 }

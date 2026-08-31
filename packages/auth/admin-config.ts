@@ -90,12 +90,23 @@ export const adminAuthConfig: NextAuthConfig = {
           return null;
         }
 
-        // MFA mandatory, unconditionally — APPLICATION_FLOW.md §11.1 point 2,
-        // PERMISSIONS_MATRIX.md §2a: unlike apps/shell's opt-in-by-default
-        // (user.mfaEnabled || practice.requireMfaForAllStaff), there is no
-        // "not set up yet, skip it" path here at all.
+        // MFA mandatory once enrolled. Before first enrollment, password-only
+        // sign-in is allowed so the operator can open Settings and add an
+        // authenticator (or you can pre-seed SEED_SUPER_ADMIN_MFA_SECRET).
         if (!user.mfaEnabled || !user.mfaSecret) {
-          throw new MfaRequiredError();
+          if (mfaCode) {
+            recordFailedAttempt(rateLimitKey);
+            throw new MfaInvalidError();
+          }
+          clearAttempts(rateLimitKey);
+          return {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            practiceId: user.practiceId,
+            permissions: [],
+            mfaSetupRequired: true,
+          };
         }
         if (!mfaCode) {
           throw new MfaRequiredError();
@@ -117,6 +128,7 @@ export const adminAuthConfig: NextAuthConfig = {
           // apps/admin, which checks `role === "SUPER_ADMIN"` exclusively.
           practiceId: user.practiceId,
           permissions: [],
+          mfaSetupRequired: false,
         };
       },
     }),
@@ -126,6 +138,7 @@ export const adminAuthConfig: NextAuthConfig = {
       if (user) {
         token.userId = user.id as string;
         token.role = user.role as string;
+        token.mfaSetupRequired = Boolean((user as { mfaSetupRequired?: boolean }).mfaSetupRequired);
         return token;
       }
       // Re-verify on every request, same reasoning as apps/shell's config:
@@ -137,12 +150,14 @@ export const adminAuthConfig: NextAuthConfig = {
           return null;
         }
         token.role = dbUser.role;
+        token.mfaSetupRequired = !dbUser.mfaEnabled || !dbUser.mfaSecret;
       }
       return token;
     },
     async session({ session, token }) {
       (session as any).userId = token.userId;
       (session as any).role = token.role;
+      (session as any).mfaSetupRequired = Boolean(token.mfaSetupRequired);
       return session;
     },
   },

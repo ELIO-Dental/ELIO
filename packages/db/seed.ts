@@ -80,15 +80,14 @@ async function main() {
     const password = role === "OWNER" ? OWNER_PASSWORD : SEED_PASSWORD;
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Step 2.3 — MFA is MANDATORY for SUPER_ADMIN (apps/admin), unlike every
-    // other role's opt-in-by-default. No self-serve MFA enrollment UI exists
-    // anywhere in the codebase yet (a real, pre-existing gap, not new to this
-    // step) — so the seeded SUPER_ADMIN's secret is generated here and its
-    // otpauth:// URL printed for the operator to add to an authenticator app,
-    // the same "real credential, printed once, note it down" pattern
-    // INITIAL_ADMIN_PASSWORD already uses.
+    // Step 2.3 — MFA for Super Admin: if SEED_SUPER_ADMIN_MFA_SECRET is set
+    // (e2e or handoff with a known authenticator key), enroll immediately.
+    // Otherwise leave MFA off so the operator completes setup in admin Settings
+    // on first sign-in, then changes password there too.
     const isSuperAdmin = role === "SUPER_ADMIN";
-    const mfaSecret = isSuperAdmin ? seedMfaSecret() : undefined;
+    const mfaSecretOverride = process.env.SEED_SUPER_ADMIN_MFA_SECRET;
+    const enrollMfaNow = isSuperAdmin && Boolean(mfaSecretOverride);
+    const mfaSecret = enrollMfaNow ? mfaSecretOverride! : undefined;
 
     const user = await prisma.user.upsert({
       where: { email },
@@ -97,22 +96,33 @@ async function main() {
         practiceId: practice.id,
         role,
         active: true,
-        ...(isSuperAdmin ? { mfaEnabled: true, mfaSecret } : {}),
+        ...(isSuperAdmin
+          ? enrollMfaNow
+            ? { mfaEnabled: true, mfaSecret }
+            : { mfaEnabled: false, mfaSecret: null }
+          : {}),
       },
       create: {
         email,
         hashedPassword,
         role,
         practiceId: practice.id,
-        ...(isSuperAdmin ? { mfaEnabled: true, mfaSecret } : {}),
+        ...(isSuperAdmin
+          ? enrollMfaNow
+            ? { mfaEnabled: true, mfaSecret }
+            : { mfaEnabled: false, mfaSecret: null }
+          : {}),
       },
     });
 
     console.log(`Seeded ${role} user ${user.email} (password: ${password})`);
-    if (isSuperAdmin && mfaSecret) {
-      console.log(`  MFA is mandatory for this account — add it to an authenticator app:`);
+    if (isSuperAdmin && enrollMfaNow && mfaSecret) {
+      console.log(`  MFA enrolled — add this key to an authenticator app:`);
       console.log(`  ${seedMfaOtpAuthUrl(email, mfaSecret)}`);
-      console.log(`  (raw secret, if scanning a URL isn't convenient: ${mfaSecret})`);
+      console.log(`  (raw secret for manual entry: ${mfaSecret})`);
+    }
+    if (isSuperAdmin && !enrollMfaNow) {
+      console.log(`  MFA not set — sign in at admin, open Settings, and enroll an authenticator.`);
     }
   }
 

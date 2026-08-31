@@ -13,12 +13,9 @@ type Step = "credentials" | "mfa";
  * /login: this page's `signIn()` call hits THIS app's own origin
  * (/api/auth/callback/credentials), which resolves to the adminAuthConfig
  * NextAuth instance (packages/auth/admin-config.ts) — a completely different
- * session/cookie from apps/shell, per PERFORMANCE_SCALABILITY.md §7's
- * cross-app isolation requirement. MFA is mandatory here (no "skip for now"
- * path) — a MFA_REQUIRED response for an account with mfaEnabled=false is a
- * genuine dead end today (no self-serve enrollment UI exists yet, see
- * packages/db/seed.ts's comment); this page reports that plainly rather than
- * pretending a retry will help.
+ * session/cookie from apps/shell. MFA is required once an authenticator is
+ * enrolled; first-time operators sign in with password only and complete setup
+ * under Settings.
  */
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -36,31 +33,31 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     const result = await signIn("credentials", { email, password, redirect: false });
+    const err = (result as { code?: string } | null)?.code ?? result?.error;
 
-    const code = (result as any)?.code;
-    if (code === "MFA_REQUIRED") {
+    if (err === "MFA_REQUIRED") {
       setLoading(false);
       setStep("mfa");
       return;
     }
-    if (code === "NOT_SUPER_ADMIN") {
+    if (err === "NOT_SUPER_ADMIN") {
       setLoading(false);
       setError("Incorrect email or password.");
       return;
     }
-    if (code === "TOO_MANY_ATTEMPTS") {
+    if (err === "TOO_MANY_ATTEMPTS") {
       setLoading(false);
       setError("Too many attempts. Please wait a while before trying again.");
       return;
     }
-    if (result?.error) {
+    if (!result?.ok) {
       setLoading(false);
       setError("Incorrect email or password.");
       return;
     }
 
     setNavigating(true);
-    router.push("/");
+    router.push("/settings");
     router.refresh();
   }
 
@@ -70,25 +67,26 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     const result = await signIn("credentials", { email, password, mfaCode, redirect: false });
+    const err = (result as { code?: string } | null)?.code ?? result?.error;
 
-    const code = (result as any)?.code;
-    if (code === "MFA_REQUIRED") {
+    if (err === "MFA_REQUIRED") {
       setLoading(false);
-      setError("MFA is not set up for this account yet — contact another Super Admin to enable it.");
+      setError("Complete authenticator setup under Settings after signing in.");
+      setStep("credentials");
       return;
     }
-    if (code === "MFA_INVALID") {
+    if (err === "MFA_INVALID") {
       setLoading(false);
       setError("Invalid authentication code. Please try again.");
       return;
     }
-    if (code === "TOO_MANY_ATTEMPTS") {
+    if (err === "TOO_MANY_ATTEMPTS") {
       setLoading(false);
       setError("Too many attempts. Please wait a while before trying again.");
       setStep("credentials");
       return;
     }
-    if (result?.error) {
+    if (!result?.ok) {
       setLoading(false);
       setError("Incorrect email or password.");
       setStep("credentials");
@@ -103,7 +101,14 @@ export default function AdminLoginPage() {
   const isBusy = loading || navigating;
 
   return (
-    <AuthShell headline="Sign in" description="Internal ELIO staff access — MFA required after credentials.">
+    <AuthShell
+      headline="Sign in"
+      description={
+        step === "credentials"
+          ? "Internal ELIO staff access. First-time sign-in continues to Settings to add your authenticator."
+          : "Enter the 6-digit code from your authenticator app."
+      }
+    >
       <AuthFormCard title={step === "credentials" ? "Super Admin" : "Two-factor authentication"}>
         {step === "credentials" ? (
           <form onSubmit={submitCredentials} className="space-y-5" data-testid="login-form">
