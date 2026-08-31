@@ -662,6 +662,14 @@ model PayslipEntry {
   finalPayPence          Int?
   pdfUrl                 String?
 
+  // Y1.5–Y1.6 — AuraPay Dentally fetch snapshot (legacy private_patients_json / analytics_json / therapy_*)
+  dentallyPatientsJson      Json?
+  dentallyAnalyticsJson     Json?
+  dentallyTherapyJson       Json?
+  dentallyDiscrepanciesJson Json?
+  therapyMinutes            Decimal? @db.Decimal(8, 2)
+  therapyRatePerMinute      Decimal? @db.Decimal(10, 4) // legacy AuraPay therapy_rate (£/min)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -735,6 +743,21 @@ model PrivateRevenueLineItem {
   treatment              Treatment?   @relation(fields: [treatmentId], references: [id])
   amountPence            Int
   excludedAsConsultation Boolean      @default(false)
+
+  // Y1 — patient-row metadata from Dentally fetch (AuraPay private_patients_json fields)
+  patientName              String?
+  invoiceDate              String? // YYYY-MM-DD
+  dentallyInvoiceId        String?
+  dentallyPatientId        String?
+  durationMins             Int?
+  isFinance                Boolean @default(false)
+  paymentStatus            String? // paid | partial | unpaid
+  amountPaidPence          Int?
+  amountOutstandingPence   Int?
+  treatmentDescription     String?
+  hourlyRatePence          Int?
+  flagged                  Boolean @default(false)
+  flagReason               String?
 
   createdAt DateTime @default(now())
 

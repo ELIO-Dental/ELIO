@@ -25,6 +25,26 @@ import { CompassUploadForm } from "./compass-upload-form";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
 import { FetchDentallyPanel } from "./fetch-dentally-panel";
+import { DentistFetchDetails } from "./dentist-fetch-details";
+
+function asAnalytics(value: unknown): {
+  totalChairMins?: number;
+  totalPatients?: number;
+  grossPerHour?: number;
+  netPerHour?: number;
+  avgAppointmentMins?: number;
+  utilizationPercent?: number;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  return value as {
+    totalChairMins?: number;
+    totalPatients?: number;
+    grossPerHour?: number;
+    netPerHour?: number;
+    avgAppointmentMins?: number;
+    utilizationPercent?: number;
+  };
+}
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -36,7 +56,12 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
     db.payPeriod.findUnique({
       where: { id },
       include: {
-        payslipEntries: { include: { dentist: true } },
+        payslipEntries: {
+          include: {
+            dentist: true,
+            privateRevenueLineItems: { orderBy: [{ invoiceDate: "asc" }, { createdAt: "asc" }] },
+          },
+        },
         compassStatements: { include: { lines: { include: { dentist: true } } } },
       },
     }),
@@ -209,6 +234,24 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         </TableBody>
                       </Table>
                     </TablePanel>
+                    <DentistFetchDetails
+                      analytics={asAnalytics(p.dentallyAnalyticsJson)}
+                      therapyMinutes={p.therapyMinutes != null ? Number(p.therapyMinutes) : null}
+                      lines={p.privateRevenueLineItems.map((line) => ({
+                        id: line.id,
+                        patientName: line.patientName,
+                        invoiceDate: line.invoiceDate,
+                        amountPence: line.amountPence,
+                        amountPaidPence: line.amountPaidPence,
+                        amountOutstandingPence: line.amountOutstandingPence,
+                        paymentStatus: line.paymentStatus,
+                        durationMins: line.durationMins,
+                        hourlyRatePence: line.hourlyRatePence,
+                        isFinance: line.isFinance,
+                        flagged: line.flagged,
+                        treatmentDescription: line.treatmentDescription,
+                      }))}
+                    />
                   </CardContent>
                 </Card>
               ))}

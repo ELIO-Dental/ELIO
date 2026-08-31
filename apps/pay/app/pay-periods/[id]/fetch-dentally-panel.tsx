@@ -6,7 +6,14 @@ import { Button } from "@elio/ui";
 
 interface FetchSummaryEntry {
   invoicedPence: number;
+  paidPence?: number;
+  outstandingPence?: number;
   invoiceCount: number;
+  financeCount?: number;
+  chairMins?: number;
+  grossPerHour?: number;
+  netPerHour?: number;
+  utilizationPercent?: number;
 }
 
 interface FetchResult {
@@ -16,8 +23,15 @@ interface FetchResult {
   debug?: {
     invoicesInDateRange: number;
     processedInvoices: number;
+    appointmentsFetched?: number;
+    financePayments?: number;
+    flaggedForReview?: number;
     unmatchedClinicianIds: string[];
   };
+}
+
+function gbp(pence: number): string {
+  return `£${(pence / 100).toFixed(2)}`;
 }
 
 export function FetchDentallyPanel({
@@ -91,19 +105,36 @@ export function FetchDentallyPanel({
               Dismiss
             </button>
           </div>
+
+          {result.debug && (
+            <p className="mt-2 text-(--color-text-secondary)">
+              {result.debug.processedInvoices} invoices processed
+              {result.debug.appointmentsFetched != null ? ` · ${result.debug.appointmentsFetched} appointments` : ""}
+              {result.debug.financePayments != null ? ` · ${result.debug.financePayments} finance` : ""}
+              {result.debug.flaggedForReview != null ? ` · ${result.debug.flaggedForReview} flagged` : ""}
+            </p>
+          )}
+
           {result.summary && Object.keys(result.summary).length > 0 && (
-            <ul className="mt-2 space-y-1 text-(--color-text-secondary)">
+            <ul className="mt-2 space-y-2 text-(--color-text-secondary)">
               {Object.entries(result.summary).map(([name, stats]) => (
                 <li key={name}>
-                  {name}: £{(stats.invoicedPence / 100).toFixed(2)} ({stats.invoiceCount} invoice
-                  {stats.invoiceCount === 1 ? "" : "s"})
+                  <span className="font-medium text-(--color-text-primary)">{name}</span>: {gbp(stats.invoicedPence)}{" "}
+                  invoiced ({stats.invoiceCount} patients)
+                  {stats.paidPence != null ? ` · ${gbp(stats.paidPence)} paid` : ""}
+                  {stats.outstandingPence != null && stats.outstandingPence > 0
+                    ? ` · ${gbp(stats.outstandingPence)} outstanding`
+                    : ""}
+                  {stats.chairMins != null ? ` · ${stats.chairMins} chair mins` : ""}
+                  {stats.grossPerHour != null ? ` · £${stats.grossPerHour}/hr gross` : ""}
                 </li>
               ))}
             </ul>
           )}
+
           {result.debug && result.debug.unmatchedClinicianIds.length > 0 && (
             <p className="mt-2 text-(--color-warning)">
-              {result.debug.unmatchedClinicianIds.length} Dentally clinician ID(s) did not match a dentist — check
+              {result.debug.unmatchedClinicianIds.length} Dentally clinician ID(s) did not match a dentist — set
               dentallyPractitionerId on dentist records.
             </p>
           )}
