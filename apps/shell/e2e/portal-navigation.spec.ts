@@ -52,6 +52,10 @@ test("portal sidebar navigates between settings routes", async ({ page }) => {
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
 
+  await page.getByRole("link", { name: "Integrations" }).click();
+  await expect(page).toHaveURL(/\/settings\/integrations$/);
+  await expect(page.getByTestId("dentally-integrations")).toBeVisible();
+
   await page.getByTestId("theme-option-dark").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 

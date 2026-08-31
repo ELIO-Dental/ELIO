@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
+    "verify:dentally-sync": "tsx scripts/verify-dentally-sync-infra.ts",
     "seed": "npm run seed --workspace=@elio/db",
     "pwa:assets": "npm run generate-assets --workspace=@elio/pwa",
     "postinstall": "prisma generate --schema packages/db/prisma/schema.prisma"

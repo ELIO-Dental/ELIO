@@ -14,7 +14,8 @@
 // collected and returned, the sync continues.
 
 import { prisma } from "@elio/db";
-import { getDentallyClient, type DentallyClient } from "./client";
+import type { DentallyClient } from "./client";
+import { getDentallyClientForPractice } from "./resolve-api-key";
 import {
   normalizeAppointment,
   normalizeInvoice,
@@ -85,14 +86,15 @@ async function resolveDentistId(
  */
 export async function syncPracticeDentallyData(
   practiceId: string,
-  client: DentallyClient = getDentallyClient()
+  client?: DentallyClient
 ): Promise<SyncResult> {
+  const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const startedAt = new Date();
   const errors: SyncError[] = [];
   const counts = { patients: 0, appointments: 0, invoices: 0, treatments: 0 };
 
   // --- Patients ---------------------------------------------------------
-  await client.paginate<DentallyPatientRaw>(
+  await dentallyClient.paginate<DentallyPatientRaw>(
     "/patients",
     "patients",
     {},
@@ -114,7 +116,7 @@ export async function syncPracticeDentallyData(
   );
 
   // --- Appointments -------------------------------------------------------
-  await client.paginate<DentallyAppointmentRaw>(
+  await dentallyClient.paginate<DentallyAppointmentRaw>(
     "/appointments",
     "appointments",
     {},
@@ -137,7 +139,7 @@ export async function syncPracticeDentallyData(
   );
 
   // --- Invoices (+ derived Treatments) ------------------------------------
-  await client.paginate<DentallyInvoiceRaw>(
+  await dentallyClient.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
     {},

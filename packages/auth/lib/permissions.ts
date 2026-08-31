@@ -14,10 +14,11 @@ const SHELL_PERMISSIONS: Record<Role, string[]> = {
     "mfa:toggle", // "Require MFA for all staff"
     "auditlog:view:all",
     "practice:manage",
+    "integrations:manage", // Dentally key, sync now, connection test
     "staff:manage",
     "billing:manage",
   ],
-  ADMIN: ["modules:use", "team:view", "auditlog:view:own", "staff:manage"],
+  ADMIN: ["modules:use", "team:view", "auditlog:view:own", "staff:manage", "integrations:manage"],
   FINANCE: ["modules:use"],
   STAFF: ["modules:use"],
   AUDITOR: ["modules:use:readonly", "auditlog:view:all"],

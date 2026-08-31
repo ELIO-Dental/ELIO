@@ -138,5 +138,7 @@ export default auth((req: NextRequest & { auth?: unknown }) => {
 
 export const config = {
   // Protect everything except static assets, Next internals, and API auth routes.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password|api/inngest|api/cron).*)",
+  ],
 };

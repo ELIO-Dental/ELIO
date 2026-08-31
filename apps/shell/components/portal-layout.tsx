@@ -8,6 +8,7 @@ import {
   Users,
   LifeBuoy,
   Settings,
+  Plug,
   ChevronDown,
   LogOut,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const PORTAL_NAV: Omit<SidebarNavItem, "icon">[] = [
   { id: "profile", label: "Profile", href: "/settings/profile" },
   { id: "team", label: "Team", href: "/settings/team" },
   { id: "support", label: "Support", href: "/settings/support" },
+  { id: "integrations", label: "Integrations", href: "/settings/integrations" },
   { id: "settings", label: "Settings", href: "/settings" },
 ];
 
@@ -42,6 +44,7 @@ const NAV_ICONS = {
   profile: User,
   team: Users,
   support: LifeBuoy,
+  integrations: Plug,
   settings: Settings,
 } as const;
 
@@ -80,6 +83,7 @@ function resolveActiveId(pathname: string): string {
   if (pathname.startsWith("/settings/team")) return "team";
   if (pathname.startsWith("/settings/profile")) return "profile";
   if (pathname.startsWith("/settings/support")) return "support";
+  if (pathname.startsWith("/settings/integrations")) return "integrations";
   return "dashboard";
 }
 

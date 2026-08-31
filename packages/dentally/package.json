@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@elio/auth": "*",
     "@elio/db": "*",
     "inngest": "^3.27.0"
   },

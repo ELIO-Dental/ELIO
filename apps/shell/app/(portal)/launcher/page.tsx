@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getLicenceStatus } from "@elio/auth";
 import { LauncherDashboard } from "@/components/launcher-dashboard";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
+import { getDentallyIntegrationStatus } from "@/lib/dentally-integration";
 
 const MODULES = [
   { moduleId: "pay" as const, licenceModuleId: "PAY" as const, name: "ElioPay", description: "Run payroll & pay periods", href: "/pay" },
@@ -39,5 +41,18 @@ export default async function LauncherPage() {
     };
   });
 
-  return <LauncherDashboard displayName={displayName} modules={modules} />;
+  const dentally = await getDentallyIntegrationStatus(session.practiceId);
+
+  return (
+    <>
+      <SyncStatusBanner
+        configured={dentally.configured}
+        connectionStatus={dentally.connectionStatus}
+        latestStatus={dentally.latestRun?.status ?? null}
+        errorMessage={dentally.latestRun?.errorMessage ?? null}
+        finishedAt={dentally.latestRun?.finishedAt ?? null}
+      />
+      <LauncherDashboard displayName={displayName} modules={modules} />
+    </>
+  );
 }

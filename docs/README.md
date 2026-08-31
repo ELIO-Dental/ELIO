@@ -68,3 +68,4 @@ Production: `app.elioportal.co.uk` (shell) with zone apps on
 - `project-docs/MASTER_BUILD_GUIDE.md` — the step-by-step build plan this repo follows
 - `project-docs/THEME_GUIDELINE.md` — the design system `packages/ui` implements
 - `project-docs/PROJECT_STATE.md` — the current build step / resume point
+- `docs/LEGACY_PARITY_ROADMAP.md` — full legacy vs new ELIO gap analysis, step-by-step parity plan, and **Part 16 legacy code reference guide** (Flow, Plans, Pay)

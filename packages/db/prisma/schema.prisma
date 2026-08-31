@@ -66,6 +66,18 @@ enum DentallyConnectionStatus {
   ERROR
 }
 
+enum DentallySyncRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+enum DentallySyncTrigger {
+  MANUAL
+  SCHEDULED
+}
+
 enum OnboardingStatus {
   NOT_STARTED
   IN_PROGRESS
@@ -203,6 +215,7 @@ model Practice {
   licences              Licence[]
   featureFlags          PracticeFeatureFlag[]
   impersonationSessions ImpersonationSession[]
+  dentallySyncRuns      DentallySyncRun[]
 
   // Dentally-synced core (Step 1.4 owns the sync job; draft shape only here)
   patients     Patient[]
@@ -357,6 +370,22 @@ model ImpersonationSession {
 
   @@index([practiceId])
   @@map("impersonation_sessions")
+}
+
+model DentallySyncRun {
+  id           String                @id @default(cuid())
+  practiceId   String
+  practice     Practice              @relation(fields: [practiceId], references: [id])
+  trigger      DentallySyncTrigger
+  status       DentallySyncRunStatus   @default(RUNNING)
+  startedAt    DateTime              @default(now())
+  finishedAt   DateTime?
+  counts       Json?
+  errorMessage String?
+  recordErrors Json?
+
+  @@index([practiceId, startedAt])
+  @@map("dentally_sync_runs")
 }
 
 // ============================================================================

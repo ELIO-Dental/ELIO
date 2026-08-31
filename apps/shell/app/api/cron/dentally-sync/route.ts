@@ -5,8 +5,8 @@
 // pull happens in packages/dentally's Inngest function
 // (project-docs/PERFORMANCE_SCALABILITY.md section 1 — never sync inline).
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@elio/db";
 import { requestDentallySync } from "@elio/dentally";
+import { listPracticesForScheduledSync } from "@/lib/dentally-cron";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const practices = await prisma.practice.findMany({
-    where: { dentallyConnectionStatus: "CONNECTED", suspendedAt: null },
-    select: { id: true },
-  });
+  const practices = await listPracticesForScheduledSync();
 
   const results = await Promise.allSettled(
     practices.map((p) => requestDentallySync(p.id, "scheduled"))

@@ -26,7 +26,7 @@
 //   blocking the request on the full sync.
 
 import { Inngest, EventSchemas } from "inngest";
-import { syncPracticeDentallyData } from "./sync";
+import { runDentallySyncJob } from "./sync-job";
 
 type DentallySyncEvents = {
   "dentally/sync.requested": {
@@ -37,6 +37,7 @@ type DentallySyncEvents = {
 export const inngest = new Inngest({
   id: "elio",
   schemas: new EventSchemas().fromRecord<DentallySyncEvents>(),
+  isDev: process.env.INNGEST_DEV === "1",
 });
 
 export const dentallySyncFunction = inngest.createFunction(
@@ -44,32 +45,8 @@ export const dentallySyncFunction = inngest.createFunction(
   { event: "dentally/sync.requested" },
   async ({ event, step }) => {
     const { practiceId, trigger } = event.data;
-
-    const result = await step.run("sync-practice", async () => {
-      return syncPracticeDentallyData(practiceId);
-    });
-
-    if (result.errors.length > 0) {
-      await step.run("log-partial-failures", async () => {
-        console.error(
-          `[dentally-sync] practice=${practiceId} trigger=${trigger} ` +
-            `${result.errors.length} record(s) failed to sync`,
-          result.errors.slice(0, 20)
-        );
-      });
-    }
-
-    return result;
+    return step.run("dentally-sync-job", () => runDentallySyncJob(practiceId, trigger));
   }
 );
 
-/** Enqueues a sync (used by both the manual "sync now" route and the cron route). */
-export async function requestDentallySync(
-  practiceId: string,
-  trigger: "manual" | "scheduled"
-) {
-  return inngest.send({
-    name: "dentally/sync.requested",
-    data: { practiceId, trigger },
-  });
-}
+export { requestDentallySync, inngestConfigured } from "./sync-job";
