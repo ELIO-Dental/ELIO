@@ -54,15 +54,15 @@ function WelcomeBanner({ displayName }: { displayName: string }) {
         </svg>
       </div>
       <div className="relative max-w-2xl">
-        <p className="inline-flex items-center gap-2 rounded-(--radius-full) border border-(--color-primary-200)/80 bg-(--color-surface)/80 px-3 py-1 text-caption font-semibold text-(--color-primary-700) shadow-(--shadow-xs) backdrop-blur-sm">
-          <Sparkles className="size-3.5 text-(--color-primary-600)" aria-hidden />
+        <p className="inline-flex items-center gap-2 rounded-(--radius-full) border border-(--color-primary-200)/80 bg-(--color-surface)/80 px-3 py-1 text-caption font-semibold text-(--color-primary-fg) shadow-(--shadow-xs) backdrop-blur-sm">
+          <Sparkles className="size-3.5 text-(--color-primary-fg-muted)" aria-hidden />
           ELIO Portal
         </p>
         <h1 className="mt-5 text-h1 text-(--color-text-primary)">
           Welcome back
           {displayName !== "there" ? (
             <>
-              , <span className="text-(--color-primary-600)">{displayName}</span>
+              , <span className="text-(--color-primary-fg)">{displayName}</span>
             </>
           ) : null}
         </h1>
@@ -114,7 +114,7 @@ function ModuleCard({ mod }: { mod: LauncherModule }) {
         <p className="relative mt-4 text-caption font-medium text-(--color-text-tertiary)">No active licence</p>
       )}
       {mod.licensed && (
-        <p className="relative mt-6 inline-flex items-center gap-1.5 text-body-sm font-semibold text-(--color-primary-600) transition-colors group-hover:text-(--color-primary-700)">
+        <p className="relative mt-6 inline-flex items-center gap-1.5 text-body-sm font-semibold text-(--color-primary-fg) transition-colors group-hover:text-(--color-primary-fg-muted)">
           Open Workspace
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </p>
@@ -162,7 +162,7 @@ export function LauncherDashboard({
           </div>
           <Link
             href="/settings"
-            className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-(--radius-md) border border-(--color-border) bg-(--color-surface) px-3.5 text-body-sm font-medium text-(--color-text-secondary) shadow-(--shadow-xs) transition-colors hover:border-(--color-primary-300) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary) sm:self-auto"
+            className="inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-(--radius-md) border border-(--color-border) bg-(--color-surface) px-3.5 text-body-sm font-medium text-(--color-text-primary) shadow-(--shadow-xs) transition-colors hover:border-(--color-primary-fg-muted) hover:bg-(--color-bg-subtle) sm:self-auto"
           >
             <LayoutGrid className="size-4" aria-hidden />
             Customize
@@ -180,7 +180,7 @@ export function LauncherDashboard({
 
       <footer className="mt-10 flex flex-col gap-3 rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle)/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3 sm:items-center">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-surface) text-(--color-primary-600) shadow-(--shadow-xs)">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-surface) text-(--color-primary-fg) shadow-(--shadow-xs)">
             <Shield className="size-4" aria-hidden />
           </span>
           <p className="text-body-sm leading-relaxed text-(--color-text-secondary)">
@@ -189,7 +189,7 @@ export function LauncherDashboard({
         </div>
         <Link
           href="/settings/support"
-          className="shrink-0 text-body-sm font-semibold text-(--color-primary-600) hover:text-(--color-primary-700)"
+          className="shrink-0 text-body-sm font-semibold text-(--color-primary-fg) hover:text-(--color-primary-fg-muted)"
         >
           Learn more &gt;
         </Link>

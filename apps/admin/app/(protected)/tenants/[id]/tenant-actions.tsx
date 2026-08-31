@@ -102,7 +102,7 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Card>
+      <Card className="shadow-(--shadow-sm)">
         <CardHeader>
           <CardTitle>Module licences</CardTitle>
         </CardHeader>
@@ -122,7 +122,7 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-(--shadow-sm)">
         <CardHeader>
           <CardTitle>Plan &amp; status</CardTitle>
         </CardHeader>
@@ -145,7 +145,7 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
         </CardContent>
       </Card>
 
-      <Card className="md:col-span-2">
+      <Card className="shadow-(--shadow-sm) md:col-span-2">
         <CardHeader>
           <CardTitle>Feature flags</CardTitle>
         </CardHeader>

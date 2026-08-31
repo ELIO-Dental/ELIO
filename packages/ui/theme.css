@@ -34,6 +34,13 @@
   --color-primary-800: #4a26ad;
   --color-primary-900: #3b1f89;
 
+  /* Semantic primary — buttons & links (theme-aware overrides below) */
+  --color-primary-fg: #4a26ad;
+  --color-primary-fg-muted: #5b2fd6;
+  --color-primary-button-bg: #6d3ef5;
+  --color-primary-button-bg-hover: #5b2fd6;
+  --color-primary-button-fg: #ffffff;
+
   /* §2.3 Secondary / accent — sparing use, capped at 3 per screen */
   --color-accent-teal: #14b8a6;
   --color-accent-amber: #f59e0b;
@@ -194,6 +201,12 @@
     --color-primary-600: #8b6cfc;
     --color-primary-700: #c4b5fd;
 
+    --color-primary-fg: #e9e4ff;
+    --color-primary-fg-muted: #c4b5fd;
+    --color-primary-button-bg: #8b6cfc;
+    --color-primary-button-bg-hover: #7c5cfc;
+    --color-primary-button-fg: #ffffff;
+
     --color-success-bg: #052e16;
     --color-warning-bg: #422006;
     --color-danger-bg: #450a0a;
@@ -232,6 +245,12 @@
   --color-primary-500: #9275fc;
   --color-primary-600: #8b6cfc;
   --color-primary-700: #c4b5fd;
+
+  --color-primary-fg: #e9e4ff;
+  --color-primary-fg-muted: #c4b5fd;
+  --color-primary-button-bg: #8b6cfc;
+  --color-primary-button-bg-hover: #7c5cfc;
+  --color-primary-button-fg: #ffffff;
 
   --color-success-bg: #052e16;
   --color-warning-bg: #422006;
@@ -293,6 +312,16 @@ body {
   --shadow-xs: 0 1px 2px rgba(15, 15, 20, 0.06);
   --shadow-sm: 0 2px 8px rgba(15, 15, 20, 0.09);
   --shadow-glow-primary: 0 0 0 4px rgba(124, 92, 252, 0.2);
+
+  /* Reinforce readable purple text & solid buttons in explicit light mode */
+  --color-primary-600: #6d3ef5;
+  --color-primary-700: #5b2fd6;
+  --color-primary-800: #4a26ad;
+  --color-primary-fg: #4a26ad;
+  --color-primary-fg-muted: #5b2fd6;
+  --color-primary-button-bg: #5b2fd6;
+  --color-primary-button-bg-hover: #4a26ad;
+  --color-primary-button-fg: #ffffff;
 }
 
 /* §3.3 Money values always use tabular figures */

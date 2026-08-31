@@ -12,7 +12,12 @@ import { auth } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/offline.html", "/manifest.webmanifest"];
 
+function isPwaAsset(pathname: string): boolean {
+  return pathname === "/sw.js" || pathname.startsWith("/icons/") || pathname === "/manifest.webmanifest" || pathname === "/offline.html";
+}
+
 function isPublicPath(pathname: string): boolean {
+  if (isPwaAsset(pathname)) return true;
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

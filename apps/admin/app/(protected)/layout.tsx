@@ -20,7 +20,7 @@ export default async function ProtectedLayout({ children }: Readonly<{ children:
   }
 
   return (
-    <AdminNav>
+    <AdminNav userEmail={session.user?.email ?? undefined}>
       <PageTransition>{children}</PageTransition>
     </AdminNav>
   );

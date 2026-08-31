@@ -40,7 +40,7 @@ export function AppearanceSettings({ className }: { className?: string }) {
             <span
               className={cn(
                 "flex size-10 items-center justify-center rounded-(--radius-md)",
-                selected ? "bg-(--color-primary-600) text-white" : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
+                selected ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)" : "bg-(--color-bg-subtle) text-(--color-text-primary)"
               )}
             >
               <Icon className="size-5" aria-hidden />

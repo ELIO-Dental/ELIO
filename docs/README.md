@@ -15,7 +15,8 @@ elio/
 │   ├── shell/   — main app shell + app launcher (port 3000)
 │   ├── pay/     — payroll module, was ElioPay        (port 3001)
 │   ├── plans/   — membership billing module, was ElioPlans (port 3002)
-│   └── flow/    — patient flow module, was ElioFlow  (port 3003)
+│   ├── flow/    — patient flow module, was ElioFlow  (port 3003)
+│   └── admin/   — super-admin control centre          (port 3004)
 ├── packages/
 │   ├── config/    — shared strict TypeScript config
 │   ├── types/     — shared TypeScript types
@@ -28,8 +29,8 @@ elio/
 
 Each app is a normal Next.js 16 (App Router) app. Packages are consumed via npm
 workspaces (`apps/*`, `packages/*`) — no publishing step, just `import` across
-the workspace. `packages/ui`, `auth`, `db`, `dentally` are placeholder shells
-until their respective Phase 1 build steps (see `project-docs/MASTER_BUILD_GUIDE.md`).
+the workspace. `packages/ui`, `auth`, `db`, `dentally`, `pay-engine`, `plans-engine`, and
+`pwa` are implemented shared packages consumed by all apps.
 
 ## Running locally
 
@@ -55,10 +56,11 @@ code for the three original apps still lives in their own separate repos:
 - `D:\WEB DEV\Hish\ElioPlans`
 - `D:\WEB DEV\Hish\ElioFlow`
 
-`elio/` is the new unified monorepo those get migrated INTO — it is not yet
-running any real practice traffic. Treat the original repos as the source of
-truth for existing business logic until a given module's migration step says
-otherwise.
+`elio/` is the unified production monorepo. Legacy data has been migrated
+(see `scripts/migrations/README.md`). The original `ElioPay/`, `ElioPlans/`,
+and `ElioFlow/` folders are superseded — use `elio/apps/*` for all active work.
+Production: `app.elioportal.co.uk` (shell) with zone apps on
+`pay|plans|flow|admin.elioportal.co.uk`.
 
 ## Full plan and current status
 

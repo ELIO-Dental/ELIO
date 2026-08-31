@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { getTenantDetail, listFeatureFlags, ALL_MODULES } from "@/lib/admin-service";
-import { Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } from "@elio/ui";
+import { Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, PageHeader } from "@elio/ui";
 import { TenantActions } from "./tenant-actions";
 
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,12 +13,25 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   const allFlags = await listFeatureFlags();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-8 md:pb-0">
       <div>
-        <h1 className="text-h2 text-(--color-text-primary)">{practice.name}</h1>
-        <p className="mt-1 text-body-sm text-(--color-text-secondary)">
-          {practice.users.length} users · {dentistCount} dentists · Dentally: {practice.dentallyConnectionStatus}
-        </p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-body-sm font-medium text-(--color-primary-fg) transition-colors hover:text-(--color-primary-fg-muted) hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to tenants
+        </Link>
+        <PageHeader
+          className="mt-4"
+          title={practice.name}
+          description={`${practice.users.length} users · ${dentistCount} dentists · Dentally ${practice.dentallyConnectionStatus}`}
+        />
+        {practice.suspendedAt && (
+          <Badge variant="danger" className="mt-3">
+            Suspended
+          </Badge>
+        )}
       </div>
 
       <TenantActions
@@ -35,7 +50,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         }))}
       />
 
-      <Card>
+      <Card className="shadow-(--shadow-sm)">
         <CardHeader>
           <CardTitle>Users</CardTitle>
         </CardHeader>
@@ -60,7 +75,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                   <TableCell>
                     {u.role !== "SUPER_ADMIN" && u.active && (
                       <form action={`/api/tenants/${practice.id}/impersonate/${u.id}`} method="POST">
-                        <button type="submit" className="text-body-sm text-(--color-primary-600) hover:underline" data-testid={`impersonate-${u.id}`}>
+                        <button
+                          type="submit"
+                          className="text-body-sm font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted) hover:underline"
+                          data-testid={`impersonate-${u.id}`}
+                        >
                           Impersonate
                         </button>
                       </form>

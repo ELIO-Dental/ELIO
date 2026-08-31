@@ -12,7 +12,7 @@ const badgeVariants = cva(
         warning: "bg-(--color-warning-bg) text-(--color-warning)",
         danger: "bg-(--color-danger-bg) text-(--color-danger)",
         info: "bg-(--color-info-bg) text-(--color-info)",
-        primary: "bg-(--color-primary-100) text-(--color-primary-700)",
+        primary: "bg-(--color-primary-100) text-(--color-primary-fg)",
       },
     },
     defaultVariants: { variant: "neutral" },

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { geistSans, geistMono, Toaster } from "@elio/ui";
-import { PwaProvider, PwaInstallButton, getPwaConfig } from "@elio/pwa";
+import { geistSans, geistMono, Toaster, ThemeProvider, ThemeScript, NavigationProgress } from "@elio/ui";
+import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import "./globals.css";
 
 const pwa = getPwaConfig("admin");
@@ -18,12 +18,16 @@ export const metadata: Metadata = {
 // on /login itself.
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
-        <PwaProvider config={pwa}>
-        {children}
-        <Toaster />
-        </PwaProvider>
+        <ThemeScript />
+        <ThemeProvider>
+          <PwaProvider config={pwa}>
+            <NavigationProgress />
+            {children}
+            <Toaster />
+          </PwaProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

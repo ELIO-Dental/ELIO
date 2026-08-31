@@ -14,16 +14,16 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-(--color-primary-600) text-white shadow-(--shadow-xs) hover:bg-(--color-primary-700) hover:shadow-(--shadow-sm) active:bg-(--color-primary-800) active:scale-[0.98] disabled:bg-(--color-primary-200) disabled:text-(--color-text-disabled) disabled:shadow-none",
+          "bg-(--color-primary-button-bg) text-(--color-primary-button-fg) shadow-(--shadow-xs) hover:bg-(--color-primary-button-bg-hover) hover:shadow-(--shadow-sm) active:bg-(--color-primary-800) active:scale-[0.98] disabled:bg-(--color-primary-200) disabled:text-(--color-text-disabled) disabled:shadow-none",
         secondary:
           "bg-(--color-surface) text-(--color-text-primary) border border-(--color-border) shadow-(--shadow-xs) hover:bg-(--color-bg-subtle) hover:border-(--color-text-tertiary) hover:shadow-(--shadow-sm) active:bg-(--color-border-subtle) disabled:opacity-60",
         outline:
-          "bg-(--color-surface) text-(--color-primary-600) border border-(--color-primary-500) shadow-(--shadow-xs) hover:bg-(--color-primary-50) hover:border-(--color-primary-400) hover:shadow-(--shadow-sm) active:bg-(--color-primary-100) disabled:opacity-60",
+          "bg-(--color-surface) text-(--color-primary-fg) border border-(--color-primary-500) shadow-(--shadow-xs) hover:bg-(--color-primary-50) hover:border-(--color-primary-fg-muted) hover:text-(--color-primary-fg) hover:shadow-(--shadow-sm) active:bg-(--color-primary-100) disabled:opacity-60",
         ghost:
-          "border border-transparent text-(--color-text-secondary) hover:border-(--color-border) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary) hover:shadow-(--shadow-xs) active:bg-(--color-border-subtle) disabled:opacity-50",
+          "border border-transparent text-(--color-text-primary) hover:border-(--color-border) hover:bg-(--color-bg-subtle) hover:shadow-(--shadow-xs) active:bg-(--color-border-subtle) disabled:text-(--color-text-disabled) disabled:opacity-60",
         destructive:
           "bg-(--color-danger) text-white shadow-(--shadow-xs) hover:brightness-[0.92] hover:shadow-(--shadow-sm) active:brightness-[0.85] disabled:opacity-50",
-        link: "bg-transparent text-(--color-primary-700) underline-offset-4 hover:underline active:text-(--color-primary-800) disabled:opacity-50 p-0 h-auto",
+        link: "bg-transparent text-(--color-primary-fg) underline-offset-4 hover:underline hover:text-(--color-primary-800) active:text-(--color-primary-900) disabled:opacity-50 p-0 h-auto",
       },
       size: {
         sm: "h-8 px-3 text-body-sm",

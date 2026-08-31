@@ -21,7 +21,7 @@ export function OfflinePage({ appName }: { appName: string }) {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="mt-8 inline-flex h-10 items-center justify-center rounded-(--radius-md) bg-(--color-primary-600) px-4 text-body font-medium text-white shadow-(--shadow-xs) transition-colors hover:bg-(--color-primary-700)"
+        className="mt-8 inline-flex h-10 items-center justify-center rounded-(--radius-md) bg-(--color-primary-button-bg) px-4 text-body font-medium text-(--color-primary-button-fg) shadow-(--shadow-xs) transition-colors hover:bg-(--color-primary-button-bg-hover)"
       >
         Try again
       </button>

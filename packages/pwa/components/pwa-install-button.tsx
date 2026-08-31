@@ -17,11 +17,12 @@ const base =
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-md) font-medium transition-[background-color,border-color,color,box-shadow] duration-150 disabled:pointer-events-none disabled:opacity-60";
 
 const variants = {
-  primary: "bg-(--color-primary-600) text-white shadow-(--shadow-xs) hover:bg-(--color-primary-700)",
+  primary:
+    "bg-(--color-primary-button-bg) text-(--color-primary-button-fg) shadow-(--shadow-xs) hover:bg-(--color-primary-button-bg-hover)",
   secondary:
     "border border-(--color-border) bg-(--color-surface) text-(--color-text-primary) shadow-(--shadow-xs) hover:bg-(--color-bg-subtle)",
   outline:
-    "border border-(--color-primary-500) bg-(--color-surface) text-(--color-primary-600) shadow-(--shadow-xs) hover:bg-(--color-primary-50)",
+    "border border-(--color-primary-500) bg-(--color-surface) text-(--color-primary-fg) shadow-(--shadow-xs) hover:bg-(--color-primary-50)",
 };
 
 const sizes = {
