@@ -7,9 +7,8 @@ import type { Dentist } from "@elio/db";
 
 /**
  * Runs the pay-engine for every dentist in the practice against this pay period, then
- * (once payslips exist) offers to lock it. Kept intentionally simple for this pass: private
- * revenue is entered as a flat manual total per dentist (see calculate route's KNOWN GAP
- * doc-comment — Treatment isn't yet attributable to a dentist from the live Dentally sync).
+ * (once payslips exist) offers to lock it. Manual £ entry is optional when Dentally fetch
+ * has populated PrivateRevenueLineItem rows — leave blank and run calculation to use fetched data.
  */
 export function CalculateAndLockPanel({
   payPeriodId,

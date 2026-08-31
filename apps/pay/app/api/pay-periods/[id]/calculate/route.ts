@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { scopedDb } from "@elio/db";
 import { calculatePrivateEarnings, calculateFinalPay, calculateLabDeduction } from "@elio/pay-engine";
 import type { TreatmentRecord } from "@elio/pay-engine";
+import { privateRevenueItemsToTreatments } from "@/lib/private-revenue";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
@@ -49,6 +50,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     for (const input of body.dentists) {
       const dentist = await db.dentist.findUnique({ where: { id: input.dentistId } });
       if (!dentist) continue;
+
+      let revenueItems = input.privateRevenueItems;
+      if (!revenueItems?.length) {
+        const existingPayslip = await db.payslipEntry.findFirst({
+          where: { payPeriodId, dentistId: dentist.id },
+          include: { privateRevenueLineItems: true },
+        });
+        revenueItems =
+          existingPayslip?.privateRevenueLineItems.map((li) => ({
+            amountPence: li.amountPence,
+            excludedAsConsultation: li.excludedAsConsultation,
+            treatmentId: li.treatmentId ?? undefined,
+          })) ?? [];
+      }
 
       if (dentist.payType === "HOURLY") {
         const hourEntries = await db.hourEntry.findMany({ where: { dentistId: dentist.id, payPeriodId } });
@@ -98,13 +113,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const udaRatePence = dentist.udaRatePence ?? 0;
       const privateSplitPercent = dentist.privateSplitPercent ? Number(dentist.privateSplitPercent) : 0;
 
-      const treatments: TreatmentRecord[] = (input.privateRevenueItems ?? []).map((item, i) => ({
-        id: item.treatmentId ?? `manual-${dentist.id}-${i}`,
-        dentistId: dentist.id,
-        completedAt: payPeriod.periodStart.toISOString(), // caller has already filtered to this period
-        amountPence: item.amountPence,
-        isCosmeticConsultation: item.excludedAsConsultation,
-      }));
+      const treatments: TreatmentRecord[] = privateRevenueItemsToTreatments(
+        dentist.id,
+        revenueItems.map((item, i) => ({
+          amountPence: item.amountPence,
+          excludedAsConsultation: item.excludedAsConsultation,
+          treatmentId: item.treatmentId,
+          id: item.treatmentId ?? `manual-${dentist.id}-${i}`,
+        })),
+        payPeriod.periodStart.toISOString()
+      );
 
       const earnings = calculatePrivateEarnings(
         dentist.id,
@@ -158,9 +176,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         create: data,
       });
 
-      if (input.privateRevenueItems?.length) {
+      if (revenueItems.length) {
         await db.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });
-        for (const item of input.privateRevenueItems) {
+        for (const item of revenueItems) {
           await db.privateRevenueLineItem.create({
             data: {
               payslipEntryId: payslip.id,

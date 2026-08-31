@@ -7,6 +7,25 @@ import { scopedDb } from "@elio/db";
 import { getDentallyClientForPractice, type DentallyInvoiceRaw } from "@elio/dentally";
 import { isDateInPeriod } from "@elio/pay-engine";
 
+const CBCT_KEYWORDS = ["cbct", "ct scan", "cone beam"];
+
+const CLINICIAN_ROLES = ["dentist", "clinician", "associate", "principal"];
+
+function resolveSiteId(): string {
+  return process.env.DENTALLY_SITE_ID?.trim() ?? "";
+}
+
+function isClinicianRole(role?: string): boolean {
+  if (!role) return true;
+  const lower = role.toLowerCase();
+  return CLINICIAN_ROLES.some((r) => lower.includes(r));
+}
+
+function isCbctItem(item: { name?: string }): boolean {
+  const lower = (item.name || "").toLowerCase();
+  return CBCT_KEYWORDS.some((k) => lower.includes(k));
+}
+
 const NHS_KEYWORDS = [
   "band 1",
   "band 2",
@@ -41,9 +60,38 @@ function isNhsItem(item: { name?: string; amount?: unknown; nhs_charge?: boolean
   return NHS_KEYWORDS.some((k) => lower.includes(k));
 }
 
-function invoicePractitionerId(inv: DentallyInvoiceRaw & { user_id?: number | string | null }): string {
-  const raw = inv.user_id ?? inv.invoice_items?.[0]?.practitioner_id;
+function invoicePractitionerId(
+  inv: DentallyInvoiceRaw & { user_id?: number | string | null; practitioner_id?: number | string | null }
+): string {
+  const raw = inv.user_id ?? inv.practitioner_id ?? inv.invoice_items?.[0]?.practitioner_id;
   return raw != null ? String(raw) : "";
+}
+
+interface DentallyUserRaw {
+  id: number | string;
+  role?: string;
+  user_type?: string;
+  job_title?: string;
+}
+
+async function loadClinicianUserIds(
+  client: Awaited<ReturnType<typeof getDentallyClientForPractice>>,
+  siteId: string
+): Promise<Map<string, boolean>> {
+  const map = new Map<string, boolean>();
+  try {
+    const data = await client.get<{ users?: DentallyUserRaw[] }>("/users", {
+      site_id: siteId,
+      per_page: 100,
+    });
+    for (const user of data.users ?? []) {
+      const role = user.role ?? user.user_type ?? user.job_title;
+      map.set(String(user.id), isClinicianRole(role));
+    }
+  } catch {
+    // Non-fatal — proceed without role filter if users endpoint fails.
+  }
+  return map;
 }
 
 function isInvoiceInPeriod(inv: DentallyInvoiceRaw, startDate: string, endDate: string): boolean {
@@ -71,6 +119,7 @@ function privateAmountFromInvoice(inv: DentallyInvoiceRaw): number {
     const itemAmount = parseAmount(item.amount);
     if (itemAmount <= 0) continue;
     if (isNhsItem(item)) continue;
+    if (isCbctItem(item)) continue;
     privateAmount += itemAmount;
   }
   return privateAmount;
@@ -89,6 +138,7 @@ export interface DentallyFetchDebug {
   processedInvoices: number;
   skippedZeroAmount: number;
   skippedNhs: number;
+  skippedNonClinician: number;
   unmatchedClinicianIds: string[];
   dateRange: { start: string; end: string };
 }
@@ -110,7 +160,7 @@ export async function fetchDentallyForPayPeriod(
   practiceId: string,
   payPeriodId: string
 ): Promise<DentallyFetchResult> {
-  const siteId = process.env.DENTALLY_SITE_ID?.trim();
+  const siteId = resolveSiteId();
   if (!siteId) {
     throw new DentallyFetchConfigError(
       "DENTALLY_SITE_ID is not configured. Set it on the Pay Vercel project (see docs/deploy-checklist.md)."
@@ -139,6 +189,7 @@ export async function fetchDentallyForPayPeriod(
   }
 
   const client = await getDentallyClientForPractice(practiceId);
+  const clinicianUsers = await loadClinicianUserIds(client, siteId);
   const allInvoices: DentallyInvoiceRaw[] = [];
 
   await client.paginate<DentallyInvoiceRaw>(
@@ -160,6 +211,7 @@ export async function fetchDentallyForPayPeriod(
   const unmatched = new Set<string>();
   let skippedZero = 0;
   let skippedNhs = 0;
+  let skippedNonClinician = 0;
   let processed = 0;
 
   for (const inv of invoices) {
@@ -171,6 +223,12 @@ export async function fetchDentallyForPayPeriod(
 
     const practitionerId = invoicePractitionerId(inv);
     if (!practitionerId) continue;
+
+    const userIsClinician = clinicianUsers.get(practitionerId);
+    if (userIsClinician === false) {
+      skippedNonClinician++;
+      continue;
+    }
 
     const dentist = dentistByPractitioner.get(practitionerId);
     if (!dentist) {
@@ -242,6 +300,7 @@ export async function fetchDentallyForPayPeriod(
       processedInvoices: processed,
       skippedZeroAmount: skippedZero,
       skippedNhs,
+      skippedNonClinician,
       unmatchedClinicianIds: Array.from(unmatched),
       dateRange: { start: startDate, end: endDate },
     },

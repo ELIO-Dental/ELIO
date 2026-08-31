@@ -11,6 +11,7 @@ import {
   calculateLabDeduction,
   type TreatmentRecord,
 } from "@elio/pay-engine";
+import { privateRevenueItemsToTreatments } from "./private-revenue";
 
 // ---------------------------------------------------------------------------
 // Dentists
@@ -343,7 +344,10 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
   const [dentist, payPeriod, existing] = await Promise.all([
     db.dentist.findFirstOrThrow({ where: { id: dentistId } }),
     db.payPeriod.findFirstOrThrow({ where: { id: payPeriodId } }),
-    db.payslipEntry.findFirst({ where: { payPeriodId, dentistId } }),
+    db.payslipEntry.findFirst({
+      where: { payPeriodId, dentistId },
+      include: { privateRevenueLineItems: true },
+    }),
   ]);
 
   // Idempotency (DATA_MODEL §3): a LOCKED period's PayslipEntry rows are read,
@@ -353,19 +357,17 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
   const periodStartIso = payPeriod.periodStart.toISOString();
   const periodEndIso = payPeriod.periodEnd.toISOString();
 
-  // §6.3 — private earnings from this dentist's actually-completed treatment
-  // strictly inside the exact calendar-month period.
-  //
-  // KNOWN GAP (flagged, not silently worked around — see final report): the
-  // dentally_treatments table (packages/db schema) has no `dentistId` column
-  // and no treatment-category/code field, so a real Treatment row cannot yet
-  // be attributed to the clinician who performed it, nor reliably flagged as
-  // a cosmetic consultation via anything but a free-text description (which
-  // §6.3 explicitly forbids). Until that sync gap is closed, treatments are
-  // read here but yield an empty attributable set for a real Dentally pull —
-  // seed-data verification instead constructs TreatmentRecord[] directly
-  // (bypassing the unlinked Treatment table) to prove the pay-calc math.
-  const treatments: TreatmentRecord[] = [];
+  const lineItems =
+    existing?.privateRevenueLineItems ??
+    (await db.privateRevenueLineItem.findMany({
+      where: { payslipEntry: { payPeriodId, dentistId } },
+    }));
+
+  const treatments: TreatmentRecord[] = privateRevenueItemsToTreatments(
+    dentistId,
+    lineItems,
+    periodStartIso
+  );
 
   const lab = await db.labBillEntry.aggregate({
     where: { dentistId },

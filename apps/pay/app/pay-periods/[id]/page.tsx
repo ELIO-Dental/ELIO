@@ -24,6 +24,7 @@ import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
+import { FetchDentallyPanel } from "./fetch-dentally-panel";
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -56,6 +57,22 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       />
 
       <div className="mt-8 flex flex-col gap-8">
+        <Card>
+          <CardHeader className="flex-col items-start gap-1">
+            <CardTitle>Dentally</CardTitle>
+            <p className="text-body-sm text-(--color-text-secondary)">
+              Pull private invoice data for this pay period from Dentally, then run calculation.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FetchDentallyPanel
+              payPeriodId={payPeriod.id}
+              dentistIds={dentists.filter((d) => d.payType === "PERCENTAGE_SPLIT").map((d) => d.id)}
+              locked={payPeriod.status === "LOCKED"}
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex-col items-start gap-1">
             <CardTitle>Compass statement</CardTitle>
