@@ -40,13 +40,15 @@ export async function resolvePracticeDentallyApiKey(practiceId: string): Promise
     }
   }
 
-  const envKey = process.env.DENTALLY_API_KEY?.trim();
+  // Y1.3 — AuraPay used DENTALLY_API_TOKEN; accept that alias for deploy parity.
+  const envKey =
+    process.env.DENTALLY_API_KEY?.trim() || process.env.DENTALLY_API_TOKEN?.trim();
   if (envKey) {
     return envKey;
   }
 
   throw new DentallySyncConfigError(
-    `No Dentally API key for practice ${practiceId}. Add a key in practice settings or set DENTALLY_API_KEY for local development.`
+    `No Dentally API key for practice ${practiceId}. Add a key in Settings → Integrations or set DENTALLY_API_KEY (or DENTALLY_API_TOKEN) for local development.`
   );
 }
 

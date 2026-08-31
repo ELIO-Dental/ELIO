@@ -33,11 +33,13 @@ export function FetchDentallyPanel({
   const [fetching, setFetching] = React.useState(false);
   const [result, setResult] = React.useState<FetchResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [dismissed, setDismissed] = React.useState(false);
 
   async function fetchFromDentally() {
     setFetching(true);
     setError(null);
     setResult(null);
+    setDismissed(false);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, { method: "POST" });
       const data = (await res.json()) as FetchResult & { error?: string };
@@ -47,7 +49,6 @@ export function FetchDentallyPanel({
       }
       setResult(data);
 
-      // Recalculate payslips using fetched PrivateRevenueLineItem rows (Y1.7).
       if (dentistIds.length > 0) {
         await fetch(`/pay/api/pay-periods/${payPeriodId}/calculate`, {
           method: "POST",
@@ -74,15 +75,24 @@ export function FetchDentallyPanel({
         Fetch from Dentally
       </Button>
 
-      {result?.ok && (
+      {result?.ok && !dismissed && (
         <div
-          className="rounded-(--radius-md) border border-(--color-success-200) bg-(--color-success-50) px-4 py-3 text-body-sm text-(--color-success-800)"
+          className="rounded-(--radius-md) border border-(--color-success) bg-(--color-success-bg) px-4 py-3 text-body-sm text-(--color-text-primary)"
           data-testid="fetch-dentally-result"
           role="status"
         >
-          <p className="font-semibold">{result.message}</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-semibold text-(--color-success)">{result.message}</p>
+            <button
+              type="button"
+              className="shrink-0 text-caption text-(--color-text-tertiary) underline"
+              onClick={() => setDismissed(true)}
+            >
+              Dismiss
+            </button>
+          </div>
           {result.summary && Object.keys(result.summary).length > 0 && (
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 space-y-1 text-(--color-text-secondary)">
               {Object.entries(result.summary).map(([name, stats]) => (
                 <li key={name}>
                   {name}: £{(stats.invoicedPence / 100).toFixed(2)} ({stats.invoiceCount} invoice
@@ -92,7 +102,7 @@ export function FetchDentallyPanel({
             </ul>
           )}
           {result.debug && result.debug.unmatchedClinicianIds.length > 0 && (
-            <p className="mt-2 text-(--color-warning-700)">
+            <p className="mt-2 text-(--color-warning)">
               {result.debug.unmatchedClinicianIds.length} Dentally clinician ID(s) did not match a dentist — check
               dentallyPractitionerId on dentist records.
             </p>
@@ -101,7 +111,7 @@ export function FetchDentallyPanel({
       )}
 
       {error && (
-        <p className="rounded-(--radius-md) border border-(--color-danger-200) bg-(--color-danger-50) px-4 py-3 text-body-sm text-(--color-danger-700)">
+        <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-4 py-3 text-body-sm text-(--color-danger)">
           {error}
         </p>
       )}

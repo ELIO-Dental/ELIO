@@ -188,7 +188,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
                   Save API key
                 </Button>
                 {keySaved && (
-                  <p className="text-body-sm text-(--color-success-700)">API key saved. Run a connection test or sync now.</p>
+                  <p className="text-body-sm text-(--color-success)">API key saved. Run a connection test or sync now.</p>
                 )}
               </form>
             )}
@@ -196,7 +196,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
             <dl className="grid gap-3 text-body-sm sm:grid-cols-2">
               <div>
                 <dt className="text-(--color-text-tertiary)">API key configured</dt>
-                <dd className="font-medium">
+                <dd className="font-medium text-(--color-text-primary)">
                   {status?.configured
                     ? status.hasPracticeKey
                       ? "Yes — practice key on file"
@@ -206,7 +206,9 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               </div>
               <div>
                 <dt className="text-(--color-text-tertiary)">Last sync</dt>
-                <dd className="font-medium">{formatWhen(status?.latestRun?.finishedAt ?? status?.latestRun?.startedAt ?? null)}</dd>
+                <dd className="font-medium text-(--color-text-primary)">
+                  {formatWhen(status?.latestRun?.finishedAt ?? status?.latestRun?.startedAt ?? null)}
+                </dd>
               </div>
               <div>
                 <dt className="text-(--color-text-tertiary)">Last sync result</dt>
@@ -221,7 +223,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               {counts && (
                 <div>
                   <dt className="text-(--color-text-tertiary)">Records synced (last run)</dt>
-                  <dd className="font-medium">
+                  <dd className="font-medium text-(--color-text-primary)">
                     {counts.patients ?? 0} patients · {counts.appointments ?? 0} appts · {counts.invoices ?? 0} invoices
                   </dd>
                 </div>
@@ -229,29 +231,29 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
             </dl>
 
             {status?.latestRun?.errorMessage && (
-              <p className="rounded-md border border-(--color-danger-200) bg-(--color-danger-50) px-3 py-2 text-body-sm text-(--color-danger-700)">
+              <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-3 py-2 text-body-sm text-(--color-danger)">
                 {status.latestRun.errorMessage}
               </p>
             )}
 
             {status?.latestRun && status.latestRun.recordErrorCount > 0 && (
-              <p className="text-body-sm text-(--color-warning-700)">
+              <p className="text-body-sm text-(--color-warning)">
                 {status.latestRun.recordErrorCount} individual record(s) failed on the last sync — data may be partially stale.
               </p>
             )}
 
             {status?.connectionOk === false && status.connectionError && (
-              <p className="rounded-md border border-(--color-danger-200) bg-(--color-danger-50) px-3 py-2 text-body-sm text-(--color-danger-700)">
+              <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-3 py-2 text-body-sm text-(--color-danger)">
                 Connection test failed: {status.connectionError}
               </p>
             )}
 
             {status?.connectionOk === true && (
-              <p className="text-body-sm text-(--color-success-700)">Connection test succeeded.</p>
+              <p className="text-body-sm text-(--color-success)">Connection test succeeded.</p>
             )}
 
             {error && (
-              <p className="rounded-md border border-(--color-danger-200) bg-(--color-danger-50) px-3 py-2 text-body-sm text-(--color-danger-700)">
+              <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-3 py-2 text-body-sm text-(--color-danger)">
                 {error}
               </p>
             )}

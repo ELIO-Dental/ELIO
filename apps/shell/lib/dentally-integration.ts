@@ -30,7 +30,9 @@ export async function getDentallyIntegrationStatus(
   if (!practice) throw new Error("Practice not found");
 
   const hasPracticeKey = Boolean(practice.dentallyApiKey?.trim());
-  const configured = Boolean(hasPracticeKey || process.env.DENTALLY_API_KEY?.trim());
+  const configured = Boolean(
+    hasPracticeKey || process.env.DENTALLY_API_KEY?.trim() || process.env.DENTALLY_API_TOKEN?.trim()
+  );
   const latestRun = await getLatestDentallySyncRun(practiceId);
 
   let connectionOk: boolean | null = null;

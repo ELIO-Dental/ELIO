@@ -16,7 +16,8 @@ function resolveSiteId(): string {
 }
 
 function isClinicianRole(role?: string): boolean {
-  if (!role) return true;
+  // Legacy AuraPay: missing role = not a clinician (skip).
+  if (!role) return false;
   const lower = role.toLowerCase();
   return CLINICIAN_ROLES.some((r) => lower.includes(r));
 }
@@ -95,7 +96,8 @@ async function loadClinicianUserIds(
 }
 
 function isInvoiceInPeriod(inv: DentallyInvoiceRaw, startDate: string, endDate: string): boolean {
-  const dated = inv.dated_on ?? inv.updated_at?.substring(0, 10);
+  // Legacy AuraPay: dated_on first, then created_at (not updated_at).
+  const dated = inv.dated_on ?? inv.created_at?.substring(0, 10) ?? "";
   return isDateInPeriod(dated, startDate, endDate);
 }
 

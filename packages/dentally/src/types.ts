@@ -59,9 +59,17 @@ export interface DentallyInvoiceRaw {
   patient_id?: number | null;
   amount?: string | number;
   amount_outstanding?: string | number;
+  balance?: string | number;
   dated_on?: string | null;
+  created_at?: string;
   paid?: boolean;
+  state?: string;
   site_id?: string | null;
+  user_id?: number | string | null;
+  practitioner_id?: number | string | null;
+  payment_plan_id?: number | string | null;
+  finance?: boolean;
+  payment_method?: string;
   invoice_items?: DentallyInvoiceItemRaw[];
   updated_at?: string;
 }
