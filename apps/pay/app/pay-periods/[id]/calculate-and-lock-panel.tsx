@@ -22,7 +22,6 @@ export function CalculateAndLockPanel({
   const router = useRouter();
   const [privateRevenue, setPrivateRevenue] = React.useState<Record<string, string>>({});
   const [running, setRunning] = React.useState(false);
-  const [locking, setLocking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   async function runCalculation() {
@@ -45,19 +44,6 @@ export function CalculateAndLockPanel({
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Calculation failed");
-      return;
-    }
-    router.refresh();
-  }
-
-  async function lock() {
-    setLocking(true);
-    setError(null);
-    const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/lock`, { method: "POST" });
-    setLocking(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Lock failed");
       return;
     }
     router.refresh();
@@ -92,14 +78,9 @@ export function CalculateAndLockPanel({
         <p className="text-body-sm text-(--color-text-tertiary)">No percentage-split dentists — run calculation to generate hourly payslips.</p>
       )}
       {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
-      <div className="flex gap-3">
-        <Button onClick={runCalculation} loading={running} disabled={locking}>
-          Run calculation
-        </Button>
-        <Button variant="secondary" onClick={lock} loading={locking} disabled={running}>
-          Lock period
-        </Button>
-      </div>
+      <Button onClick={runCalculation} loading={running}>
+        Run calculation
+      </Button>
     </div>
   );
 }

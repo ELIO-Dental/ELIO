@@ -22,6 +22,8 @@ import {
 } from "@elio/ui";
 import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
+import { PayPeriodActionsProvider } from "./pay-period-actions-provider";
+import { PeriodHeaderActions } from "./period-header-actions";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
 import { FetchDentallyPanel } from "./fetch-dentally-panel";
@@ -74,11 +76,20 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
     .flatMap((s) => s.lines)
     .filter((l) => l.matchConfidence === "NEEDS_REVIEW");
 
+  const splitDentistIds = dentists.filter((d) => d.payType === "PERCENTAGE_SPLIT").map((d) => d.id);
+
   return (
+    <PayPeriodActionsProvider
+      payPeriodId={payPeriod.id}
+      dentistIds={splitDentistIds}
+      locked={payPeriod.status === "LOCKED"}
+      payslipCount={payPeriod.payslipEntries.length}
+    >
     <PageContent>
       <PageHeader
         title={`${payPeriod.periodStart.toISOString().slice(0, 10)} – ${payPeriod.periodEnd.toISOString().slice(0, 10)}`}
         description={<Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>{payPeriod.status}</Badge>}
+        actions={<PeriodHeaderActions />}
       />
 
       <div className="mt-8 flex flex-col gap-8">
@@ -90,11 +101,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
             </p>
           </CardHeader>
           <CardContent>
-            <FetchDentallyPanel
-              payPeriodId={payPeriod.id}
-              dentistIds={dentists.filter((d) => d.payType === "PERCENTAGE_SPLIT").map((d) => d.id)}
-              locked={payPeriod.status === "LOCKED"}
-            />
+            <FetchDentallyPanel />
           </CardContent>
         </Card>
 
@@ -122,9 +129,9 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
 
         <Card>
           <CardHeader className="flex-col items-start gap-1">
-            <CardTitle>Run &amp; lock</CardTitle>
+            <CardTitle>Run calculation</CardTitle>
             <p className="text-body-sm text-(--color-text-secondary)">
-              Enter private revenue per dentist, run the calculation, then lock the period when figures are final.
+              Enter private revenue per dentist, run the calculation, then finalize the period from the header when figures are final.
             </p>
           </CardHeader>
           <CardContent>
@@ -279,5 +286,6 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         </section>
       </div>
     </PageContent>
+    </PayPeriodActionsProvider>
   );
 }
