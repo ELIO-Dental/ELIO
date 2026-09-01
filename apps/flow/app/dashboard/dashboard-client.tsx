@@ -469,6 +469,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         onOpenChange={(open) => {
           if (!open) setDetailRow(null);
         }}
+        onEdit={(row) => setEditRow(row)}
       />
     </div>
   );

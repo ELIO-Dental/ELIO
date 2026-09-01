@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,12 +29,15 @@ type LivePanel = {
     phone: string | null;
     dentallyId: string;
   };
+  account: {
+    currentBalancePence: number;
+    plannedPrivateTreatmentValuePence: number | null;
+  } | null;
   appointments: Array<{
     id: string;
     startsAt: string | null;
     reason: string | null;
     state: string | null;
-    durationMinutes: number | null;
   }>;
   invoices: Array<{
     id: string;
@@ -47,7 +51,6 @@ type LivePanel = {
     id: string;
     paidAt: string | null;
     amountPence: number;
-    method: string | null;
   }>;
   fetchedAt: string;
 };
@@ -63,13 +66,16 @@ export function DashboardPatientPanel({
   row,
   open,
   onOpenChange,
+  onEdit,
 }: {
   row: FlowDashboardRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (row: FlowDashboardRow) => void;
 }) {
   const [loading, setLoading] = React.useState(false);
   const [panel, setPanel] = React.useState<LivePanel | null>(null);
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   React.useEffect(() => {
     if (!open || !row?.patientId) {
@@ -102,7 +108,7 @@ export function DashboardPatientPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, row?.patientId, onOpenChange]);
+  }, [open, row?.patientId, reloadKey, onOpenChange]);
 
   const title = row?.patientName ?? "Patient";
 
@@ -111,21 +117,70 @@ export function DashboardPatientPanel({
       <DialogContent className="fixed right-0 top-0 left-auto flex h-full w-full max-w-lg translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-l border-(--color-border-subtle) p-0 shadow-(--shadow-lg)">
         <div className="border-b border-(--color-border-subtle) p-6 pb-4">
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>
-              {row?.patientId
-                ? "Live data from Dentally — appointments, invoices, and payments."
-                : "This lead has no linked Dentally patient yet."}
-            </DialogDescription>
+            <div className="flex items-start justify-between gap-3 pr-8">
+              <div>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription>
+                  {row?.patientId
+                    ? "Live Dentally records for this pipeline patient."
+                    : "This lead has no linked Dentally patient yet."}
+                </DialogDescription>
+              </div>
+              {row && onEdit ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onEdit(row);
+                  }}
+                >
+                  Edit
+                </Button>
+              ) : null}
+            </div>
           </DialogHeader>
+
+          {row ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant="neutral">{row.statusLabel}</Badge>
+              <Badge variant="neutral">Consult {row.consultationDate ?? "—"}</Badge>
+              <Badge variant="neutral">Plan {formatMoneyGBPOrDash(row.planValuePence)}</Badge>
+              <Badge variant="neutral">Paid {formatMoneyGBPOrDash(row.totalPaidPence)}</Badge>
+            </div>
+          ) : null}
+
+          {row?.notes ? (
+            <p className="mt-3 rounded-(--radius-md) bg-(--color-bg-subtle) p-3 text-body-sm text-(--color-text-secondary)">
+              {row.notes}
+            </p>
+          ) : null}
+
           {panel ? (
             <div className="mt-3 space-y-1 text-body-sm text-(--color-text-secondary)">
               {panel.patient.phone ? <p>{panel.patient.phone}</p> : null}
               {panel.patient.email ? <p>{panel.patient.email}</p> : null}
+              {panel.account?.plannedPrivateTreatmentValuePence != null ? (
+                <p>
+                  Planned treatment (live): {formatMoneyGBPOrDash(panel.account.plannedPrivateTreatmentValuePence)}
+                </p>
+              ) : null}
               <p className="text-caption text-(--color-text-tertiary)">
                 Dentally #{panel.patient.dentallyId} · fetched {formatWhen(panel.fetchedAt)}
               </p>
             </div>
+          ) : null}
+
+          {row?.patientId ? (
+            <Button
+              className="mt-3"
+              size="sm"
+              variant="secondary"
+              loading={loading}
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              Refresh from Dentally
+            </Button>
           ) : null}
         </div>
 
@@ -134,7 +189,7 @@ export function DashboardPatientPanel({
             <p className="text-body-sm text-(--color-text-tertiary)">
               Link this enquiry to a Dentally patient before viewing live records.
             </p>
-          ) : loading ? (
+          ) : loading && !panel ? (
             <p className="text-body-sm text-(--color-text-tertiary)">Loading from Dentally…</p>
           ) : panel ? (
             <div className="flex flex-col gap-6">

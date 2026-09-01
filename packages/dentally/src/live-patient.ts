@@ -3,8 +3,10 @@
 // acceptable for a single-patient drill-down, not for bulk reporting.
 
 import { prisma } from "@elio/db";
+import type { DentallyClient } from "./client";
 import { getDentallyClientForPractice } from "./resolve-api-key";
 import type {
+  DentallyAccountRaw,
   DentallyAppointmentRaw,
   DentallyInvoiceRaw,
   DentallyPatientRaw,
@@ -35,6 +37,12 @@ export interface LivePatientPayment {
   method: string | null;
 }
 
+export interface LivePatientAccount {
+  id: string;
+  currentBalancePence: number;
+  plannedPrivateTreatmentValuePence: number | null;
+}
+
 export interface LivePatientPanel {
   patient: {
     elioPatientId: string;
@@ -43,6 +51,7 @@ export interface LivePatientPanel {
     email: string | null;
     phone: string | null;
   };
+  account: LivePatientAccount | null;
   appointments: LivePatientAppointment[];
   invoices: LivePatientInvoice[];
   payments: LivePatientPayment[];
@@ -68,6 +77,7 @@ function patientName(p: DentallyPatientRaw): string {
 export async function fetchLivePatientPanel(
   practiceId: string,
   elioPatientId: string,
+  client?: DentallyClient,
 ): Promise<LivePatientPanel> {
   const patient = await prisma.patient.findFirst({
     where: { id: elioPatientId, practiceId },
@@ -75,19 +85,19 @@ export async function fetchLivePatientPanel(
   });
   if (!patient) throw new Error("Patient not found");
 
-  const client = await getDentallyClientForPractice(practiceId);
+  const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const dentallyId = patient.dentallyId;
 
   let livePatient: DentallyPatientRaw | null = null;
   try {
-    const data = await client.get<{ patient?: DentallyPatientRaw }>(`/patients/${dentallyId}`);
+    const data = await dentallyClient.get<{ patient?: DentallyPatientRaw }>(`/patients/${dentallyId}`);
     livePatient = data.patient ?? null;
   } catch {
     // Fall back to synced-core demographics when live fetch fails.
   }
 
   const appointments: DentallyAppointmentRaw[] = [];
-  await client.paginate<DentallyAppointmentRaw>(
+  await dentallyClient.paginate<DentallyAppointmentRaw>(
     "/appointments",
     "appointments",
     { patient_id: dentallyId, per_page: 50 },
@@ -98,7 +108,7 @@ export async function fetchLivePatientPanel(
   );
 
   const invoices: DentallyInvoiceRaw[] = [];
-  await client.paginate<DentallyInvoiceRaw>(
+  await dentallyClient.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
     { patient_id: dentallyId, per_page: 50 },
@@ -109,7 +119,7 @@ export async function fetchLivePatientPanel(
   );
 
   const payments: DentallyPaymentRaw[] = [];
-  await client.paginate<DentallyPaymentRaw>(
+  await dentallyClient.paginate<DentallyPaymentRaw>(
     "/payments",
     "payments",
     { patient_id: dentallyId, per_page: 50 },
@@ -117,6 +127,17 @@ export async function fetchLivePatientPanel(
       payments.push(...page);
     },
     { perPage: 50, maxPages: 3 },
+  );
+
+  const accounts: DentallyAccountRaw[] = [];
+  await dentallyClient.paginate<DentallyAccountRaw>(
+    "/accounts",
+    "accounts",
+    { patient_id: dentallyId, per_page: 50 },
+    (page) => {
+      accounts.push(...page);
+    },
+    { perPage: 50, maxPages: 1 },
   );
 
   const name = livePatient
@@ -133,6 +154,17 @@ export async function fetchLivePatientPanel(
 
   payments.sort((a, b) => (b.dated_on ?? b.created_at ?? "").localeCompare(a.dated_on ?? a.created_at ?? ""));
 
+  const accountRaw = accounts[0];
+  const account: LivePatientAccount | null = accountRaw
+    ? {
+        id: String(accountRaw.id),
+        currentBalancePence: poundsToPence(accountRaw.current_balance),
+        plannedPrivateTreatmentValuePence: accountRaw.planned_private_treatment_value
+          ? poundsToPence(accountRaw.planned_private_treatment_value)
+          : null,
+      }
+    : null;
+
   return {
     patient: {
       elioPatientId: patient.id,
@@ -141,6 +173,7 @@ export async function fetchLivePatientPanel(
       email: livePatient?.email_address ?? patient.email,
       phone: livePatient?.mobile_phone ?? livePatient?.home_phone ?? patient.phone,
     },
+    account,
     appointments: appointments.map((a) => ({
       id: String(a.id),
       startsAt: a.starts_at ?? a.start_time ?? null,

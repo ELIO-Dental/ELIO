@@ -336,7 +336,7 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 | Auto-import cosmetic consults from Dentally | None | ❌ |
 | Full sync cron (every 10 min morning) | Shell daily sync only | ❌ |
 | Edit modal (status, touchpoints, elioCare, override) | Consult detail form (partial fields) | 🟡 |
-| Patient detail modal (appointments, invoices live) | Not implemented | ❌ |
+| Patient detail modal (appointments, invoices live) | Dashboard patient slide-over | ✅ |
 | Progress dots (4-step) | Partial on consult | 🟡 |
 | Conversion rule (deposit £50 / paid £450) | Outcome-based, not payment-rule | ❌ |
 | Payments-based totalPaid / hasDeposit | Invoice-based sync | ❌ |
@@ -1097,7 +1097,7 @@ Items that block parity and are **not** just missing UI:
 | 2 | `POST /api/status` | `PATCH /flow/api/consults/[id]` | 🟡 Partial fields |
 | 3 | `GET /api/sync` (cron full) | Shell `/api/cron/dentally-sync` + Inngest | ❌ No Flow-specific import |
 | 4 | `GET /api/manual-sync` (payment-only) | None | ❌ |
-| 5 | `GET /api/patient/[id]` | None (live Dentally proxy) | ❌ |
+| 5 | `GET /api/patient/[id]` | `GET /flow/api/patients/[id]/live` | ✅ |
 | 6 | `GET/PUT /api/settings` | Portal settings only | ❌ |
 | 7 | `GET/POST/PUT/DELETE /api/users` | Portal `/api/team/users` | 🟡 |
 | 8 | `GET/POST/PUT/DELETE /api/clinics` | None | ❌ Low priority |

@@ -40,6 +40,7 @@ export type {
   LivePatientAppointment,
   LivePatientInvoice,
   LivePatientPayment,
+  LivePatientAccount,
 } from "./src/live-patient";
 
 export * from "./src/types";
