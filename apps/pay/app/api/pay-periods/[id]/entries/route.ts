@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
-import { savePayslipEntry, type SavePayslipEntryInput } from "@/lib/pay-service";
+import { listPayslipEntriesForPeriod, savePayslipEntry } from "@/lib/pay-service";
+import { normalizeSavePayslipEntryInput } from "@/lib/save-payslip-entry";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
+
+/** List payslip entries for a period (legacy GET /periods/entries?period_id=, Y2.1a). */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requirePermission("pay:view");
+    const { id: payPeriodId } = await params;
+    const entries = await listPayslipEntriesForPeriod(session.practiceId, payPeriodId);
+    return NextResponse.json({ entries });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
 
 /** Save a single dentist payslip without recalculating the whole period (Y2.1a). */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("pay:run-period");
     const { id: payPeriodId } = await params;
-    const body = (await req.json()) as SavePayslipEntryInput;
+    const body = (await req.json()) as Record<string, unknown>;
+    const input = normalizeSavePayslipEntryInput(body);
 
-    if (!body?.payslipEntryId) {
+    if (!input.payslipEntryId) {
       return NextResponse.json({ error: "payslipEntryId required" }, { status: 400 });
     }
 
-    const payslip = await savePayslipEntry(session.practiceId, payPeriodId, body);
+    const payslip = await savePayslipEntry(session.practiceId, payPeriodId, input);
     return NextResponse.json({ ok: true, payslip });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Save failed";

@@ -490,6 +490,10 @@ export interface SavePayslipEntryInput {
   adjustmentReason?: string | null;
   hoursWorked?: number;
   hourlyEarningsPence?: number;
+  /** Override finance fee deduction when not derived from line items (legacy finance_fees). */
+  financeFeesPence?: number;
+  dentallyPatientsJson?: unknown;
+  dentallyDiscrepanciesJson?: unknown;
 }
 
 export async function savePayslipEntry(
@@ -550,9 +554,12 @@ export async function savePayslipEntry(
   }
 
   const therapyDeduction = therapyDeductionPence(therapyMinutes, therapyRatePerMinute);
-  const financeDeduction = financeFeesDeductionPence(
-    existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
-  );
+  const financeDeduction =
+    input.financeFeesPence != null
+      ? Math.round(input.financeFeesPence * 0.5)
+      : financeFeesDeductionPence(
+          existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+        );
 
   const finalPayPence = calculateFinalPay({
     payType: "PERCENTAGE_SPLIT",
@@ -586,6 +593,22 @@ export async function savePayslipEntry(
       manualAdjustmentsPence,
       adjustmentReason,
       finalPayPence,
+      ...(input.dentallyPatientsJson !== undefined ? { dentallyPatientsJson: input.dentallyPatientsJson as object } : {}),
+      ...(input.dentallyDiscrepanciesJson !== undefined
+        ? { dentallyDiscrepanciesJson: input.dentallyDiscrepanciesJson as object }
+        : {}),
     },
+  });
+}
+
+export async function listPayslipEntriesForPeriod(practiceId: string, payPeriodId: string) {
+  const db = scopedDb(practiceId);
+  return db.payslipEntry.findMany({
+    where: { practiceId, payPeriodId },
+    include: {
+      dentist: { select: { id: true, name: true, payType: true, privateSplitPercent: true } },
+      privateRevenueLineItems: { orderBy: [{ invoiceDate: "asc" }, { createdAt: "asc" }] },
+    },
+    orderBy: { dentist: { name: "asc" } },
   });
 }
