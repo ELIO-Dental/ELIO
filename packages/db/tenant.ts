@@ -67,6 +67,11 @@ const TENANT_SCOPED_MODELS = new Set([
   "supplierInvoiceEntry",
   "legacyPayslipArchive",
   "legacyFlowTouchPointArchive",
+  "dentallySyncRun",
+  "dentallyPayment",
+  "dentallyAccount",
+  "dentallyPaymentPlan",
+  "dentallyPlanMapping",
 ]);
 
 const READ_OPS = new Set([

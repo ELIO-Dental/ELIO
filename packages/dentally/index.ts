@@ -38,11 +38,12 @@ export { fetchLivePatientPanel } from "./src/live-patient";
 
 export {
   runPlansDentallySync,
+  runPlansDentallyReassign,
   PlansDentallySyncConfigError,
   matchPaymentPlanIds,
   dedupePatientsByDentallyId,
 } from "./src/plans-sync";
-export type { PlansDentallySyncResult } from "./src/plans-sync";
+export type { PlansDentallySyncResult, PlansDentallyReassignResult } from "./src/plans-sync";
 
 export { normalizeEmail, emailsMatch, findExistingPatient } from "./src/patient-matching";
 export type { MatchableExisting, MatchCandidate, MatchResult } from "./src/patient-matching";
@@ -53,6 +54,12 @@ export {
   mapDentallySearchPatient,
 } from "./src/plans-patient-search";
 export type { DentallySearchPatient } from "./src/plans-patient-search";
+
+export {
+  fetchLiveDentallyPaymentPlans,
+  mapLiveDentallyPaymentPlan,
+} from "./src/plans-payment-plans";
+export type { LiveDentallyPaymentPlan } from "./src/plans-payment-plans";
 export type {
   LivePatientPanel,
   LivePatientAppointment,

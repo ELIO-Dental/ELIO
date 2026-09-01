@@ -588,7 +588,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | **Patient detail page** (`/patients/[id]`) | **Does not exist** — table rows not links | ❌ Critical |
 | **DentallyPlanMapping in DB** | **Not migrated, model missing** in new schema | `DentallyPlanMapping` model (P1.2) | ✅ |
 | **`gc-sync` cron** (mandate reconciliation) | No equivalent cron | ❌ |
-| **`reassign-plans` utility** | None | ❌ |
+| **`reassign-plans` utility** | `POST /plans/api/dentally/reassign-plans` | ✅ |
 | **`setup-gc-links` admin** | None | ❌ |
 | **`setup/dentally-plans` seed mappings** | None | ❌ |
 | **Guide articles** (`/dashboard/guide`) | None | ❌ |
@@ -624,10 +624,10 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P1.3 | **`POST /plans/api/dentally/sync`** + **`GET /plans/api/cron/dentally-sync`** | Manual + cron entry points | **Shipped** |
 | P1.4 | **`GET /plans/api/dentally/patients?q=`** | Search/import single patient | **Shipped** |
 | P1.5 | **`GET/POST /plans/api/dentally/mappings`** | CRUD mappings | **Shipped** |
-| P1.6 | Use per-practice API key from Phase A | Same as shell sync |
-| P1.7 | Audit log on every sync run | Match legacy `AuditLog` actions |
+| P1.6 | Use per-practice API key from Phase A | Same as shell sync | **Shipped** |
+| P1.7 | Audit log on every sync run | Match legacy `AuditLog` actions | **Shipped** |
 | P1.8 | **Port `gc-sync` cron** — reconcile mandates/payments from GoCardless | `GET /plans/api/cron/gc-sync` |
-| P1.9 | **`POST /plans/api/dentally/reassign-plans`** | Utility after mapping changes |
+| P1.9 | **`POST /plans/api/dentally/reassign-plans`** | Utility after mapping changes | **Shipped** |
 
 #### Phase P2 — Dentally & Patients UI
 
@@ -1153,11 +1153,11 @@ Items that block parity and are **not** just missing UI:
 | 36 | `GET/POST /api/guides` | None | ❌ |
 | 37 | `GET/POST /api/documents` | `/documents` page (read) | 🟡 |
 | 38 | `POST /api/dentally/sync` | `POST /plans/api/dentally/sync` | ✅ |
-| 39 | `POST /api/dentally/reassign-plans` | None | ❌ |
-| 40 | `GET /api/dentally/plans` | None | ❌ |
+| 39 | `POST /api/dentally/reassign-plans` | `POST /plans/api/dentally/reassign-plans` | ✅ |
+| 40 | `GET /api/dentally/plans` | `GET /plans/api/dentally/plans` | ✅ |
 | 41 | `GET /api/dentally/patients` | `GET /plans/api/dentally/patients` | ✅ |
-| 42 | `PUT/DELETE /api/dentally/mappings/[id]` | None | ❌ |
-| 43 | `GET/POST /api/dentally/mappings` | None | ❌ Critical |
+| 42 | `PUT/DELETE /api/dentally/mappings/[id]` | `PUT/DELETE /plans/api/dentally/mappings/[id]` | ✅ |
+| 43 | `GET/POST /api/dentally/mappings` | `GET/POST /plans/api/dentally/mappings` | ✅ |
 | 44 | `GET /api/dashboard/stats` | Inline dashboard queries | 🟡 |
 | 45 | `GET /api/cron/reconcile-payments` | `/plans/api/cron/reconcile-payments` | ✅ |
 | 46 | `GET /api/cron/gc-sync` | **Missing** | ❌ |
@@ -1419,10 +1419,10 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P1.3 Sync API + cron | `ElioPlans/src/app/api/dentally/sync/route.ts`, `api/cron/dentally-sync/route.ts` | `elio/apps/plans/app/api/dentally/sync/route.ts`, cron route | **Shipped** |
 | P1.4 Patient search | `ElioPlans/src/app/api/dentally/patients/route.ts` | `elio/apps/plans/app/api/dentally/patients/route.ts` | **Shipped** |
 | P1.5 Mappings CRUD | `ElioPlans/src/app/api/dentally/mappings/route.ts`, `mappings/[id]/route.ts` | `elio/apps/plans/app/api/dentally/mappings/` | **Shipped** |
-| P1.6 Per-practice key | `ElioPlans/src/lib/dentally-sync.ts`, `src/lib/settings.ts` | Phase A.1 | |
-| P1.7 Audit on sync | `ElioPlans/src/lib/audit.ts` | `elio/apps/plans/lib/plans-service.ts` | |
+| P1.6 Per-practice key | `ElioPlans/src/lib/dentally-sync.ts`, `src/lib/settings.ts` | Phase A.1 | **Shipped** |
+| P1.7 Audit on sync | `ElioPlans/src/lib/audit.ts` | `elio/apps/plans` sync + cron routes | **Shipped** |
 | P1.8 gc-sync cron | `ElioPlans/src/app/api/cron/gc-sync/route.ts`, `src/lib/gocardless.ts` | `elio/apps/plans/app/api/cron/gc-sync/route.ts` (to create) | |
-| P1.9 Reassign plans | `ElioPlans/src/app/api/dentally/reassign-plans/route.ts` | `elio/apps/plans/app/api/dentally/reassign-plans/route.ts` (to create) | |
+| P1.9 Reassign plans | `ElioPlans/src/app/api/dentally/reassign-plans/route.ts` | `elio/apps/plans/app/api/dentally/reassign-plans/route.ts` | **Shipped** |
 | P2.1 Mappings page | `ElioPlans/src/app/(dashboard)/dashboard/dentally/page.tsx` | `elio/apps/plans/app/dentally/page.tsx` (to create) | Add to nav |
 | P2.2 Sync button | `ElioPlans/.../patients/page.tsx` (toolbar) | `elio/apps/plans/app/patients/` | Toast with counts |
 | P2.3 Patient detail page | `ElioPlans/.../patients/[id]/page.tsx` | `elio/apps/plans/app/patients/[id]/page.tsx` (to create) | **Critical** |

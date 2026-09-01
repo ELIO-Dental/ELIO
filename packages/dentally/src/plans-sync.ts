@@ -12,7 +12,9 @@ import { findExistingPatient, normalizeEmail } from "./patient-matching";
 import { dedupePatientsByDentallyId, matchPaymentPlanIds } from "./plans-sync-helpers";
 import type { SyncPatientShape } from "./plans-sync-helpers";
 import { PlansDentallySyncConfigError } from "./plans-sync-errors";
-import type { DentallyPatientRaw, DentallyPaymentPlanRaw } from "./types";
+import { fetchLiveDentallyPaymentPlansWithClient } from "./plans-payment-plans";
+import { fetchDentallyPatientWithClient } from "./plans-patient-search-client";
+import type { DentallyPatientRaw } from "./types";
 
 export { matchPaymentPlanIds, dedupePatientsByDentallyId } from "./plans-sync-helpers";
 export { PlansDentallySyncConfigError } from "./plans-sync-errors";
@@ -35,11 +37,6 @@ type PlanMapping = {
   planModelId: string;
 };
 
-type PaymentPlanRef = {
-  id: number;
-  name: string;
-};
-
 function mapSyncPatient(raw: DentallyPatientRaw): SyncPatient {
   return {
     dentallyId: String(raw.id),
@@ -51,21 +48,6 @@ function mapSyncPatient(raw: DentallyPatientRaw): SyncPatient {
     paymentPlanId: raw.payment_plan_id != null ? Number(raw.payment_plan_id) : null,
     dateOfBirth: raw.date_of_birth ? new Date(raw.date_of_birth) : null,
   };
-}
-
-async function fetchLivePaymentPlans(client: DentallyClient): Promise<PaymentPlanRef[]> {
-  const plans: PaymentPlanRef[] = [];
-  await client.paginate<DentallyPaymentPlanRaw>(
-    "/payment_plans",
-    "payment_plans",
-    {},
-    (page) => {
-      for (const raw of page) {
-        plans.push({ id: Number(raw.id), name: String(raw.name || "") });
-      }
-    },
-  );
-  return plans;
 }
 
 async function fetchPatientsByPlanId(client: DentallyClient, paymentPlanId: number): Promise<SyncPatient[]> {
@@ -189,7 +171,7 @@ export async function runPlansDentallySync(practiceId: string): Promise<PlansDen
     );
   }
 
-  const dentallyPaymentPlans = await fetchLivePaymentPlans(client);
+  const dentallyPaymentPlans = await fetchLiveDentallyPaymentPlansWithClient(client);
   const dentallyPlanIdToName = new Map<number, string>();
   for (const dp of dentallyPaymentPlans) {
     dentallyPlanIdToName.set(dp.id, dp.name);
@@ -375,4 +357,96 @@ export async function runPlansDentallySync(practiceId: string): Promise<PlansDen
     errors,
     noEmailPatients,
   };
+}
+
+export type PlansDentallyReassignResult = {
+  total: number;
+  assigned: number;
+  corrected: number;
+  skipped: number;
+  details: string[];
+};
+
+/**
+ * For every patient linked to Dentally, fetch their current payment plan and
+ * ensure the correct ELIO plan mapping is applied (P1.9). Uses mandate-aware
+ * enrolment sync — never marks ACTIVE without a live mandate.
+ */
+export async function runPlansDentallyReassign(practiceId: string): Promise<PlansDentallyReassignResult> {
+  const db = scopedDb(practiceId);
+  const client = await getDentallyClientForPractice(practiceId);
+
+  const planMappings = await db.dentallyPlanMapping.findMany({
+    select: { dentallyPlanName: true, planModelId: true },
+  });
+  if (planMappings.length === 0) {
+    throw new PlansDentallySyncConfigError(
+      "No plan mappings configured. Map your Dentally payment plans to ELIO plans before reassigning.",
+    );
+  }
+
+  const dentallyPaymentPlans = await fetchLiveDentallyPaymentPlansWithClient(client);
+  const planIdToName = new Map(dentallyPaymentPlans.map((p) => [p.id, p.name]));
+
+  const linkedPatients = await db.patient.findMany({
+    select: { id: true, firstName: true, lastName: true, dentallyId: true },
+  });
+
+  let assigned = 0;
+  let corrected = 0;
+  let skipped = 0;
+  const details: string[] = [];
+
+  for (const patient of linkedPatients) {
+    const label = [patient.firstName, patient.lastName].filter(Boolean).join(" ") || patient.dentallyId;
+    try {
+      const live = await fetchDentallyPatientWithClient(client, patient.dentallyId);
+      if (!live?.paymentPlanId) {
+        details.push(`${label}: no payment plan in Dentally`);
+        skipped++;
+        continue;
+      }
+
+      const planName = planIdToName.get(live.paymentPlanId);
+      if (!planName) {
+        details.push(`${label}: unknown Dentally plan ID ${live.paymentPlanId}`);
+        skipped++;
+        continue;
+      }
+
+      const mapping = planMappings.find((m) => m.dentallyPlanName.toLowerCase() === planName.toLowerCase());
+      if (!mapping) {
+        details.push(`${label}: no mapping for "${planName}"`);
+        skipped++;
+        continue;
+      }
+
+      const hadLiveEnrolment = await db.patientPlanEnrolment.findFirst({
+        where: {
+          planPatient: { patientId: patient.id },
+          status: { in: ["PENDING", "ACTIVE", "PAUSED"] },
+        },
+      });
+
+      const changed = await syncEnrolmentForPatient(practiceId, patient.id, mapping);
+      if (!changed) {
+        skipped++;
+        continue;
+      }
+
+      if (!hadLiveEnrolment) {
+        details.push(`${label}: assigned to ${planName}`);
+        assigned++;
+      } else {
+        details.push(`${label}: corrected to ${planName}`);
+        corrected++;
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      details.push(`${label}: error - ${message}`);
+      skipped++;
+    }
+  }
+
+  return { total: linkedPatients.length, assigned, corrected, skipped, details };
 }

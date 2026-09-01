@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@elio/auth";
+import { auth, writeAuditLog } from "@elio/auth";
 import { prisma } from "@elio/db";
 import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
+import { resolvePracticeAuditActor } from "@/lib/resolve-practice-audit-actor";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,27 @@ export async function GET(request: NextRequest) {
     practices.map(async (practice) => {
       try {
         const result = await runPlansDentallySync(practice.id);
+
+        const actor = await resolvePracticeAuditActor(practice.id);
+        if (actor) {
+          await writeAuditLog({
+            ...actor,
+            practiceId: practice.id,
+            action: "plans.dentally.sync",
+            targetType: "Practice",
+            targetId: practice.id,
+            metadata: {
+              trigger: "cron",
+              imported: result.imported,
+              updated: result.updated,
+              skipped: result.skipped,
+              errors: result.errors.length,
+              errorMessages: result.errors,
+              syncedPlanIds: result.syncedPlanIds,
+            },
+          });
+        }
+
         return { practiceId: practice.id, ...result };
       } catch (error) {
         if (error instanceof PlansDentallySyncConfigError) {
