@@ -35,6 +35,17 @@ export {
 export type { CosmeticConsultImportResult } from "./src/flow-consult-import";
 
 export { fetchLivePatientPanel } from "./src/live-patient";
+
+export {
+  runPlansDentallySync,
+  PlansDentallySyncConfigError,
+  matchPaymentPlanIds,
+  dedupePatientsByDentallyId,
+} from "./src/plans-sync";
+export type { PlansDentallySyncResult } from "./src/plans-sync";
+
+export { normalizeEmail, emailsMatch, findExistingPatient } from "./src/patient-matching";
+export type { MatchableExisting, MatchCandidate, MatchResult } from "./src/patient-matching";
 export type {
   LivePatientPanel,
   LivePatientAppointment,
