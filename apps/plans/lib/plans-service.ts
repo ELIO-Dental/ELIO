@@ -983,4 +983,139 @@ export async function syncPendingMandatesForPractice(practiceId: string): Promis
   return results;
 }
 
+// ---------------------------------------------------------------------------
+// Patient detail (P2.3 / P2.3a)
+// ---------------------------------------------------------------------------
+
+const PLAN_PATIENT_DETAIL_INCLUDE = {
+  patient: true,
+  planModel: { select: { id: true, name: true, monthlyPricePence: true, requiresAdultMembership: true } },
+  mandates: { orderBy: { createdAt: "desc" as const } },
+  payments: { orderBy: { createdAt: "desc" as const }, take: 100 },
+  redeems: { orderBy: { createdAt: "desc" as const }, take: 50 },
+  patientPlans: { orderBy: { createdAt: "desc" as const }, include: { plan: { select: { id: true, name: true } } } },
+  signingRequests: {
+    orderBy: { createdAt: "desc" as const },
+    include: { document: { select: { id: true, title: true, type: true, version: true } } },
+    take: 20,
+  },
+  documentAcceptances: {
+    orderBy: { acceptedAt: "desc" as const },
+    include: { document: { select: { id: true, title: true, type: true, version: true } } },
+    take: 20,
+  },
+} as const;
+
+export async function getPlanPatientDetail(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  return db.planPatient.findFirst({
+    where: { id: planPatientId },
+    include: PLAN_PATIENT_DETAIL_INCLUDE,
+  });
+}
+
+export async function pausePlanPatient(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.update({
+    where: { id: planPatientId },
+    data: { status: "PAUSED" },
+  });
+  await db.patientPlanEnrolment.updateMany({
+    where: { planPatientId, status: "ACTIVE" },
+    data: { status: "PAUSED" },
+  });
+  return planPatient;
+}
+
+export async function cancelPlanPatient(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.update({
+    where: { id: planPatientId },
+    data: { status: "CANCELLED" },
+  });
+  await db.patientPlanEnrolment.updateMany({
+    where: { planPatientId, status: { in: ["PENDING", "ACTIVE", "PAUSED"] } },
+    data: { status: "CANCELLED", endDate: new Date() },
+  });
+  return planPatient;
+}
+
+/** Create a fresh signup invite link for an existing plan patient (P2.3a). */
+export async function resendPatientSignupInvite(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { planModel: true },
+  });
+  if (!planPatient) throw new Error("Plan patient not found");
+
+  const document = await db.planDocument.findFirst({
+    where: { type: "TERMS_AND_CONDITIONS", isActive: true },
+    orderBy: { effectiveDate: "desc" },
+  });
+  if (!document) {
+    throw new Error("No active Terms & Conditions document — add one in Settings before inviting a patient");
+  }
+
+  const signingRequest = await db.planSigningRequest.create({
+    data: {
+      practiceId,
+      planPatientId,
+      documentId: document.id,
+      token: randomUUID(),
+      expiresAt: new Date(Date.now() + SIGNUP_TOKEN_MAX_AGE_MS),
+    },
+  });
+
+  return { signupUrl: `/plans/signup/${signingRequest.token}`, token: signingRequest.token };
+}
+
+/** Poll GoCardless for mandate status on one plan patient (P2.3a). */
+export async function checkPlanPatientGoCardless(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const mandates = await db.planMandate.findMany({
+    where: { planPatientId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const results: Array<{ mandateId: string; gocardlessMandateId: string; previousStatus: string; newStatus: string; action: string }> = [];
+
+  for (const mandate of mandates) {
+    const gcMandate = await getMandate(mandate.gocardlessMandateId);
+    const outcome = classifyGcMandatePollStatus(gcMandate?.status as string | undefined);
+    let newStatus = mandate.status;
+    let action = "unchanged";
+
+    if (outcome === "activate") {
+      await db.planMandate.update({ where: { id: mandate.id }, data: { status: "ACTIVE" } });
+      await activatePlanMembershipAfterMandate(practiceId, planPatientId);
+      newStatus = "ACTIVE";
+      action = "activated";
+    } else if (outcome === "fail") {
+      await db.planMandate.update({ where: { id: mandate.id }, data: { status: "FAILED" } });
+      await db.planPatient.update({ where: { id: planPatientId }, data: { status: "PAUSED" } });
+      newStatus = "FAILED";
+      action = "failed";
+    } else if (outcome === "cancel") {
+      const gcStatus = gcMandate?.status as string;
+      newStatus = gcStatus === "cancelled" ? "CANCELLED" : "EXPIRED";
+      await db.planMandate.update({ where: { id: mandate.id }, data: { status: newStatus as "CANCELLED" | "EXPIRED" } });
+      if (gcStatus === "cancelled") {
+        await db.planPatient.update({ where: { id: planPatientId }, data: { status: "CANCELLED" } });
+      }
+      action = "cancelled";
+    }
+
+    results.push({
+      mandateId: mandate.id,
+      gocardlessMandateId: mandate.gocardlessMandateId,
+      previousStatus: mandate.status,
+      newStatus,
+      action,
+    });
+  }
+
+  return { checked: mandates.length, results };
+}
+
 export { getMandate, getCustomer };

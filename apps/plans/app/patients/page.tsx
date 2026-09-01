@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { can, requireLicensedSession } from "@/lib/session";
 import { prisma, type Role } from "@elio/db";
 import {
@@ -130,7 +131,14 @@ export default async function PatientsPage({
                   const planName = pp.patientPlans[0]?.plan.name ?? pp.planModel?.name ?? "—";
                   return (
                     <TableRow key={pp.id}>
-                      <TableCell>{name}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/patients/${pp.id}`}
+                          className="font-medium text-(--color-primary-fg) hover:underline"
+                        >
+                          {name}
+                        </Link>
+                      </TableCell>
                       <TableCell>{pp.patient.email ?? "—"}</TableCell>
                       <TableCell>{planName}</TableCell>
                       <TableCell>
