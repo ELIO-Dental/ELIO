@@ -1148,9 +1148,9 @@ Items that block parity and are **not** just missing UI:
 | 31 | `POST /api/patients/[id]/check-gc` | `POST /plans/api/patients/[id]/check-gc` | ✅ |
 | 32 | `GET /api/patients/[id]/appointments` | `GET /plans/api/patients/[id]/appointments` | ✅ |
 | 33 | `POST /api/patients/[id]/cancel` | `POST /plans/api/patients/[id]/cancel` | ✅ |
-| 34 | `POST /api/guides/seed` | None | 🟡 |
-| 35 | `GET/PUT/DELETE /api/guides/[id]` | None | ❌ |
-| 36 | `GET/POST /api/guides` | None | ❌ |
+| 34 | `POST /api/guides/seed` | `POST /plans/api/guides/seed` | ✅ |
+| 35 | `GET/PUT/DELETE /api/guides/[id]` | `/plans/api/guides/[id]` | ✅ |
+| 36 | `GET/POST /api/guides` | `/plans/api/guides` | ✅ |
 | 37 | `GET/POST /api/documents` | `GET/POST /plans/api/documents` + `PUT /[id]` | ✅ |
 | 38 | `POST /api/dentally/sync` | `POST /plans/api/dentally/sync` | ✅ |
 | 39 | `POST /api/dentally/reassign-plans` | `POST /plans/api/dentally/reassign-plans` | ✅ |
@@ -1442,7 +1442,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `api/plans/[id]/price-increase` + versioned plan | **Shipped** |
 | P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `documents-manager.tsx` + APIs | **Shipped** |
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `settings-manager.tsx` + `plan_practice_settings` | **Shipped** |
-| P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `elio/apps/plans/app/guide/` (to create) | Optional |
+| P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `guide-manager.tsx` + APIs + nav | **Shipped** |
 | P4.6 Redeem create | `ElioPlans/src/app/api/redeems/route.ts`, `.../redeems/page.tsx` | `elio/apps/plans/app/redeems/` + API POST | From Dentally appt |
 | P4.7 Branding upload | `ElioPlans/src/app/api/branding/route.ts`, `api/upload/route.ts`, `src/lib/branding-context.tsx` | Plans settings + blob storage | |
 | P5.x Verification | Legacy DB export | Staging compare | Patient counts after sync |
