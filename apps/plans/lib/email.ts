@@ -38,3 +38,39 @@ export async function sendSignupCompleteEmail(input: {
     console.log(`[plans] signup confirmation email sent to ${input.to}, id=${result.data?.id}`);
   }
 }
+
+export async function sendPatientInviteEmail(input: {
+  to: string;
+  patientFirstName: string;
+  practiceName: string;
+  planName: string;
+  signupUrl: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
+  const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+  const fullUrl = input.signupUrl.startsWith("http") ? input.signupUrl : `${appOrigin}${input.signupUrl}`;
+
+  if (!input.to) return;
+
+  if (!apiKey) {
+    console.warn(`[plans] RESEND_API_KEY not set — invite for ${input.to} not sent (${fullUrl})`);
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `Join ${input.practiceName} — ${input.planName}`,
+    html: `<p>Hi ${input.patientFirstName},</p>
+<p>You're invited to join the <strong>${input.planName}</strong> membership plan at ${input.practiceName}.</p>
+<p><a href="${fullUrl}">Complete your signup and set up Direct Debit</a></p>
+<p>If you have any questions, contact the practice.</p>`,
+  });
+  if (result.error) {
+    console.error(`[plans] invite email to ${input.to} failed:`, result.error);
+  } else {
+    console.log(`[plans] invite email sent to ${input.to}, id=${result.data?.id}`);
+  }
+}

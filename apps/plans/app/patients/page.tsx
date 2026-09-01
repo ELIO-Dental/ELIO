@@ -20,6 +20,7 @@ import {
 import { FilterBar } from "@/components/filter-bar";
 import { EnrolPatientForm } from "./enrol-patient-form";
 import { PatientsDentallyTools } from "./patients-dentally-tools";
+import { PatientsExportButton } from "./patients-export-button";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   INVITED: "neutral",
@@ -81,7 +82,11 @@ export default async function PatientsPage({
 
   return (
     <PageContent>
-      <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
+      <PageHeader
+        title="Patients"
+        description="Patients enrolled on a membership plan."
+        actions={<PatientsExportButton />}
+      />
 
       {canInvite && (
         <div className="mt-8">

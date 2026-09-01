@@ -12,8 +12,14 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const detail = await getPlanPatientDetail(session.practiceId, id);
   if (!detail) notFound();
 
-  const canManage = can({ role: session.role as Role }, "plans:invite-patients");
+  const canInvite = can({ role: session.role as Role }, "plans:invite-patients");
+  const canEdit = can({ role: session.role as Role }, "plans:edit");
   const name = [detail.patient.firstName, detail.patient.lastName].filter(Boolean).join(" ") || "Patient";
+  const hasActiveMandate = detail.mandates.some((m) => m.status === "ACTIVE");
+  const pendingDd =
+    detail.status === "ACTIVE" &&
+    !hasActiveMandate &&
+    (detail.planModel?.monthlyPricePence ?? 0) > 0;
 
   const serialized = {
     id: detail.id,
@@ -65,7 +71,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     <PageContent>
       <PageHeader title={name} description="Membership patient detail" />
       <div className="mt-8">
-        <PatientDetailClient detail={serialized} canManage={canManage} />
+        <PatientDetailClient detail={serialized} canInvite={canInvite} canEdit={canEdit} pendingDd={pendingDd} />
       </div>
     </PageContent>
   );

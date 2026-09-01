@@ -84,3 +84,29 @@ export async function requirePermission(action: string): Promise<PlansSession> {
     actualUserId: session.actualUserId,
   };
 }
+
+/** View payment/appointment data — full or readonly (STAFF/AUDITOR). */
+export async function requireViewPayments(): Promise<PlansSession> {
+  const session = await requireSession();
+  if (!session) throw new UnauthorizedError("Not signed in");
+  if (!(await isModuleLicensed(session.practiceId, "PLANS"))) {
+    throw new UnlicensedError("ElioPlans is not licensed for this practice");
+  }
+  const subject: PermissionSubject = { role: session.role as Role };
+  if (!can(subject, "plans:view-payments") && !can(subject, "plans:view-payments:readonly")) {
+    throw new ForbiddenError("Missing permission: plans:view-payments");
+  }
+  return {
+    userId: session.userId,
+    practiceId: session.practiceId,
+    role: session.role as Role,
+    permissions: session.permissions ?? [],
+    impersonating: session.impersonating,
+    actualUserId: session.actualUserId,
+  };
+}
+
+/** Destructive patient membership edits (pause/cancel/GC link) — OWNER/ADMIN only. */
+export async function requirePlansEdit(): Promise<PlansSession> {
+  return requirePermission("plans:edit");
+}

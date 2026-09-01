@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { scopedDb, prisma, Prisma } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
-import { sendSignupCompleteEmail } from "./email";
+import { sendSignupCompleteEmail, sendPatientInviteEmail } from "./email";
 import {
   idempotentCreate,
   billingPeriodFromDate,
@@ -23,6 +23,9 @@ import {
   getPayment,
   getBillingRequest,
   listPaymentsByChargeDate,
+  listCustomersByEmail,
+  listMandatesForCustomer,
+  cancelMandate,
   mapMandateStatus,
   mapPaymentStatus,
   verifyWebhookSignature,
@@ -1014,8 +1017,12 @@ export async function getPlanPatientDetail(practiceId: string, planPatientId: st
   });
 }
 
-export async function pausePlanPatient(practiceId: string, planPatientId: string) {
+export async function pausePlanPatient(practiceId: string, planPatientId: string, reason?: string) {
   const db = scopedDb(practiceId);
+  const existing = await db.planPatient.findUnique({ where: { id: planPatientId } });
+  if (!existing) throw new Error("Plan patient not found");
+  if (existing.status === "CANCELLED") throw new Error("Cannot pause a cancelled membership");
+
   const planPatient = await db.planPatient.update({
     where: { id: planPatientId },
     data: { status: "PAUSED" },
@@ -1024,11 +1031,52 @@ export async function pausePlanPatient(practiceId: string, planPatientId: string
     where: { planPatientId, status: "ACTIVE" },
     data: { status: "PAUSED" },
   });
+  return { planPatient, reason: reason ?? null };
+}
+
+export async function resumePlanPatient(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const existing = await db.planPatient.findUnique({ where: { id: planPatientId } });
+  if (!existing) throw new Error("Plan patient not found");
+  if (existing.status !== "PAUSED") throw new Error("Only paused memberships can be resumed");
+
+  const planPatient = await db.planPatient.update({
+    where: { id: planPatientId },
+    data: { status: "ACTIVE" },
+  });
+  await db.patientPlanEnrolment.updateMany({
+    where: { planPatientId, status: "PAUSED" },
+    data: { status: "ACTIVE" },
+  });
   return planPatient;
 }
 
-export async function cancelPlanPatient(practiceId: string, planPatientId: string) {
+export async function cancelPlanPatient(
+  practiceId: string,
+  planPatientId: string,
+  options?: { cancelDirectDebit?: boolean; reason?: string },
+) {
   const db = scopedDb(practiceId);
+  const existing = await db.planPatient.findUnique({ where: { id: planPatientId } });
+  if (!existing) throw new Error("Plan patient not found");
+  if (existing.status === "CANCELLED") throw new Error("Membership is already cancelled");
+
+  const gcErrors: string[] = [];
+  if (options?.cancelDirectDebit) {
+    const mandates = await db.planMandate.findMany({
+      where: { planPatientId, status: { in: ["ACTIVE", "PENDING"] } },
+    });
+    for (const mandate of mandates) {
+      try {
+        await cancelMandate(mandate.gocardlessMandateId);
+        await db.planMandate.update({ where: { id: mandate.id }, data: { status: "CANCELLED" } });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        gcErrors.push(`Mandate ${mandate.gocardlessMandateId}: ${message}`);
+      }
+    }
+  }
+
   const planPatient = await db.planPatient.update({
     where: { id: planPatientId },
     data: { status: "CANCELLED" },
@@ -1037,17 +1085,26 @@ export async function cancelPlanPatient(practiceId: string, planPatientId: strin
     where: { planPatientId, status: { in: ["PENDING", "ACTIVE", "PAUSED"] } },
     data: { status: "CANCELLED", endDate: new Date() },
   });
-  return planPatient;
+  return { planPatient, gcErrors, reason: options?.reason ?? null };
 }
 
 /** Create a fresh signup invite link for an existing plan patient (P2.3a). */
-export async function resendPatientSignupInvite(practiceId: string, planPatientId: string) {
+export async function resendPatientSignupInvite(
+  practiceId: string,
+  planPatientId: string,
+  options?: { sendEmail?: boolean },
+) {
   const db = scopedDb(practiceId);
   const planPatient = await db.planPatient.findUnique({
     where: { id: planPatientId },
-    include: { planModel: true },
+    include: { planModel: true, patient: true, mandates: true },
   });
   if (!planPatient) throw new Error("Plan patient not found");
+
+  const hasActiveMandate = planPatient.mandates.some((m) => m.status === "ACTIVE");
+  if (planPatient.status === "ACTIVE" && hasActiveMandate) {
+    throw new Error("Patient is already active with a Direct Debit mandate");
+  }
 
   const document = await db.planDocument.findFirst({
     where: { type: "TERMS_AND_CONDITIONS", isActive: true },
@@ -1067,16 +1124,115 @@ export async function resendPatientSignupInvite(practiceId: string, planPatientI
     },
   });
 
-  return { signupUrl: `/plans/signup/${signingRequest.token}`, token: signingRequest.token };
+  const signupUrl = `/plans/signup/${signingRequest.token}`;
+  if (options?.sendEmail && planPatient.patient.email) {
+    const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
+    await sendPatientInviteEmail({
+      to: planPatient.patient.email,
+      patientFirstName: planPatient.patient.firstName ?? "there",
+      practiceName: practice?.name ?? "your practice",
+      planName: planPatient.planModel?.name ?? "membership plan",
+      signupUrl,
+    });
+  }
+
+  return { signupUrl, token: signingRequest.token, emailed: Boolean(options?.sendEmail && planPatient.patient.email) };
+}
+
+/** Search GoCardless by patient email and link any active mandates (legacy check-gc). */
+export async function discoverAndLinkGoCardlessMandate(practiceId: string, planPatientId: string) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { patient: true, planModel: true },
+  });
+  if (!planPatient) throw new Error("Plan patient not found");
+
+  const email = planPatient.patient.email?.trim().toLowerCase();
+  if (!email) throw new Error("Patient has no email — cannot search GoCardless");
+
+  const customers = await listCustomersByEmail(email);
+  let linked = 0;
+  const errors: string[] = [];
+
+  for (const customer of customers) {
+    const gcMandates = await listMandatesForCustomer(String(customer.id));
+    for (const gcMandate of gcMandates) {
+      const status = String(gcMandate.status ?? "");
+      if (!["active", "pending_submission", "submitted"].includes(status)) continue;
+
+      const gocardlessMandateId = String(gcMandate.id);
+      const existing = await db.planMandate.findUnique({ where: { gocardlessMandateId } });
+      if (existing && existing.planPatientId !== planPatientId) {
+        errors.push(`Mandate ${gocardlessMandateId} is already linked to another patient`);
+        continue;
+      }
+
+      await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
+      linked++;
+
+      if (status === "active") {
+        await activatePlanMembershipAfterMandate(practiceId, planPatientId);
+        if (planPatient.planModel && planPatient.planModel.monthlyPricePence > 0) {
+          try {
+            await ensureSubscription(
+              gocardlessMandateId,
+              planPatient.planModel.monthlyPricePence,
+              planPatient.planModel.name,
+            );
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            errors.push(`Subscription for ${gocardlessMandateId}: ${message}`);
+          }
+        }
+      }
+    }
+  }
+
+  return { linked, customersSearched: customers.length, errors };
+}
+
+/** Link a GoCardless mandate ID manually (legacy link-mandate). */
+export async function linkPlanPatientMandate(practiceId: string, planPatientId: string, gocardlessMandateId: string) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { planModel: true },
+  });
+  if (!planPatient) throw new Error("Plan patient not found");
+
+  const existing = await db.planMandate.findUnique({ where: { gocardlessMandateId } });
+  if (existing && existing.planPatientId !== planPatientId) {
+    throw new Error("This mandate is already linked to another patient");
+  }
+
+  const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
+  const gcMandate = await getMandate(gocardlessMandateId);
+  if (gcMandate?.status === "active") {
+    await activatePlanMembershipAfterMandate(practiceId, planPatientId);
+    if (planPatient.planModel && planPatient.planModel.monthlyPricePence > 0) {
+      await ensureSubscription(gocardlessMandateId, planPatient.planModel.monthlyPricePence, planPatient.planModel.name);
+    }
+  }
+  return mandate;
 }
 
 /** Poll GoCardless for mandate status on one plan patient (P2.3a). */
 export async function checkPlanPatientGoCardless(practiceId: string, planPatientId: string) {
   const db = scopedDb(practiceId);
-  const mandates = await db.planMandate.findMany({
+  let mandates = await db.planMandate.findMany({
     where: { planPatientId },
     orderBy: { createdAt: "desc" },
   });
+
+  let discovery: Awaited<ReturnType<typeof discoverAndLinkGoCardlessMandate>> | null = null;
+  if (mandates.length === 0) {
+    discovery = await discoverAndLinkGoCardlessMandate(practiceId, planPatientId);
+    mandates = await db.planMandate.findMany({
+      where: { planPatientId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
 
   const results: Array<{ mandateId: string; gocardlessMandateId: string; previousStatus: string; newStatus: string; action: string }> = [];
 
@@ -1115,7 +1271,7 @@ export async function checkPlanPatientGoCardless(practiceId: string, planPatient
     });
   }
 
-  return { checked: mandates.length, results };
+  return { checked: mandates.length, results, discovery };
 }
 
 export { getMandate, getCustomer };

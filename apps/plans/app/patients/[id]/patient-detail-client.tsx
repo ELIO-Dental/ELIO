@@ -10,7 +10,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
+  Input,
+  Label,
   Table,
   TableBody,
   TableCell,
@@ -90,29 +98,40 @@ function formatWhen(iso: string | null) {
 
 export function PatientDetailClient({
   detail,
-  canManage,
+  canInvite,
+  canEdit,
+  pendingDd,
 }: {
   detail: PlanPatientDetail;
-  canManage: boolean;
+  canInvite: boolean;
+  canEdit: boolean;
+  pendingDd: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = React.useState<TabId>("Overview");
   const [loading, setLoading] = React.useState(false);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [cancelDd, setCancelDd] = React.useState(true);
+  const [linkOpen, setLinkOpen] = React.useState(false);
+  const [mandateIdInput, setMandateIdInput] = React.useState("");
   const [appointments, setAppointments] = React.useState<Array<{
     id: string;
     startsAt: string | null;
     reason: string | null;
     state: string | null;
+    durationMinutes?: number | null;
   }> | null>(null);
   const [paymentTrail, setPaymentTrail] = React.useState<{
-    goCardlessPayments: Array<{
+    trail: Array<{
       id: string;
-      paidAt: string;
+      source: "gocardless" | "dentally";
+      paidAt: string | null;
       amountPence: number;
-      status: string;
-      billingPeriod: string | null;
+      status?: string;
+      billingPeriod?: string | null;
+      method?: string | null;
+      description?: string;
     }>;
-    dentallyPayments: Array<{ id: string; paidAt: string | null; amountPence: number; method: string | null }>;
     dentallyConfigured: boolean;
   } | null>(null);
 
@@ -120,20 +139,76 @@ export function PatientDetailClient({
     [detail.patient.firstName, detail.patient.lastName].filter(Boolean).join(" ") || "Unknown patient";
   const activeMandate = detail.mandates.find((m) => m.status === "ACTIVE") ?? detail.mandates[0];
 
-  async function runAction(path: string, successMessage: string) {
+  async function runAction(path: string, successMessage: string, body?: Record<string, unknown>) {
     setLoading(true);
     try {
-      const res = await fetch(`/plans/api/patients/${detail.id}/${path}`, { method: "POST" });
+      const res = await fetch(`/plans/api/patients/${detail.id}/${path}`, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error ?? "Action failed");
         return;
       }
       if (path === "invite" && data.signupUrl) {
-        toast.success(successMessage, { description: data.signupUrl, duration: 10000 });
+        toast.success(data.emailed ? "Invite emailed to patient" : successMessage, {
+          description: data.signupUrl,
+          duration: 10000,
+        });
+      } else if (path === "check-gc" && data.discovery) {
+        const linked = data.discovery.linked ?? 0;
+        toast.success(linked > 0 ? `Linked ${linked} mandate(s) from GoCardless` : "GoCardless checked", {
+          description: data.discovery.errors?.length ? data.discovery.errors.join("; ") : undefined,
+          duration: 8000,
+        });
+      } else if (path === "cancel" && data.gcErrors?.length) {
+        toast.warning("Membership cancelled with GoCardless warnings", {
+          description: data.gcErrors.join("; "),
+          duration: 8000,
+        });
       } else {
         toast.success(successMessage);
       }
+      router.refresh();
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetupDd() {
+    const origin = window.location.origin;
+    const data = await runAction("setup-dd", "Direct Debit setup started", {
+      redirectUri: `${origin}/plans/patients/${detail.id}`,
+      exitUri: `${origin}/plans/patients/${detail.id}`,
+      email: detail.patient.email ?? "",
+      givenName: detail.patient.firstName ?? "",
+      familyName: detail.patient.lastName ?? "",
+    });
+    if (data?.authorisationUrl) {
+      window.open(data.authorisationUrl as string, "_blank", "noopener,noreferrer");
+    }
+  }
+
+  async function handleLinkMandate() {
+    if (!mandateIdInput.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/plans/api/patients/${detail.id}/link-mandate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gocardlessMandateId: mandateIdInput.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to link mandate");
+        return;
+      }
+      toast.success("Mandate linked");
+      setLinkOpen(false);
+      setMandateIdInput("");
       router.refresh();
     } finally {
       setLoading(false);
@@ -152,14 +227,11 @@ export function PatientDetailClient({
         .then((r) => r.json())
         .then((data) =>
           setPaymentTrail({
-            goCardlessPayments: data.goCardlessPayments ?? [],
-            dentallyPayments: data.dentallyPayments ?? [],
+            trail: data.trail ?? [],
             dentallyConfigured: data.dentallyConfigured !== false,
           }),
         )
-        .catch(() =>
-          setPaymentTrail({ goCardlessPayments: [], dentallyPayments: [], dentallyConfigured: false }),
-        );
+        .catch(() => setPaymentTrail({ trail: [], dentallyConfigured: false }));
     }
   }, [tab, detail.id, appointments, paymentTrail]);
 
@@ -173,33 +245,117 @@ export function PatientDetailClient({
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h2 className="text-h2 text-(--color-text-primary)">{name}</h2>
             <Badge variant={STATUS_VARIANT[detail.status] ?? "neutral"}>{detail.status}</Badge>
+            {pendingDd && <Badge variant="warning">PENDING DD</Badge>}
           </div>
           <p className="mt-1 text-body-sm text-(--color-text-secondary)">
             {detail.patient.email ?? "No email"} · Dentally ID {detail.patient.dentallyId}
           </p>
         </div>
 
-        {canManage && (
+        {(canInvite || canEdit) && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" loading={loading} onClick={() => runAction("invite", "Invite link created")}>
-              Send invite
-            </Button>
-            <Button variant="secondary" size="sm" loading={loading} onClick={() => runAction("check-gc", "GoCardless checked")}>
-              Check GC
-            </Button>
-            {detail.status !== "PAUSED" && detail.status !== "CANCELLED" && (
-              <Button variant="secondary" size="sm" loading={loading} onClick={() => runAction("pause", "Membership paused")}>
-                Pause
+            {canInvite && (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={loading}
+                onClick={() => runAction("invite", "Invite link created", { sendEmail: true })}
+              >
+                Send invite
               </Button>
             )}
-            {detail.status !== "CANCELLED" && (
-              <Button variant="destructive" size="sm" loading={loading} onClick={() => runAction("cancel", "Membership cancelled")}>
-                Cancel
-              </Button>
+            {canEdit && (
+              <>
+                <Button variant="secondary" size="sm" loading={loading} onClick={() => void handleSetupDd()}>
+                  Setup DD
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setLinkOpen(true)}>
+                  Link mandate
+                </Button>
+                <Button variant="secondary" size="sm" loading={loading} onClick={() => runAction("check-gc", "GoCardless checked")}>
+                  Check GC
+                </Button>
+                {detail.status === "PAUSED" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={loading}
+                    onClick={() => runAction("pause", "Membership resumed", { action: "resume" })}
+                  >
+                    Resume
+                  </Button>
+                )}
+                {detail.status !== "PAUSED" && detail.status !== "CANCELLED" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={loading}
+                    onClick={() => runAction("pause", "Membership paused", { action: "pause" })}
+                  >
+                    Pause
+                  </Button>
+                )}
+                {detail.status !== "CANCELLED" && (
+                  <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}>
+                    Cancel
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel membership</DialogTitle>
+            <DialogDescription>
+              This will mark the patient as cancelled in ELIO. You can optionally cancel their Direct Debit in GoCardless too.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="flex items-center gap-2 text-body-sm">
+            <input type="checkbox" checked={cancelDd} onChange={(e) => setCancelDd(e.target.checked)} />
+            Cancel Direct Debit in GoCardless
+          </label>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setCancelOpen(false)}>
+              Keep membership
+            </Button>
+            <Button
+              variant="destructive"
+              loading={loading}
+              onClick={async () => {
+                await runAction("cancel", "Membership cancelled", { cancelDirectDebit: cancelDd });
+                setCancelOpen(false);
+              }}
+            >
+              Cancel membership
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link GoCardless mandate</DialogTitle>
+            <DialogDescription>Paste the mandate ID from GoCardless (starts with MD).</DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="mandate-id">Mandate ID</Label>
+            <Input id="mandate-id" value={mandateIdInput} onChange={(e) => setMandateIdInput(e.target.value)} placeholder="MD00..." />
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setLinkOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleLinkMandate()} loading={loading} disabled={!mandateIdInput.trim()}>
+              Link mandate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-wrap gap-1.5 border-b border-(--color-border-subtle) pb-3">
         {TABS.map((t) => (
@@ -270,65 +426,35 @@ export function PatientDetailClient({
           <CardContent>
             {paymentTrail === null ? (
               <p className="text-body-sm text-(--color-text-secondary)">Loading payments…</p>
+            ) : paymentTrail.trail.length === 0 ? (
+              <EmptyState title="No payments" description="No GoCardless or Dentally payments found." className="py-8" />
             ) : (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="mb-2 text-body font-medium">GoCardless (membership)</h3>
-                  {paymentTrail.goCardlessPayments.length === 0 ? (
-                    <p className="text-body-sm text-(--color-text-secondary)">No GoCardless payments.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Period</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paymentTrail.goCardlessPayments.map((p) => (
-                          <TableRow key={p.id}>
-                            <TableCell>{formatWhen(p.paidAt)}</TableCell>
-                            <TableCell>{p.billingPeriod ?? "—"}</TableCell>
-                            <TableCell>
-                              <Badge variant={STATUS_VARIANT[p.status] ?? "neutral"}>{p.status}</Badge>
-                            </TableCell>
-                            <TableCellMoney>{formatMoneyGBP(p.amountPence)}</TableCellMoney>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-                <div>
-                  <h3 className="mb-2 text-body font-medium">Dentally</h3>
-                  {!paymentTrail.dentallyConfigured ? (
-                    <p className="text-body-sm text-(--color-text-secondary)">Dentally not configured.</p>
-                  ) : paymentTrail.dentallyPayments.length === 0 ? (
-                    <p className="text-body-sm text-(--color-text-secondary)">No Dentally payments found.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Method</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paymentTrail.dentallyPayments.map((p) => (
-                          <TableRow key={p.id}>
-                            <TableCell>{formatWhen(p.paidAt)}</TableCell>
-                            <TableCell>{p.method ?? "—"}</TableCell>
-                            <TableCellMoney>{formatMoneyGBP(p.amountPence)}</TableCellMoney>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paymentTrail.trail.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{formatWhen(p.paidAt)}</TableCell>
+                      <TableCell>
+                        <Badge variant={p.source === "gocardless" ? "primary" : "neutral"}>{p.source}</Badge>
+                      </TableCell>
+                      <TableCell>{p.description ?? p.method ?? p.billingPeriod ?? "—"}</TableCell>
+                      <TableCell>
+                        {p.status ? <Badge variant={STATUS_VARIANT[p.status] ?? "neutral"}>{p.status}</Badge> : "—"}
+                      </TableCell>
+                      <TableCellMoney>{formatMoneyGBP(p.amountPence)}</TableCellMoney>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -349,6 +475,7 @@ export function PatientDetailClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead>When</TableHead>
+                    <TableHead>Duration</TableHead>
                     <TableHead>Reason</TableHead>
                     <TableHead>State</TableHead>
                   </TableRow>
@@ -357,6 +484,7 @@ export function PatientDetailClient({
                   {appointments.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell>{formatWhen(a.startsAt)}</TableCell>
+                      <TableCell>{a.durationMinutes ? `${a.durationMinutes} min` : "—"}</TableCell>
                       <TableCell>{a.reason ?? "—"}</TableCell>
                       <TableCell>{a.state ?? "—"}</TableCell>
                     </TableRow>

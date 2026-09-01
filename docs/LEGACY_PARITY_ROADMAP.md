@@ -1134,20 +1134,20 @@ Items that block parity and are **not** just missing UI:
 | 17 | `GET/PUT/DELETE /api/plans/[id]` | None | ❌ |
 | 18 | `POST /api/plans/[id]/price-increase` | None | ❌ |
 | 19 | `GET /api/payments` | `/payments` page (DB query) | 🟡 |
-| 20 | `POST /api/patients/[id]/setup-dd` | None | ❌ |
+| 20 | `POST /api/patients/[id]/setup-dd` | `POST /plans/api/patients/[id]/setup-dd` | ✅ |
 | 21 | `GET/POST /api/patients` | `/plans/api/enrolments` + list page | 🟡 |
-| 22 | `POST /api/patients/[id]/send-terms` | None | ❌ |
-| 23 | `POST /api/patients/[id]/send-dd-link` | None | ❌ |
-| 24 | `GET/PUT/DELETE /api/patients/[id]` | **No detail page or API** | ❌ Critical |
-| 25 | `GET /api/patients/[id]/payment-trail` | None | ❌ |
-| 26 | `POST /api/patients/[id]/pause` | None | ❌ |
-| 27 | `GET/POST /api/patients/[id]/notes` | None | ❌ |
-| 28 | `POST /api/patients/[id]/link-mandate` | `/plans/api/mandates` (partial) | 🟡 |
-| 29 | `POST /api/patients/[id]/invite` | Signup invite flow (partial) | 🟡 |
-| 30 | `GET /api/patients/[id]/correspondence` | None | ❌ |
-| 31 | `POST /api/patients/[id]/check-gc` | None | ❌ |
-| 32 | `GET /api/patients/[id]/appointments` | None | ❌ |
-| 33 | `POST /api/patients/[id]/cancel` | None | ❌ |
+| 22 | `POST /api/patients/[id]/send-terms` | `POST /plans/api/patients/[id]/invite` | ✅ |
+| 23 | `POST /api/patients/[id]/send-dd-link` | `POST /plans/api/patients/[id]/invite` (email) | ✅ |
+| 24 | `GET/PUT/DELETE /api/patients/[id]` | `GET /plans/api/patients/[id]` + detail page | 🟡 (no PUT/DELETE) |
+| 25 | `GET /api/patients/[id]/payment-trail` | `GET /plans/api/patients/[id]/payment-trail` | ✅ |
+| 26 | `POST /api/patients/[id]/pause` | `POST /plans/api/patients/[id]/pause` (pause + resume) | ✅ |
+| 27 | `GET/POST /api/patients/[id]/notes` | None | ❌ Deferred (no schema) |
+| 28 | `POST /api/patients/[id]/link-mandate` | `POST /plans/api/patients/[id]/link-mandate` | ✅ |
+| 29 | `POST /api/patients/[id]/invite` | `POST /plans/api/patients/[id]/invite` | ✅ |
+| 30 | `GET /api/patients/[id]/correspondence` | None | ❌ Deferred (no schema) |
+| 31 | `POST /api/patients/[id]/check-gc` | `POST /plans/api/patients/[id]/check-gc` | ✅ |
+| 32 | `GET /api/patients/[id]/appointments` | `GET /plans/api/patients/[id]/appointments` | ✅ |
+| 33 | `POST /api/patients/[id]/cancel` | `POST /plans/api/patients/[id]/cancel` | ✅ |
 | 34 | `POST /api/guides/seed` | None | 🟡 |
 | 35 | `GET/PUT/DELETE /api/guides/[id]` | None | ❌ |
 | 36 | `GET/POST /api/guides` | None | ❌ |
