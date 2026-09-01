@@ -158,6 +158,7 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   await page.getByTestId(`payslip-accordion-toggle-${payslip.id}`).click();
   await expect(page.getByRole("cell", { name: "Final pay" })).toBeVisible();
   await expect(page.getByTestId("payslip-expanded-summary")).toBeVisible();
+  await expect(page.getByTestId("private-patients-table")).toBeVisible();
 
   // 8. Finalize the pay period from the header (Y2.1).
   await page.getByTestId("finalize-period").click();

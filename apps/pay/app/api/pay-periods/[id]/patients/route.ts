@@ -12,6 +12,8 @@ import { errorResponse } from "@/lib/api-error";
 
 function mapLegacyUpdates(updates: Record<string, unknown>): PrivatePatientLineUpdates {
   return {
+    patientName: typeof updates.name === "string" ? updates.name : typeof updates.patientName === "string" ? updates.patientName : undefined,
+    invoiceDate: typeof updates.date === "string" ? updates.date : typeof updates.invoiceDate === "string" ? updates.invoiceDate : undefined,
     paymentStatus: updates.status as PrivatePatientLineUpdates["paymentStatus"],
     isFinance: updates.finance as boolean | undefined,
     financeFeePence: updates.financeFee != null ? Math.round(Number(updates.financeFee) * 100) : undefined,

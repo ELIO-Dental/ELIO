@@ -60,6 +60,8 @@ export async function updatePrivatePatientLine(
   await db.privateRevenueLineItem.update({
     where: { id: lineItemId },
     data: {
+      patientName: updates.patientName ?? line.patientName,
+      invoiceDate: updates.invoiceDate ?? line.invoiceDate,
       amountPence: draft.amountPence,
       amountPaidPence: draft.amountPaidPence,
       amountOutstandingPence: draft.amountOutstandingPence,

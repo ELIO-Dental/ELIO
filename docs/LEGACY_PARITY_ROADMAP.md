@@ -829,7 +829,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y2.2 | **Fetch results banner** | Summary stats after fetch (dismissible) | **Shipped** |
 | Y2.3 | **Per-dentist accordion** | Collapsed: name, split %, NHS badge, net pay | **Shipped** — `payslip-accordion.tsx` + `payslip-entry-body.tsx` |
 | Y2.4 | **Expanded: metrics + analytics cards** | Gross/net private, NHS, deductions, utilization, £/hr | **Shipped** — `payslip-expanded-summary.tsx` + analytics grid in `dentist-fetch-details.tsx` |
-| Y2.5 | **Private patients table** | Columns: Patient, Date, Amount, Mins, £/hr, Status, Finance, actions |
+| Y2.5 | **Private patients table** | Columns: Patient, Date, Amount, Mins, £/hr, Status, Finance, actions | **Shipped** — `private-patients-table.tsx` wired to Y2.1b APIs |
 | Y2.6 | **Discrepancies panel** | Types + resolve/add from log |
 | Y2.7 | **Dentist log import** | Google Sheets + CSV paste + compare (if client still uses logs) |
 | Y2.8 | **NHS statement panel** | FP17 upload OR continue Compass path — **decide with client** |
@@ -1480,7 +1480,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y2.2 Fetch banner | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `fetch-results-banner.tsx` at page top | **Shipped** |
 | Y2.3 Accordion header | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `payslip-accordion.tsx` + `payslip-entry-body.tsx` | **Shipped** |
 | Y2.4 Expanded metrics | Same page (quick summary + deductions) | `payslip-expanded-summary.tsx` | **Shipped** |
-| Y2.5 Private patients table | Same page (patients table) | `dentist-fetch-details.tsx` | Partial — columns present; row actions next (Y2.5) |
+| Y2.5 Private patients table | Same page (patients table + actions) | `private-patients-table.tsx` | **Shipped** |
 | Y2.6 Discrepancies | Same page (discrepancies panel) | Period detail component | |
 | Y2.7 Dentist log compare | `ElioPay/aurapay/src/app/api/periods/dentist-log/route.ts`, `api/google-sheets/takings/route.ts` | Optional — confirm with client | |
 | Y2.8 NHS panel | `ElioPay/aurapay/src/app/api/nhs-statement/route.ts` | `elio/apps/pay/app/pay-periods/[id]/compass-upload-form.tsx` + FP17 path | Coexist or choose |

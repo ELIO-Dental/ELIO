@@ -19,6 +19,8 @@ function asAnalytics(value: unknown): {
   netPerHour?: number;
   avgAppointmentMins?: number;
   utilizationPercent?: number;
+  topPatientsByHourlyRate?: Array<{ name: string; durationMins: number; hourlyRate: number }>;
+  topTreatmentsByHourlyRate?: Array<{ treatment: string; count: number; hourlyRate: number }>;
 } | null {
   if (!value || typeof value !== "object") return null;
   return value as {
@@ -28,10 +30,15 @@ function asAnalytics(value: unknown): {
     netPerHour?: number;
     avgAppointmentMins?: number;
     utilizationPercent?: number;
+    topPatientsByHourlyRate?: Array<{ name: string; durationMins: number; hourlyRate: number }>;
+    topTreatmentsByHourlyRate?: Array<{ treatment: string; count: number; hourlyRate: number }>;
   };
 }
 
 export interface PayslipEntryBodyProps {
+  payPeriodId: string;
+  payslipEntryId: string;
+  locked: boolean;
   payType: string;
   udas: { toString(): string } | null;
   udaRatePence: number | null;
@@ -62,6 +69,7 @@ export interface PayslipEntryBodyProps {
     hourlyRatePence: number | null;
     isFinance: boolean;
     flagged: boolean;
+    flagReason: string | null;
     treatmentDescription: string | null;
     financeFeePence: number | null;
   }>;
@@ -173,8 +181,11 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
       </TablePanel>
       <div className="mt-6">
         <DentistFetchDetails
+          payPeriodId={p.payPeriodId}
+          payslipEntryId={p.payslipEntryId}
+          locked={p.locked}
+          privateSplitPercent={p.privateSplitPercent?.toString() ?? null}
           analytics={asAnalytics(p.dentallyAnalyticsJson)}
-          therapyMinutes={p.therapyMinutes}
           lines={p.privateRevenueLineItems}
         />
       </div>

@@ -151,6 +151,9 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                     }}
                   >
                     <PayslipEntryBody
+                      payPeriodId={payPeriod.id}
+                      payslipEntryId={p.id}
+                      locked={payPeriod.status === "LOCKED"}
                       payType={p.payType}
                       udas={p.udas}
                       udaRatePence={p.udaRatePence}
@@ -181,6 +184,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         hourlyRatePence: line.hourlyRatePence,
                         isFinance: line.isFinance,
                         flagged: line.flagged,
+                        flagReason: line.flagReason,
                         treatmentDescription: line.treatmentDescription,
                         financeFeePence: line.financeFeePence,
                       }))}

@@ -32,6 +32,8 @@ export type PrivatePatientLineDraft = {
 };
 
 export type PrivatePatientLineUpdates = {
+  patientName?: string;
+  invoiceDate?: string;
   paymentStatus?: "paid" | "partial" | "unpaid";
   isFinance?: boolean;
   financeFeePence?: number;
