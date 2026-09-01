@@ -18,6 +18,7 @@ import {
   Kanban,
   MessageSquare,
   Bell,
+  Archive,
 } from "lucide-react";
 import type { ModuleNavLink } from "../components/module-app-layout";
 
@@ -31,6 +32,7 @@ export const PAY_MODULE_NAV: ModuleNavLink[] = [
   { id: "supplier-invoices", label: "Supplier Invoices", href: "/supplier-invoices", icon: FileText },
   { id: "bulk-payments", label: "Bulk Payments", href: "/bulk-payments", icon: CreditCard },
   { id: "pay-periods", label: "Pay Periods", href: "/pay-periods", icon: Calendar },
+  { id: "legacy-payslips", label: "Legacy Archive", href: "/legacy-payslips", icon: Archive },
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
