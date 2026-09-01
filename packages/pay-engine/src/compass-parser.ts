@@ -126,6 +126,12 @@ function extractUdasPerClinician(text: string): Map<string, { name: string; udas
   return out;
 }
 
+/** Extract raw text from a PDF buffer (shared by Compass + NHS statement flows). */
+export async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
+  const { text } = await pdfParse(pdfBuffer);
+  return text;
+}
+
 /**
  * Parses raw Compass statement PDF bytes into per-clinician line extractions.
  * `knownPerformerNumbers`/`knownNamesByPerformer` come from `Dentist.nhsPerformerNumber` —

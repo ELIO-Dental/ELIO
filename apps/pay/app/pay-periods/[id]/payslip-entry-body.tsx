@@ -10,6 +10,7 @@ import {
   formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { DentistFetchDetails } from "./dentist-fetch-details";
+import { NhsPeriodBanner } from "./nhs-period-banner";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
@@ -40,6 +41,9 @@ export interface PayslipEntryBodyProps {
   payslipEntryId: string;
   dentistName: string;
   locked: boolean;
+  isNhs?: boolean;
+  nhsPeriodStart?: string | null;
+  nhsPeriodEnd?: string | null;
   payType: string;
   udas: { toString(): string } | null;
   udaRatePence: number | null;
@@ -84,6 +88,14 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
 
   return (
     <div className="border-t border-(--color-border-subtle) bg-(--color-surface-dim) px-5 py-5 space-y-6">
+      {p.isNhs && p.nhsPeriodStart && p.nhsPeriodEnd ? (
+        <NhsPeriodBanner
+          periodStart={p.nhsPeriodStart}
+          periodEnd={p.nhsPeriodEnd}
+          udas={p.udas?.toString() ?? null}
+          udaRatePence={p.udaRatePence}
+        />
+      ) : null}
       {p.payType === "PERCENTAGE_SPLIT" ? (
         <PayslipExpandedSummary
           grossPrivateRevenuePence={p.grossPrivateRevenuePence}

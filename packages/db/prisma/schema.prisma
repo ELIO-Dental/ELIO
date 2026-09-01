@@ -639,6 +639,9 @@ model PayPeriod {
   status      PayPeriodStatus @default(DRAFT)
   lockedAt    DateTime?
   triggeredAt DateTime? // the 15th run date
+  /** NHS activity period — often differs from private period (legacy nhs_period_start/end). */
+  nhsPeriodStart DateTime?
+  nhsPeriodEnd   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

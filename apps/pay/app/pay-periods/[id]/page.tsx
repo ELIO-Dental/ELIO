@@ -14,6 +14,7 @@ import {
 } from "@elio/ui";
 import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
+import { NhsStatementPanel } from "./nhs-statement-panel";
 import { PayPeriodActionsProvider } from "./pay-period-actions-provider";
 import { PeriodHeaderActions } from "./period-header-actions";
 import { PeriodActionAlerts } from "./period-action-alerts";
@@ -46,6 +47,10 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
   ]);
 
   if (!payPeriod) notFound();
+
+  const nhsDentists = dentists.filter((d) => d.nhsPerformerNumber);
+  const nhsPeriodStart = payPeriod.nhsPeriodStart?.toISOString().slice(0, 10) ?? null;
+  const nhsPeriodEnd = payPeriod.nhsPeriodEnd?.toISOString().slice(0, 10) ?? null;
 
   const needsReviewLines = payPeriod.compassStatements
     .flatMap((s) => s.lines)
@@ -111,6 +116,21 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
           </CardContent>
         </Card>
 
+        {nhsDentists.length > 0 ? (
+          <NhsStatementPanel
+            payPeriodId={payPeriod.id}
+            locked={payPeriod.status === "LOCKED"}
+            nhsDentists={nhsDentists.map((d) => ({
+              id: d.id,
+              name: d.name,
+              performerNumber: d.nhsPerformerNumber,
+              udaRatePence: d.udaRatePence,
+            }))}
+            initialPeriodStart={nhsPeriodStart}
+            initialPeriodEnd={nhsPeriodEnd}
+          />
+        ) : null}
+
         <Card>
           <CardHeader className="flex-col items-start gap-1">
             <CardTitle>Run calculation</CardTitle>
@@ -155,6 +175,9 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       payslipEntryId={p.id}
                       dentistName={p.dentist.name}
                       locked={payPeriod.status === "LOCKED"}
+                      isNhs={isNhs}
+                      nhsPeriodStart={nhsPeriodStart}
+                      nhsPeriodEnd={nhsPeriodEnd}
                       payType={p.payType}
                       udas={p.udas}
                       udaRatePence={p.udaRatePence}
