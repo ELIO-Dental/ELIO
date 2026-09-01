@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   Badge,
   Button,
@@ -22,6 +21,7 @@ import {
 import { FlowStatCard } from "@/components/flow-stat-card";
 import type { FlowDashboardData, FlowDashboardRow } from "@/lib/flow-service";
 import { DashboardCharts } from "./dashboard-charts";
+import { DashboardEditDialog } from "./dashboard-edit-dialog";
 
 const DATE_PRESETS = [
   { id: "all", label: "All time" },
@@ -175,6 +175,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const [view, setView] = React.useState<"table" | "charts">("table");
+  const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
 
   async function loadDashboard(nextPreset = preset, nextDentist = dentistId) {
     setLoading(true);
@@ -429,12 +430,9 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/consults/${row.id}`}
-                          className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
                           Edit
-                        </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -446,6 +444,16 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           </>
         )}
       </div>
+
+      <DashboardEditDialog
+        row={editRow}
+        dentists={data.dentists}
+        open={editRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditRow(null);
+        }}
+        onSaved={() => void loadDashboard()}
+      />
     </div>
   );
 }

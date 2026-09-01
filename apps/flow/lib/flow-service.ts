@@ -158,12 +158,80 @@ export async function updateConsultDetails(
     treatmentBooked?: boolean | null;
     practitionerDentistId?: string | null;
     notes?: string | null;
+    planSignedUp?: boolean;
+    legacyStatus?: string;
   },
 ) {
   const db = scopedDb(practiceId);
   const consult = await db.consult.findUnique({ where: { id: consultId } });
   if (!consult) throw new Error("Consult not found");
-  return db.consult.update({ where: { id: consultId }, data: input });
+
+  const data: Parameters<typeof db.consult.update>[0]["data"] = {};
+  if ("quotePence" in input) data.quotePence = input.quotePence;
+  if ("quotePenceOverride" in input) data.quotePenceOverride = input.quotePenceOverride;
+  if ("hasDeposit" in input) data.hasDeposit = input.hasDeposit;
+  if ("treatmentBooked" in input) data.treatmentBooked = input.treatmentBooked;
+  if ("practitionerDentistId" in input) data.practitionerDentistId = input.practitionerDentistId;
+  if ("notes" in input) data.notes = input.notes;
+  if ("planSignedUp" in input) data.planSignedUp = input.planSignedUp;
+
+  if (input.legacyStatus !== undefined) {
+    const mapped = legacyStatusToOutcome(input.legacyStatus);
+    data.outcome = mapped.outcome;
+    data.stuckReason = mapped.stuckReason;
+    data.outcomeAt = mapped.outcome ? new Date() : null;
+    if (mapped.planSignedUp !== undefined) data.planSignedUp = mapped.planSignedUp;
+  }
+
+  return db.consult.update({ where: { id: consultId }, data });
+}
+
+/** Map legacy dashboard status keys to Consult outcome fields (§1.3). */
+export function legacyStatusToOutcome(statusKey: string): {
+  outcome: "ACCEPTED" | "THINKING" | "DECLINED" | null;
+  stuckReason: "FAILED_FINANCE" | "PRICE_SHOPPING" | "BAD_EXPERIENCE" | "OUT_OF_BUDGET" | null;
+  planSignedUp?: boolean;
+} {
+  switch (statusKey) {
+    case "new":
+      return { outcome: null, stuckReason: null, planSignedUp: false };
+    case "thinking":
+      return { outcome: "THINKING", stuckReason: null };
+    case "failed-finance":
+      return { outcome: "THINKING", stuckReason: "FAILED_FINANCE" };
+    case "price-shopping":
+      return { outcome: "THINKING", stuckReason: "PRICE_SHOPPING" };
+    case "bad-experience":
+      return { outcome: "THINKING", stuckReason: "BAD_EXPERIENCE" };
+    case "out-of-budget":
+      return { outcome: "THINKING", stuckReason: "OUT_OF_BUDGET" };
+    case "converted":
+      return { outcome: "ACCEPTED", stuckReason: null, planSignedUp: false };
+    case "completed":
+      return { outcome: "ACCEPTED", stuckReason: null, planSignedUp: true };
+    case "declined":
+      return { outcome: "DECLINED", stuckReason: null };
+    default:
+      throw new Error(`Invalid legacy status: ${statusKey}`);
+  }
+}
+
+export async function updateConsultFromDashboard(
+  practiceId: string,
+  actor: { actorUserId: string; impersonatedUserId?: string },
+  consultId: string,
+  input: Parameters<typeof updateConsultDetails>[2],
+) {
+  const updated = await updateConsultDetails(practiceId, consultId, input);
+  await writeAuditLog({
+    ...actor,
+    practiceId,
+    action: "flow.consult.dashboard_edit",
+    targetType: "Consult",
+    targetId: consultId,
+    metadata: input,
+  });
+  return updated;
 }
 
 // ---------------------------------------------------------------------------
@@ -440,6 +508,8 @@ export interface FlowDashboardRow {
   dentistName: string;
   consultationDate: string | null;
   planValuePence: number;
+  quotePence: number | null;
+  quotePenceOverride: number | null;
   totalPaidPence: number;
   attended: boolean;
   hasPlan: boolean;
@@ -548,6 +618,8 @@ export async function getFlowDashboard(
       dentistName: c.practitionerDentist?.name ?? "Unassigned",
       consultationDate: d.toISOString().slice(0, 10),
       planValuePence: planValue,
+      quotePence: c.quotePence,
+      quotePenceOverride: c.quotePenceOverride,
       totalPaidPence: c.totalPaidPence ?? 0,
       attended: c.attended === true,
       hasPlan: planValue > 0,
@@ -577,15 +649,12 @@ export async function getFlowDashboard(
     conversionRate: attended > 0 ? Math.round((converted / attended) * 100) : 0,
   };
 
-  const dentistMap = new Map<string, string>();
-  for (const c of consults) {
-    if (c.practitionerDentistId && c.practitionerDentist) {
-      dentistMap.set(c.practitionerDentistId, c.practitionerDentist.name);
-    }
-  }
-  const dentists = Array.from(dentistMap.entries())
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const dentistRows = await db.dentist.findMany({
+    where: { practiceId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const dentists = dentistRows.map((d) => ({ id: d.id, name: d.name }));
 
   return { stats, rows, dentists };
 }
