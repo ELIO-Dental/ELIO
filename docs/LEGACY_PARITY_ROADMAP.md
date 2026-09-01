@@ -848,7 +848,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y3.6 | **Dentists: Check Dentally connection** | Debug route + UI button | **Shipped** — `/api/dentally/debug` + dentists page panel |
 | Y3.7 | **Practice-level Dentally token** | Owner can rotate key (encrypted on Practice) | **Shipped** — `/pay/api/dentally/config` + Settings API key panel |
 | Y3.8 | **Email payslips** | SMTP from settings; single + send-all | **Shipped** — `/pay/api/payslips/[id]/send-email`, `/pay/api/pay-periods/[id]/send-all-emails`, dentist email field |
-| Y3.9 | **Download all PDFs** | ZIP generation |
+| Y3.9 | **Download all PDFs** | ZIP generation | **Shipped** — `/pay/api/pay-periods/[id]/download-all` (Y2.1) |
 
 #### Phase Y4 — Reporting & verification
 
@@ -1494,7 +1494,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y3.6 Dentally debug | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts`, `dentists/page.tsx` | `dentally-debug.ts` + `dentally-connection-panel.tsx` | **Shipped** |
 | Y3.7 Token rotation | `ElioPay/aurapay/src/app/api/admin/clinics/route.ts` | `pay/api/dentally/config` + settings panel | **Shipped** |
 | Y3.8 Email payslips | `ElioPay/aurapay/src/app/api/payslips/send-email/route.ts`, `send-all-emails/route.ts` | `pay/api/payslips/[id]/send-email`, `pay/api/pay-periods/[id]/send-all-emails` | **Shipped** |
-| Y3.9 Download all PDFs | `ElioPay/aurapay/src/app/api/payslips/download-all/route.ts`, `src/lib/pdf-generator.ts` | ZIP route (to create) | Compare `elio/apps/pay/app/api/payslips/[id]/pdf/route.ts` |
+| Y3.9 Download all PDFs | `ElioPay/aurapay/src/app/api/payslips/download-all/route.ts`, `src/lib/pdf-generator.ts` | `pay/api/pay-periods/[id]/download-all` | **Shipped** |
 | Y4.1 Reporting | `ElioPay/aurapay/src/app/reporting/page.tsx`, `api/bills/reporting/route.ts` | `elio/apps/pay/app/reporting/page.tsx` | |
 | Y4.2–Y4.3 Verification | Legacy AuraPay period export | Staging tolerance ±£1 | |
 
