@@ -5,6 +5,7 @@ import { auth } from "@elio/auth";
 import type { Role } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
 import { can } from "@/lib/session";
+import { getBrandingSettings } from "@/lib/plans-settings";
 import "./globals.css";
 
 const pwa = getPwaConfig("plans");
@@ -45,6 +46,8 @@ export default async function RootLayout({
     );
   }
 
+  const branding = await getBrandingSettings(session.practiceId);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
@@ -55,6 +58,8 @@ export default async function RootLayout({
         <ShellLayout
           userEmail={session?.user?.email ?? undefined}
           canEditSettings={can({ role: session.role as Role }, "plans:edit-settings")}
+          brandTitle={branding.brandName || "ELIO PLANS"}
+          faviconUrl={branding.faviconUrl || undefined}
         >
           <PageTransition>{children}</PageTransition>
         </ShellLayout>

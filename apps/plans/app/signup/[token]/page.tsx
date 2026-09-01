@@ -106,6 +106,17 @@ function PublicSignupContent() {
     runFetch();
   }, [token, runFetch]);
 
+  React.useEffect(() => {
+    if (!data?.branding?.faviconUrl) return;
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = data.branding.faviconUrl;
+  }, [data?.branding?.faviconUrl]);
+
   // Returning from GoCardless's Billing Request Flow: try the redirect-based
   // resolve first (fast path, works when GoCardless's redirect actually
   // carries billing_request_id — which in practice it often doesn't; per

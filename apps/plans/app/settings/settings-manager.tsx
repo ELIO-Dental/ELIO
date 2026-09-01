@@ -146,7 +146,19 @@ export function SettingsManager({
         return;
       }
       updateBrandingField(field, data.url as string);
-      toast.success("Image uploaded — save branding to persist");
+      const updated = { ...branding, [field]: data.url as string };
+      setBranding(updated);
+      const saveRes = await fetch("/plans/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branding: updated }),
+      });
+      if (saveRes.ok) {
+        toast.success(`${field === "logoUrl" ? "Logo" : "Favicon"} uploaded and saved`);
+        router.refresh();
+      } else {
+        toast.success("Image uploaded — click Save branding to persist");
+      }
     } finally {
       setUploading(null);
     }
