@@ -194,6 +194,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       hourlyRatePence={p.hourlyRatePence}
                       hourlyEarningsPence={p.hourlyEarningsPence}
                       manualAdjustmentsPence={p.manualAdjustmentsPence}
+                      adjustmentReason={p.adjustmentReason}
                       finalPayPence={p.finalPayPence}
                       dentallyAnalyticsJson={p.dentallyAnalyticsJson}
                       dentallyDiscrepanciesJson={p.dentallyDiscrepanciesJson}

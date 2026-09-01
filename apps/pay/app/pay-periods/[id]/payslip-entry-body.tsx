@@ -61,6 +61,7 @@ export interface PayslipEntryBodyProps {
   hourlyRatePence: number | null;
   hourlyEarningsPence: number | null;
   manualAdjustmentsPence: number | null;
+  adjustmentReason: string | null;
   finalPayPence: number | null;
   dentallyAnalyticsJson: unknown;
   dentallyDiscrepanciesJson: unknown;
@@ -208,6 +209,11 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           therapyMinutes={p.therapyMinutes}
           therapyRatePerMinute={p.therapyRatePerMinute}
           superannuationPence={p.superannuationPence}
+          grossPrivateRevenuePence={p.grossPrivateRevenuePence}
+          financeFeesPence={
+            p.privateRevenueLineItems.reduce((sum, line) => sum + (line.financeFeePence ?? 0), 0) || null
+          }
+          adjustmentReason={p.adjustmentReason}
           labBillsJson={p.labBillsJson}
           adjustmentsJson={p.adjustmentsJson}
         />

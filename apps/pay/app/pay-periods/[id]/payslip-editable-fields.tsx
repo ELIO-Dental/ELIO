@@ -31,6 +31,9 @@ export function PayslipEditableFields({
   therapyMinutes,
   therapyRatePerMinute,
   superannuationPence,
+  grossPrivateRevenuePence,
+  financeFeesPence,
+  adjustmentReason,
   labBillsJson,
   adjustmentsJson,
 }: {
@@ -43,6 +46,9 @@ export function PayslipEditableFields({
   therapyMinutes: number | null;
   therapyRatePerMinute: number | null;
   superannuationPence: number | null;
+  grossPrivateRevenuePence: number | null;
+  financeFeesPence: number | null;
+  adjustmentReason: string | null;
   labBillsJson: unknown;
   adjustmentsJson: unknown;
 }) {
@@ -50,6 +56,9 @@ export function PayslipEditableFields({
   const [therapyMins, setTherapyMins] = useState(therapyMinutes?.toString() ?? "");
   const [therapyRate, setTherapyRate] = useState(therapyRatePerMinute?.toString() ?? "0.5833");
   const [superannuation, setSuperannuation] = useState(penceToPounds(superannuationPence));
+  const [grossPrivate, setGrossPrivate] = useState(penceToPounds(grossPrivateRevenuePence));
+  const [financeFees, setFinanceFees] = useState(penceToPounds(financeFeesPence));
+  const [notes, setNotes] = useState(adjustmentReason ?? "");
   const [nhsUdas, setNhsUdas] = useState(udas ?? "");
   const [labBills, setLabBills] = useState<PayslipLabBill[]>(() => parsePayslipLabBills(labBillsJson));
   const [adjustments, setAdjustments] = useState<PayslipAdjustment[]>(() => parsePayslipAdjustments(adjustmentsJson));
@@ -61,6 +70,9 @@ export function PayslipEditableFields({
     setTherapyMins(therapyMinutes?.toString() ?? "");
     setTherapyRate(therapyRatePerMinute?.toString() ?? "0.5833");
     setSuperannuation(penceToPounds(superannuationPence));
+    setGrossPrivate(penceToPounds(grossPrivateRevenuePence));
+    setFinanceFees(penceToPounds(financeFeesPence));
+    setNotes(adjustmentReason ?? "");
     setNhsUdas(udas ?? "");
     setLabBills(parsePayslipLabBills(labBillsJson));
     setAdjustments(parsePayslipAdjustments(adjustmentsJson));
@@ -68,6 +80,9 @@ export function PayslipEditableFields({
     therapyMinutes,
     therapyRatePerMinute,
     superannuationPence,
+    grossPrivateRevenuePence,
+    financeFeesPence,
+    adjustmentReason,
     udas,
     labBillsJson,
     adjustmentsJson,
@@ -89,6 +104,11 @@ export function PayslipEditableFields({
         adjustments: adjustments.filter((a) => a.amount > 0 || a.description.trim()),
       };
       if (isNhs && nhsUdas) body.nhs_udas = Number(nhsUdas);
+      if (!hasPatientLines) {
+        body.gross_private = poundsToNumber(grossPrivate);
+        body.finance_fees = poundsToNumber(financeFees);
+      }
+      if (notes.trim()) body.notes = notes.trim();
 
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/entries`, {
         method: "PUT",
@@ -135,6 +155,33 @@ export function PayslipEditableFields({
       {message ? <p className="mb-3 text-caption text-(--color-success)">{message}</p> : null}
 
       <div className="space-y-5">
+        {!hasPatientLines ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Gross private income (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={grossPrivate}
+                onChange={(e) => setGrossPrivate(e.target.value)}
+                className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Finance fees total (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={financeFees}
+                onChange={(e) => setFinanceFees(e.target.value)}
+                className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+              />
+            </div>
+          </div>
+        ) : null}
+
         {isNhs ? (
           <div className="max-w-xs">
             <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">NHS UDAs</label>
@@ -311,6 +358,17 @@ export function PayslipEditableFields({
               ))}
             </div>
           )}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Notes</label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Any notes for this payslip..."
+            className="w-full resize-none rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+          />
         </div>
       </div>
     </section>
