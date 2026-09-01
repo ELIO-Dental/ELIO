@@ -474,3 +474,118 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
     create: data,
   });
 }
+
+/** Editable payslip fields saved without a full-period recalculate (legacy PUT /periods/entries, Y2.1a). */
+export interface SavePayslipEntryInput {
+  payslipEntryId: string;
+  udas?: number;
+  grossPrivateRevenuePence?: number;
+  privateEarningsPence?: number;
+  consultationExclusionsPence?: number;
+  labDeductionPence?: number;
+  superannuationPence?: number;
+  therapyMinutes?: number;
+  therapyRatePerMinute?: number;
+  manualAdjustmentsPence?: number;
+  adjustmentReason?: string | null;
+  hoursWorked?: number;
+  hourlyEarningsPence?: number;
+}
+
+export async function savePayslipEntry(
+  practiceId: string,
+  payPeriodId: string,
+  input: SavePayslipEntryInput
+) {
+  const db = scopedDb(practiceId);
+  const payPeriod = await db.payPeriod.findUnique({ where: { id: payPeriodId } });
+  if (!payPeriod) throw new Error("Pay period not found");
+  if (payPeriod.status === "LOCKED") throw new Error("Pay period is locked");
+
+  const existing = await db.payslipEntry.findFirst({
+    where: { id: input.payslipEntryId, payPeriodId, practiceId },
+    include: { privateRevenueLineItems: true },
+  });
+  if (!existing) throw new Error("Payslip not found");
+
+  const dentist = await db.dentist.findUnique({ where: { id: existing.dentistId } });
+  if (!dentist) throw new Error("Dentist not found");
+
+  const udas = input.udas ?? (existing.udas != null ? Number(existing.udas) : 0);
+  const udaRatePence = existing.udaRatePence ?? dentist.udaRatePence ?? 0;
+  const grossPrivateRevenuePence = input.grossPrivateRevenuePence ?? existing.grossPrivateRevenuePence ?? 0;
+  const privateSplitPercent = existing.privateSplitPercent != null ? Number(existing.privateSplitPercent) : Number(dentist.privateSplitPercent ?? 0);
+  const privateEarningsPence =
+    input.privateEarningsPence ?? existing.privateEarningsPence ?? Math.round(grossPrivateRevenuePence * (privateSplitPercent / 100));
+  const consultationExclusionsPence = input.consultationExclusionsPence ?? existing.consultationExclusionsPence ?? 0;
+  const labDeductionPence = input.labDeductionPence ?? existing.labDeductionPence ?? 0;
+  const superannuationPence = input.superannuationPence ?? existing.superannuationPence ?? 0;
+  const therapyMinutes = input.therapyMinutes ?? (existing.therapyMinutes != null ? Number(existing.therapyMinutes) : 0);
+  const therapyRatePerMinute =
+    input.therapyRatePerMinute ?? (existing.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0);
+  const manualAdjustmentsPence = input.manualAdjustmentsPence ?? existing.manualAdjustmentsPence ?? 0;
+  const adjustmentReason = input.adjustmentReason !== undefined ? input.adjustmentReason : existing.adjustmentReason;
+
+  if (existing.payType === "HOURLY") {
+    const hoursWorked = input.hoursWorked ?? (existing.hoursWorked != null ? Number(existing.hoursWorked) : 0);
+    const hourlyRatePence = existing.hourlyRatePence ?? dentist.hourlyRatePence ?? 0;
+    const hourlyEarningsPence = input.hourlyEarningsPence ?? Math.round(hoursWorked * hourlyRatePence);
+    const finalPayPence = calculateFinalPay({
+      payType: "HOURLY",
+      hoursWorked,
+      hourlyRatePence,
+      manualAdjustmentsPence,
+    });
+    return db.payslipEntry.update({
+      where: { id: existing.id },
+      data: {
+        hoursWorked,
+        hourlyRatePence,
+        hourlyEarningsPence,
+        manualAdjustmentsPence,
+        adjustmentReason,
+        finalPayPence,
+      },
+    });
+  }
+
+  const therapyDeduction = therapyDeductionPence(therapyMinutes, therapyRatePerMinute);
+  const financeDeduction = financeFeesDeductionPence(
+    existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+  );
+
+  const finalPayPence = calculateFinalPay({
+    payType: "PERCENTAGE_SPLIT",
+    udas,
+    udaRatePence,
+    grossPrivateRevenuePence,
+    privateSplitPercent,
+    privateEarningsPence,
+    consultationExclusionsPence,
+    labDeductionPence,
+    superannuationPence,
+    therapyDeductionPence: therapyDeduction,
+    financeFeesDeductionPence: financeDeduction,
+    manualAdjustmentsPence,
+  });
+
+  return db.payslipEntry.update({
+    where: { id: existing.id },
+    data: {
+      udas,
+      udaRatePence,
+      nhsEarningsPence: Math.round(udas * udaRatePence),
+      grossPrivateRevenuePence,
+      privateSplitPercent,
+      privateEarningsPence,
+      consultationExclusionsPence,
+      labDeductionPence,
+      superannuationPence,
+      therapyMinutes,
+      therapyRatePerMinute,
+      manualAdjustmentsPence,
+      adjustmentReason,
+      finalPayPence,
+    },
+  });
+}
