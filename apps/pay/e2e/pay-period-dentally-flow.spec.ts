@@ -122,6 +122,11 @@ test("dentally fetch flow: create period, fetch, calculate, download PDF", async
   await expect(page.getByTestId("fetch-results-banner")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Mock Dentally fetch complete/i)).toBeVisible();
 
+  const lineCount = await prisma.privateRevenueLineItem.count({
+    where: { payslipEntry: { payPeriodId, dentistId } },
+  });
+  expect(lineCount).toBe(1);
+
   const runCalcButton = page.getByRole("button", { name: "Run calculation" });
   await runCalcButton.click();
   await expect(runCalcButton).toBeEnabled({ timeout: 30_000 });
