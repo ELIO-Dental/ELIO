@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@elio/db";
 import { resolveAuditActor, writeAuditLog } from "@elio/auth";
 import { scopedDb } from "@elio/db";
 import { requirePermission } from "@/lib/session";
@@ -61,6 +62,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json(mapping, { status: 201 });
   } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json(
+        { error: "A mapping for this Dentally plan name already exists" },
+        { status: 409 },
+      );
+    }
     return errorResponse(e);
   }
 }

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { PageTransition, Toaster, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth } from "@elio/auth";
+import type { Role } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
+import { can } from "@/lib/session";
 import "./globals.css";
 
 const pwa = getPwaConfig("plans");
@@ -50,7 +52,10 @@ export default async function RootLayout({
         <ThemeProvider>
         <PwaProvider config={pwa}>
         <NavigationProgress />
-        <ShellLayout userEmail={session?.user?.email ?? undefined}>
+        <ShellLayout
+          userEmail={session?.user?.email ?? undefined}
+          canEditSettings={can({ role: session.role as Role }, "plans:edit-settings")}
+        >
           <PageTransition>{children}</PageTransition>
         </ShellLayout>
         <Toaster />

@@ -69,11 +69,12 @@ export async function POST(req: Request) {
       return NextResponse.json({
         patientId,
         created: !match,
+        matchedBy,
         signupUrl: `/plans/signup/${enrolment.signupToken}`,
       });
     }
 
-    return NextResponse.json({ patientId, created: !match });
+    return NextResponse.json({ patientId, created: !match, matchedBy });
   } catch (e) {
     return errorResponse(e);
   }

@@ -18,8 +18,7 @@ import {
 } from "@elio/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { EnrolPatientForm } from "./enrol-patient-form";
-import { ImportFromDentally } from "./import-from-dentally";
-import { PatientsSyncButton } from "./patients-sync-button";
+import { PatientsDentallyTools } from "./patients-dentally-tools";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   INVITED: "neutral",
@@ -81,15 +80,11 @@ export default async function PatientsPage({
 
   return (
     <PageContent>
-      <PageHeader
-        title="Patients"
-        description="Patients enrolled on a membership plan."
-        actions={canInvite ? <PatientsSyncButton /> : undefined}
-      />
+      <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
 
       {canInvite && (
         <div className="mt-8">
-          <ImportFromDentally
+          <PatientsDentallyTools
             plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
           />
         </div>

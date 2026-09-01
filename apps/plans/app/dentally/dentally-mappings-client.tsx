@@ -24,6 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -166,7 +167,12 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   }
 
   if (loading) {
-    return <p className="text-body-sm text-(--color-text-secondary)">Loading mappings…</p>;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-24 w-full rounded-(--radius-lg)" />
+        <Skeleton className="h-64 w-full rounded-(--radius-lg)" />
+      </div>
+    );
   }
 
   return (
@@ -270,7 +276,12 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Plan mappings</CardTitle>
+          <CardTitle>
+            Plan mappings
+            <span className="ml-2 text-body font-normal text-(--color-text-secondary)">
+              ({mappings.length} mapping{mappings.length === 1 ? "" : "s"} configured)
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {mappings.length === 0 ? (
