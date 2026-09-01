@@ -115,7 +115,7 @@ Once the mandate is confirmed, the patient's status changes to ACTIVE and monthl
     content: `Redeems track when patients use their plan benefits (e.g., exams, hygiene appointments, discounts).
 
 **Creating a Redeem:**
-Create redeems from completed Dentally appointments (P4.6) or approve pending requests on the Redeems page.
+Create redeems from completed Dentally appointments on the patient profile, or approve pending requests on the Redeems page.
 
 **Approving Redeems:**
 Go to Action Required or the Redeems section to approve or reject pending redeems.

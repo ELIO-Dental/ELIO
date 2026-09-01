@@ -572,7 +572,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Patient header actions (pause, DD, etc.) | Partial | 🟡 |
 | Plans CRUD + inclusions/discounts | Create + list; edit limited | 🟡 |
 | Plan price increase flow | None | ❌ |
-| Redeems from Dentally appointment | List + approve only; no create-from-appointment flow | ❌ |
+| Redeems from Dentally appointment | Create from patient detail + approve | ✅ |
 | Reports tabs (Revenue, Breakage) | Simpler reports page | 🟡 |
 | Documents CRUD + seed T&C | Create + view + seed; edit added | ✅ |
 | Settings 6 tabs | 6 tabs + redeem/reconciliation | ✅ |
@@ -591,7 +591,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | **`reassign-plans` utility** | `POST /plans/api/dentally/reassign-plans` | ✅ |
 | **`setup-gc-links` admin** | None | ❌ |
 | **`setup/dentally-plans` seed mappings** | None | ❌ |
-| **Guide articles** (`/dashboard/guide`) | None | ❌ |
+| **Guide articles** (`/dashboard/guide`) | `/guide` + CRUD + seed | ✅ |
 | **Public landing page** (`/`) | Portal launcher only | 🟡 |
 | **`sign/[token]` standalone doc signing** | Folded into `/signup/[token]` flow | 🟡 Verify parity |
 | **FINANCE / AUDITOR roles** in team UI | Schema supports; UI may not expose | 🟡 |
@@ -603,7 +603,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | **Per-user permission overrides** | Legacy `UserPermission` beyond role; new uses `@elio/auth` roles only | ❌ |
 | **Legacy `Setting` KV store** (~25 keys: branding, GC days, payout, payment rules) | Not migrated; only redeem toggles in new settings | ❌ |
 | **`payoutPerExam` setting** | Legacy Settings → Payouts tab | Not in new schema/UI | ❌ |
-| **Redeem create from Dentally appointment** | Legacy POST `/api/redeems` after completed appt | New list + approve only; no create flow | ❌ |
+| **Redeem create from Dentally appointment** | `POST /plans/api/redeems` + patient New Redeem dialog | ✅ |
 | **Email log / correspondence tab** | Legacy `EmailLog` model + patient tab | Not migrated | ❌ |
 | **Users `[id]` edit/delete API** | Legacy CRUD | New list/create only | 🟡 |
 | **Upload / branding APIs** | `/api/upload`, `/api/branding`, `/api/branding/public` | None in Plans app | ❌ |
@@ -663,7 +663,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P4.3 | **Documents: create/edit/seed T&C** | | **Shipped** |
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys | **Shipped** |
 | P4.5 | **Guide section** | Help articles (optional if content in migrated DB) | **Shipped** |
-| P4.6 | **Redeem create flow** | From completed Dentally appointment |
+| P4.6 | **Redeem create flow** | From completed Dentally appointment | **Shipped** |
 | P4.7 | **Branding upload** | Logo/favicon + public branding endpoint |
 
 #### Phase P5 — Verification

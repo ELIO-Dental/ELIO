@@ -19,6 +19,11 @@ import {
   EmptyState,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -29,6 +34,7 @@ import {
   formatMoneyGBP,
   toast,
 } from "@elio/ui";
+import { itemTypeFromAppointmentReason, isRedeemableAppointmentState } from "@/lib/redeems-utils";
 
 type PlanPatientDetail = {
   id: string;
@@ -67,7 +73,14 @@ type PlanPatientDetail = {
     createdAt: string;
     gocardlessPaymentId: string | null;
   }>;
-  redeems: Array<{ id: string; itemName: string; status: string; createdAt: string }>;
+  redeems: Array<{
+    id: string;
+    itemName: string;
+    status: string;
+    createdAt: string;
+    appointmentDate: string | null;
+    dentallyAppointmentId: string | null;
+  }>;
   patientPlans: Array<{ id: string; status: string; plan: { name: string } }>;
   signingRequests: Array<{
     id: string;
@@ -124,6 +137,9 @@ export function PatientDetailClient({
   const [cancelDd, setCancelDd] = React.useState(true);
   const [linkOpen, setLinkOpen] = React.useState(false);
   const [mandateIdInput, setMandateIdInput] = React.useState("");
+  const [redeemOpen, setRedeemOpen] = React.useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = React.useState("");
+  const [redeeming, setRedeeming] = React.useState(false);
   const [appointments, setAppointments] = React.useState<Array<{
     id: string;
     startsAt: string | null;
@@ -148,6 +164,66 @@ export function PatientDetailClient({
   const name =
     [detail.patient.firstName, detail.patient.lastName].filter(Boolean).join(" ") || "Unknown patient";
   const activeMandate = detail.mandates.find((m) => m.status === "ACTIVE") ?? detail.mandates[0];
+  const activeEnrolment = detail.patientPlans.find((pp) => pp.status === "ACTIVE") ?? detail.patientPlans[0];
+
+  async function loadAppointments() {
+    if (appointments !== null) return appointments;
+    const res = await fetch(`/plans/api/patients/${detail.id}/appointments`);
+    const data = await res.json().catch(() => ({}));
+    const list = (data.appointments ?? []) as NonNullable<typeof appointments>;
+    setAppointments(list);
+    return list;
+  }
+
+  async function openRedeemDialog() {
+    setRedeemOpen(true);
+    setSelectedAppointmentId("");
+    await loadAppointments();
+  }
+
+  async function handleCreateRedeem() {
+    if (!selectedAppointmentId || !activeEnrolment) return;
+    const apptList = appointments ?? (await loadAppointments());
+    const appt = apptList?.find((a) => a.id === selectedAppointmentId);
+    if (!appt) return;
+
+    const { itemType, itemName } = itemTypeFromAppointmentReason(appt.reason);
+    setRedeeming(true);
+    try {
+      const res = await fetch("/plans/api/redeems", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planPatientId: detail.id,
+          patientPlanEnrolmentId: activeEnrolment.id,
+          itemType,
+          itemName,
+          appointmentDate: appt.startsAt,
+          appointmentRef: appt.id,
+          dentallyAppointmentId: appt.id,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to create redeem");
+        return;
+      }
+      toast.success(data.redeem?.status === "APPROVED" ? "Redeem approved" : "Redeem submitted for approval");
+      setRedeemOpen(false);
+      setSelectedAppointmentId("");
+      router.refresh();
+    } finally {
+      setRedeeming(false);
+    }
+  }
+
+  const redeemedAppointmentIds = new Set(
+    detail.redeems
+      .filter((r) => r.dentallyAppointmentId && r.status !== "REJECTED")
+      .map((r) => r.dentallyAppointmentId as string),
+  );
+
+  const redeemableAppointments = (appointments ?? []).filter((a) => isRedeemableAppointmentState(a.state));
 
   async function runAction(path: string, successMessage: string, body?: Record<string, unknown>) {
     setLoading(true);
@@ -320,6 +396,11 @@ export function PatientDetailClient({
                     Cancel
                   </Button>
                 )}
+                {detail.status === "ACTIVE" && activeEnrolment && (
+                  <Button size="sm" loading={redeeming} onClick={() => void openRedeemDialog()}>
+                    New redeem
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -372,6 +453,83 @@ export function PatientDetailClient({
             </Button>
             <Button onClick={() => void handleLinkMandate()} loading={loading} disabled={!mandateIdInput.trim()}>
               Link mandate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={redeemOpen}
+        onOpenChange={(open) => {
+          setRedeemOpen(open);
+          if (!open) setSelectedAppointmentId("");
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New redeem</DialogTitle>
+            <DialogDescription>Select a completed Dentally appointment to redeem against this plan.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!detail.patient.dentallyId ? (
+              <p className="rounded-(--radius-lg) border border-amber-200 bg-amber-50 p-3 text-body-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                This patient is not linked to Dentally. Redeems can only be created from Dentally appointments.
+              </p>
+            ) : appointments === null ? (
+              <p className="text-body-sm text-(--color-text-secondary)">Loading appointments…</p>
+            ) : redeemableAppointments.length === 0 ? (
+              <p className="text-body-sm text-(--color-text-secondary)">
+                No completed appointments found in Dentally. Record and complete the appointment in Dentally first.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <Label>Select appointment</Label>
+                  <Select value={selectedAppointmentId} onValueChange={setSelectedAppointmentId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Choose an appointment…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {redeemableAppointments.map((a) => {
+                        const alreadyRedeemed = redeemedAppointmentIds.has(a.id);
+                        return (
+                          <SelectItem key={a.id} value={a.id} disabled={alreadyRedeemed}>
+                            {formatWhen(a.startsAt)} — {a.reason || "Appointment"} ({a.state})
+                            {alreadyRedeemed ? " (already redeemed)" : ""}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedAppointmentId && (() => {
+                  const appt = redeemableAppointments.find((a) => a.id === selectedAppointmentId);
+                  if (!appt) return null;
+                  const mapped = itemTypeFromAppointmentReason(appt.reason);
+                  return (
+                    <div className="rounded-(--radius-lg) border border-(--color-border) bg-(--color-bg-subtle) p-3 text-body-sm">
+                      <p>
+                        <span className="text-(--color-text-secondary)">Redeem as:</span> {mapped.itemName} ({mapped.itemType})
+                      </p>
+                      <p>
+                        <span className="text-(--color-text-secondary)">Reason:</span> {appt.reason ?? "—"}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setRedeemOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleCreateRedeem()}
+              loading={redeeming}
+              disabled={!selectedAppointmentId || !detail.patient.dentallyId}
+            >
+              Create redeem
             </Button>
           </DialogFooter>
         </DialogContent>

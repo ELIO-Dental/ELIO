@@ -58,6 +58,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       itemName: r.itemName,
       status: r.status,
       createdAt: r.createdAt.toISOString(),
+      appointmentDate: r.appointmentDate?.toISOString() ?? null,
+      dentallyAppointmentId: r.dentallyAppointmentId,
     })),
     patientPlans: detail.patientPlans.map((pp) => ({
       id: pp.id,

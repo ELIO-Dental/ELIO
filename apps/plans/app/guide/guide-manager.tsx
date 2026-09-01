@@ -70,6 +70,16 @@ export function GuideManager({
 
   const selected = articles.find((a) => a.id === selectedId) ?? null;
 
+  React.useEffect(() => {
+    if (articles.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !articles.some((a) => a.id === selectedId)) {
+      setSelectedId(articles[0]!.id);
+    }
+  }, [articles, selectedId]);
+
   const filtered = articles.filter(
     (a) =>
       a.title.toLowerCase().includes(search.toLowerCase()) ||

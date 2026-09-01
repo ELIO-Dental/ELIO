@@ -900,6 +900,156 @@ export async function listRedeems(practiceId: string, status?: string) {
   });
 }
 
+export type CreateRedeemInput = {
+  planPatientId: string;
+  patientPlanEnrolmentId?: string;
+  itemType: import("@elio/db").PlanRedeemItemType;
+  itemName: string;
+  description?: string;
+  appointmentDate?: string | Date;
+  appointmentRef?: string;
+  dentallyAppointmentId?: string;
+};
+
+/** Create a redeem from a completed Dentally appointment (P4.6 legacy parity). */
+export async function createRedeem(
+  practiceId: string,
+  actor: { actorUserId: string; impersonatedUserId?: string },
+  input: CreateRedeemInput,
+) {
+  const db = scopedDb(practiceId);
+
+  if (input.dentallyAppointmentId) {
+    const existing = await db.planRedeem.findFirst({
+      where: {
+        practiceId,
+        dentallyAppointmentId: input.dentallyAppointmentId,
+        status: { in: ["PENDING_APPROVAL", "APPROVED"] },
+      },
+    });
+    if (existing) throw new Error("This appointment has already been redeemed");
+  }
+
+  const enrolment = input.patientPlanEnrolmentId
+    ? await db.patientPlanEnrolment.findFirst({
+        where: { id: input.patientPlanEnrolmentId, planPatientId: input.planPatientId, practiceId },
+        include: { plan: { include: { redeemRules: { where: { active: true } } } } },
+      })
+    : await db.patientPlanEnrolment.findFirst({
+        where: { planPatientId: input.planPatientId, practiceId, status: "ACTIVE" },
+        include: { plan: { include: { redeemRules: { where: { active: true } } } } },
+        orderBy: { createdAt: "desc" },
+      });
+
+  if (!enrolment || enrolment.status !== "ACTIVE") {
+    throw new Error("Patient plan is not active");
+  }
+
+  const planPatient = await db.planPatient.findFirst({ where: { id: input.planPatientId, practiceId } });
+  if (!planPatient || planPatient.status !== "ACTIVE") {
+    throw new Error("Patient membership is not active");
+  }
+
+  const rule = enrolment.plan.redeemRules.find((r) => r.itemType === input.itemType);
+
+  if (rule?.maxPerYear) {
+    const yearStart = new Date();
+    yearStart.setMonth(0, 1);
+    yearStart.setHours(0, 0, 0, 0);
+    const usedThisYear = await db.planRedeem.count({
+      where: {
+        planPatientId: input.planPatientId,
+        patientPlanEnrolmentId: enrolment.id,
+        itemType: input.itemType,
+        status: { in: ["APPROVED", "PENDING_APPROVAL"] },
+        createdAt: { gte: yearStart },
+      },
+    });
+    if (usedThisYear >= rule.maxPerYear) {
+      throw new Error(`Maximum ${rule.maxPerYear} ${input.itemName} per year already used/pending`);
+    }
+  }
+
+  if (rule?.cooldownDays) {
+    const lastRedeem = await db.planRedeem.findFirst({
+      where: {
+        planPatientId: input.planPatientId,
+        patientPlanEnrolmentId: enrolment.id,
+        itemType: input.itemType,
+        status: "APPROVED",
+      },
+      orderBy: { approvedAt: "desc" },
+    });
+    if (lastRedeem?.approvedAt) {
+      const cooldownEnd = new Date(lastRedeem.approvedAt);
+      cooldownEnd.setDate(cooldownEnd.getDate() + rule.cooldownDays);
+      if (new Date() < cooldownEnd) {
+        throw new Error(
+          `Cooldown period: next ${input.itemName} available after ${cooldownEnd.toLocaleDateString("en-GB")}`,
+        );
+      }
+    }
+  }
+
+  const { getAllPlanSettings, SettingKeys } = await import("./plans-settings");
+  const settings = await getAllPlanSettings(practiceId);
+  const autoSuspend = settings[SettingKeys.PAYMENT_AUTO_SUSPEND_REDEEMS] === "true";
+
+  let isPartial = false;
+  let earnedPercentage: number | null = null;
+  let partialReason: string | null = null;
+
+  if (autoSuspend) {
+    const failedPayments = await db.planPayment.count({
+      where: { planPatientId: input.planPatientId, status: "FAILED" },
+    });
+    if (failedPayments > 0) {
+      isPartial = true;
+      earnedPercentage = 0;
+      partialReason = "Payment failure - redeems suspended until payment resolved";
+    }
+  }
+
+  const autoApprove = rule ? !rule.requiresApproval : false;
+
+  const redeem = await db.planRedeem.create({
+    data: {
+      practiceId,
+      planPatientId: input.planPatientId,
+      patientPlanEnrolmentId: enrolment.id,
+      redeemRuleId: rule?.id ?? null,
+      itemType: input.itemType,
+      itemName: input.itemName,
+      description: input.description ?? null,
+      appointmentDate: input.appointmentDate ? new Date(input.appointmentDate) : null,
+      appointmentRef: input.appointmentRef ?? null,
+      dentallyAppointmentId: input.dentallyAppointmentId ?? null,
+      dentallyMatched: !!input.dentallyAppointmentId,
+      status: autoApprove ? "APPROVED" : "PENDING_APPROVAL",
+      approvedById: autoApprove ? actor.actorUserId : null,
+      approvedAt: autoApprove ? new Date() : null,
+      isPartial,
+      ...(earnedPercentage !== null ? { earnedPercentage } : {}),
+      partialReason,
+    },
+    include: {
+      planPatient: { include: { patient: true } },
+      redeemRule: true,
+    },
+  });
+
+  await writeAuditLog({
+    ...actor,
+    practiceId,
+    action: autoApprove ? "plans.redeem.auto_approved" : "plans.redeem.requested",
+    targetType: "PlanRedeem",
+    targetId: redeem.id,
+    metadata: { itemType: input.itemType, itemName: input.itemName },
+  });
+
+  return redeem;
+}
+
 /** Approve a PENDING_APPROVAL redeem. Writes an AuditLog row
  * (PERMISSIONS_MATRIX.md §6 — every approval decision is audited). */
 export async function approveRedeem(practiceId: string, actor: { actorUserId: string; impersonatedUserId?: string }, redeemId: string) {
