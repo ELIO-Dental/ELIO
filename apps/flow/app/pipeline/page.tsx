@@ -1,5 +1,6 @@
 import { PageContent, PageHeader } from "@elio/ui";
-import { requireSession, redirectToLogin } from "@/lib/session";
+import type { Role } from "@elio/db";
+import { requireSession, redirectToLogin, resolveFlowScope } from "@/lib/session";
 import { listPipeline } from "@/lib/flow-service";
 import { PipelineEmptyState } from "@/components/pipeline-empty-state";
 import { PipelineBoard, type PipelineData } from "./pipeline-board";
@@ -8,7 +9,13 @@ export default async function PipelinePage() {
   const session = await requireSession();
   if (!session) return redirectToLogin();
 
-  const columns = await listPipeline(session.practiceId);
+  const scope = await resolveFlowScope({
+    userId: session.userId,
+    practiceId: session.practiceId,
+    role: session.role as Role,
+    permissions: session.permissions ?? [],
+  });
+  const columns = await listPipeline(session.practiceId, scope);
 
   const isEmpty =
     columns.capture.length === 0 &&

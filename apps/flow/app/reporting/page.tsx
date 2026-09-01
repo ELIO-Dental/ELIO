@@ -1,13 +1,20 @@
-import { requireSession, redirectToLogin } from "@/lib/session";
+import { requireSession, redirectToLogin, resolveFlowScope } from "@/lib/session";
 import { getConversionReport } from "@/lib/flow-service";
 import { PageContent, PageHeader } from "@elio/ui";
+import type { Role } from "@elio/db";
 import { ReportingClient } from "./reporting-client";
 
 export default async function ReportingPage() {
   const session = await requireSession();
   if (!session) return redirectToLogin();
 
-  const report = await getConversionReport(session.practiceId);
+  const scope = await resolveFlowScope({
+    userId: session.userId,
+    practiceId: session.practiceId,
+    role: session.role as Role,
+    permissions: session.permissions ?? [],
+  });
+  const report = await getConversionReport(session.practiceId, undefined, scope);
 
   return (
     <PageContent>

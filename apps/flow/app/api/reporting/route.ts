@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, resolveFlowScope } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { getConversionReport } from "@/lib/flow-service";
 
@@ -17,6 +17,7 @@ import { getConversionReport } from "@/lib/flow-service";
 export async function GET(req: Request) {
   try {
     const session = await requirePermission("flow:view");
+    const scope = await resolveFlowScope(session);
 
     const { searchParams } = new URL(req.url);
     const fromParam = searchParams.get("from");
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
       dateRange = { from, to };
     }
 
-    const result = await getConversionReport(session.practiceId, dateRange);
+    const result = await getConversionReport(session.practiceId, dateRange, scope);
     return NextResponse.json(result);
   } catch (e) {
     return errorResponse(e);

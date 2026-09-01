@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, resolveFlowScope } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { getFlowDashboard } from "@/lib/flow-service";
 
@@ -7,6 +7,7 @@ import { getFlowDashboard } from "@/lib/flow-service";
 export async function GET(req: Request) {
   try {
     const session = await requirePermission("flow:view");
+    const scope = await resolveFlowScope(session);
     const { searchParams } = new URL(req.url);
     const fromParam = searchParams.get("from");
     const toParam = searchParams.get("to");
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
       from,
       to,
       dentistId: dentistId && dentistId !== "all" ? dentistId : null,
+      scope,
     });
     return NextResponse.json(data);
   } catch (e) {

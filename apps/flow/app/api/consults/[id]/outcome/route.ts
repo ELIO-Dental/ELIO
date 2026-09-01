@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, resolveFlowScope } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { recordOutcome } from "@/lib/flow-service";
+import { assertConsultInScope } from "@/lib/flow-scope";
 import { resolveAuditActor } from "@elio/auth";
 
 const VALID_OUTCOMES = ["ACCEPTED", "THINKING", "DECLINED"] as const;
@@ -12,7 +13,9 @@ const VALID_STUCK_REASONS = ["FAILED_FINANCE", "PRICE_SHOPPING", "BAD_EXPERIENCE
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("flow:capture-enquiry");
+    const scope = await resolveFlowScope(session);
     const { id } = await params;
+    await assertConsultInScope(session.practiceId, id, scope);
     const body = await req.json().catch(() => ({}));
     const { outcome, stuckReason } = body ?? {};
     if (!VALID_OUTCOMES.includes(outcome)) {

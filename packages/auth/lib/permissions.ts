@@ -47,11 +47,11 @@ const PLANS_PERMISSIONS: Record<Role, string[]> = {
 // ElioFlow permissions (PERMISSIONS_MATRIX.md section 5).
 const FLOW_PERMISSIONS: Record<Role, string[]> = {
   SUPER_ADMIN: [],
-  OWNER: ["flow:view", "flow:capture-enquiry", "flow:trigger-handoff"],
-  ADMIN: ["flow:view", "flow:capture-enquiry", "flow:trigger-handoff"],
-  FINANCE: ["flow:view:readonly"],
+  OWNER: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff"],
+  ADMIN: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff"],
+  FINANCE: ["flow:view:readonly", "flow:view-all-patients"],
   STAFF: ["flow:view", "flow:capture-enquiry", "flow:trigger-handoff"],
-  AUDITOR: ["flow:view:readonly"],
+  AUDITOR: ["flow:view:readonly", "flow:view-all-patients"],
 };
 
 // Super Admin console (PERMISSIONS_MATRIX.md section 2a) — SUPER_ADMIN only.

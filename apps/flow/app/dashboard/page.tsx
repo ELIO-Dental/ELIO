@@ -1,5 +1,6 @@
 import { PageContent, PageHeader } from "@elio/ui";
-import { requireSession, redirectToLogin } from "@/lib/session";
+import type { Role } from "@elio/db";
+import { requireSession, redirectToLogin, resolveFlowScope } from "@/lib/session";
 import { getFlowDashboard } from "@/lib/flow-service";
 import { DashboardClient } from "./dashboard-client";
 
@@ -8,7 +9,13 @@ export default async function DashboardPage() {
   const session = await requireSession();
   if (!session) return redirectToLogin();
 
-  const data = await getFlowDashboard(session.practiceId);
+  const scope = await resolveFlowScope({
+    userId: session.userId,
+    practiceId: session.practiceId,
+    role: session.role as Role,
+    permissions: session.permissions ?? [],
+  });
+  const data = await getFlowDashboard(session.practiceId, { scope });
 
   return (
     <PageContent width="xl">

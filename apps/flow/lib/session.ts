@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { can, getSession, isModuleLicensed, type PermissionSubject } from "@elio/auth";
 import type { Role } from "@elio/db";
+import { resolveFlowPractitionerScope, type FlowPractitionerScope } from "./flow-scope";
 
 /** Loads the current session and asserts a practiceId is present — every
  * route in this app is practice-scoped (packages/db/tenant.ts). */
@@ -95,4 +96,12 @@ export async function requirePermission(action: string): Promise<FlowSession> {
     impersonating: session.impersonating,
     actualUserId: session.actualUserId,
   };
+}
+
+/** F3.2 — resolve whether this user sees all dentists or only their linked row. */
+export async function resolveFlowScope(session: FlowSession): Promise<FlowPractitionerScope> {
+  return resolveFlowPractitionerScope(session.practiceId, {
+    role: session.role,
+    userId: session.userId,
+  });
 }

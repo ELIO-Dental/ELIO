@@ -11,8 +11,11 @@ import {
   syncConsultFinancialsFromSyncedCore,
 } from "@elio/dentally";
 
-export { importCosmeticConsultsFromDentally };
-export type { CosmeticConsultImportResult } from "@elio/dentally";
+import {
+  consultMatchesPractitionerScope,
+  resolveEffectiveDentistFilter,
+  type FlowPractitionerScope,
+} from "./flow-scope";
 
 // ---------------------------------------------------------------------------
 // Capture
@@ -70,7 +73,7 @@ export type PipelineColumn = "capture" | "consult_quote" | "thinking" | "reminde
  *    scheduled still needs staff attention in the Thinking column.
  *  - Closed: outcome is ACCEPTED or DECLINED — funnel exit, per §8.
  */
-export async function listPipeline(practiceId: string) {
+export async function listPipeline(practiceId: string, scope?: FlowPractitionerScope) {
   const db = scopedDb(practiceId);
 
   const [enquiries, consults] = await Promise.all([
@@ -85,15 +88,19 @@ export async function listPipeline(practiceId: string) {
     }),
   ]);
 
+  const scopedConsults = scope ? consults.filter((c) => consultMatchesPractitionerScope(c, scope)) : consults;
+  const scopedEnquiries =
+    scope && !scope.viewAll && scope.dentistId ? [] : enquiries;
+
   const columns: {
     capture: typeof enquiries;
     consult_quote: typeof consults;
     thinking: typeof consults;
     reminders: typeof consults;
     closed: typeof consults;
-  } = { capture: enquiries, consult_quote: [], thinking: [], reminders: [], closed: [] };
+  } = { capture: scopedEnquiries, consult_quote: [], thinking: [], reminders: [], closed: [] };
 
-  for (const c of consults) {
+  for (const c of scopedConsults) {
     if (c.outcome === "ACCEPTED" || c.outcome === "DECLINED") {
       columns.closed.push(c);
     } else if (c.outcome === "THINKING") {
@@ -536,6 +543,7 @@ export interface FlowDashboardData {
   rows: FlowDashboardRow[];
   dentists: { id: string; name: string }[];
   planDisplayName: string;
+  practitionerScope: { viewAll: boolean; dentistId: string | null };
 }
 
 function planValuePence(c: { quotePenceOverride: number | null; quotePence: number | null }) {
@@ -592,14 +600,17 @@ function dashboardStatusLabel(
 
 export async function getFlowDashboard(
   practiceId: string,
-  opts?: { from?: Date; to?: Date; dentistId?: string | null }
+  opts?: { from?: Date; to?: Date; dentistId?: string | null; scope?: FlowPractitionerScope }
 ): Promise<FlowDashboardData> {
   const db = scopedDb(practiceId);
   const settings = await getFlowSettings(practiceId);
+  const dentistFilter = opts?.scope
+    ? resolveEffectiveDentistFilter(opts.scope, opts.dentistId ?? null)
+    : opts?.dentistId ?? null;
 
   const consults = await db.consult.findMany({
     where: {
-      ...(opts?.dentistId ? { practitionerDentistId: opts.dentistId } : {}),
+      ...(dentistFilter ? { practitionerDentistId: dentistFilter } : {}),
     },
     include: {
       enquiry: { include: { patient: true } },
@@ -675,9 +686,15 @@ export async function getFlowDashboard(
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
-  const dentists = dentistRows.map((d) => ({ id: d.id, name: d.name }));
+  const dentists = dentistRows
+    .filter((d) => !opts?.scope || opts.scope.viewAll || d.id === opts.scope.dentistId)
+    .map((d) => ({ id: d.id, name: d.name }));
 
-  return { stats, rows, dentists, planDisplayName: settings.planDisplayName };
+  const practitionerScope = opts?.scope
+    ? { viewAll: opts.scope.viewAll, dentistId: opts.scope.dentistId }
+    : { viewAll: true, dentistId: null };
+
+  return { stats, rows, dentists, planDisplayName: settings.planDisplayName, practitionerScope };
 }
 
 // ---------------------------------------------------------------------------
@@ -694,32 +711,40 @@ export async function getFlowDashboard(
 export async function getConversionReport(
   practiceId: string,
   dateRange?: { from: Date; to: Date },
+  scope?: FlowPractitionerScope
 ) {
   const db = scopedDb(practiceId);
+  const settings = await getFlowSettings(practiceId);
   const where = dateRange ? { createdAt: { gte: dateRange.from, lte: dateRange.to } } : {};
 
   const consults = await db.consult.findMany({
-    where,
+    where: {
+      ...where,
+      ...(scope && !scope.viewAll && scope.dentistId ? { practitionerDentistId: scope.dentistId } : {}),
+    },
     include: { practitionerDentist: true },
   });
 
   const totalConsultations = consults.length;
   const attended = consults.filter((c) => c.attended === true).length;
-  const converted = consults.filter((c) => c.outcome === "ACCEPTED").length;
+  const converted = consults.filter((c) => isLegacyConverted(c, settings.paidConversionThresholdPence)).length;
   const declined = consults.filter((c) => c.outcome === "DECLINED").length;
-  const thinking = consults.filter((c) => c.outcome === "THINKING").length;
-  const closed = converted + declined;
-  const conversionRate = closed > 0 ? Math.round((converted / closed) * 100) : 0;
+  const thinking = consults.filter(
+    (c) => c.attended === true && !isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcome !== "DECLINED"
+  ).length;
+  const conversionRate = attended > 0 ? Math.round((converted / attended) * 100) : 0;
 
   const quoted = consults.filter((c) => (c.quotePenceOverride ?? c.quotePence ?? 0) > 0);
   const totalPipelineValuePence = consults
-    .filter((c) => c.outcome !== "ACCEPTED" && c.outcome !== "DECLINED")
+    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcome !== "DECLINED")
     .reduce((sum, c) => sum + (c.quotePenceOverride ?? c.quotePence ?? 0), 0);
   const totalPlannedPence = consults.reduce((sum, c) => sum + (c.quotePenceOverride ?? c.quotePence ?? 0), 0);
   const totalPaidPence = consults.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0);
   const averagePlanValuePence = quoted.length > 0 ? Math.round(totalPlannedPence / quoted.length) : 0;
 
-  const convertedWithDates = consults.filter((c) => c.outcome === "ACCEPTED" && c.outcomeAt);
+  const convertedWithDates = consults.filter(
+    (c) => isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcomeAt
+  );
   const avgDaysToConvert =
     convertedWithDates.length > 0
       ? Math.round(
@@ -745,8 +770,8 @@ export async function getConversionReport(
       closed: 0,
     };
     row.totalConsultations += 1;
-    if (c.outcome === "ACCEPTED") row.converted += 1;
-    if (c.outcome === "ACCEPTED" || c.outcome === "DECLINED") row.closed += 1;
+    if (isLegacyConverted(c, settings.paidConversionThresholdPence)) row.converted += 1;
+    if (isLegacyConverted(c, settings.paidConversionThresholdPence) || c.outcome === "DECLINED") row.closed += 1;
     byDentistMap.set(key, row);
   }
   const byDentist = Array.from(byDentistMap.values()).map((row) => ({
@@ -770,3 +795,6 @@ export async function getConversionReport(
     byDentist,
   };
 }
+
+export { importCosmeticConsultsFromDentally };
+export type { CosmeticConsultImportResult } from "@elio/dentally";

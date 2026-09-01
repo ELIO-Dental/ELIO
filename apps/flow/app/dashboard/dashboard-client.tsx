@@ -321,8 +321,10 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         </div>
         <div>
           <Label htmlFor="dentist-filter">Dentist</Label>
+          {data.practitionerScope.viewAll ? (
           <select
             id="dentist-filter"
+            data-testid="dentist-filter"
             className="mt-1 block h-10 rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
             value={dentistId}
             onChange={(e) => {
@@ -337,6 +339,11 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               </option>
             ))}
           </select>
+          ) : (
+            <p className="mt-1 text-body-sm text-(--color-text-secondary)" data-testid="dentist-scope-locked">
+              {data.dentists[0]?.name ?? "Your patients only"}
+            </p>
+          )}
         </div>
         <Button variant="secondary" loading={loading} onClick={() => loadDashboard()}>
           Refresh

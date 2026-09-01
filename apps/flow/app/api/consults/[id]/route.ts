@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, resolveFlowScope } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { legacyStatusToOutcome, updateConsultFromDashboard } from "@/lib/flow-service";
+import { assertConsultInScope } from "@/lib/flow-scope";
 import { resolveAuditActor } from "@elio/auth";
 
 /** Update a Consult's own fields (quote, deposit, treatment booked,
@@ -9,7 +10,9 @@ import { resolveAuditActor } from "@elio/auth";
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("flow:capture-enquiry");
+    const scope = await resolveFlowScope(session);
     const { id } = await params;
+    await assertConsultInScope(session.practiceId, id, scope);
     const body = await req.json().catch(() => ({}));
 
     const input: Parameters<typeof updateConsultFromDashboard>[3] = {};
