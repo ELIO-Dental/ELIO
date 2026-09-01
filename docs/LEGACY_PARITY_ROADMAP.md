@@ -840,8 +840,8 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 
 | Step | Task | Details |
 |------|------|---------|
-| Y3.1 | **Schema: `paid` flag** on `LabBillEntry` + `SupplierInvoiceEntry` | Match legacy bill workflow | **Shipped** — `paid` + `paidAt` columns |
-| Y3.2 | **Schema: bank details** on `SavedLab` / `SavedSupplier` | account name, sort code, account number |
+| Y3.1 | **Schema: `paid` flag** on `LabBillEntry` + `SupplierInvoiceEntry` | Match legacy bill workflow | **Shipped** — schema + PATCH API + paid toggle UI + migration mapping |
+| Y3.2 | **Schema: bank details** on `SavedLab` / `SavedSupplier` | account name, sort code, account number | **Shipped** — `accountName` / `sortCode` / `accountNumber` + migration mapping |
 | Y3.3 | **Lab bills UI parity** | Summary cards, year/month/lab filters, paid toggle, file upload, matrix view |
 | Y3.4 | **Bulk payments tabs** | Bank Details + Unpaid Bills; mark paid; **Starling CSV** export |
 | Y3.5 | **Pay settings page — full sections** | Therapy rates, lab/finance splits, Tabeo rates, Dentally site ID, therapist IDs, NHS amounts, SMTP |
@@ -1486,8 +1486,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y2.8 NHS panel | `ElioPay/aurapay/src/app/api/nhs-statement/route.ts` | `nhs-statement/route.ts` + `nhs-statement-panel.tsx` | **Shipped** (coexists with Compass) |
 | Y2.9 Editable draft fields | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `payslip-editable-fields.tsx` + PUT entries | **Shipped** |
 | Y2.10 Legacy archive | Turso payslip JSON (migrated) | `legacy-payslips/` pages + API | **Shipped** (read-only) |
-| Y3.1 Paid flag schema | `ElioPay/aurapay/src/app/api/bills/lab/route.ts` | `elio/packages/db/prisma/schema.prisma` | |
-| Y3.2 Bank details schema | `ElioPay/aurapay/src/app/api/bills/saved-entities/route.ts` | Same schema | |
+| Y3.1 Paid flag schema | `ElioPay/aurapay/src/app/api/bills/lab/route.ts` | `bill-paid.ts` + PATCH routes | **Shipped** |
+| Y3.2 Bank details schema | `ElioPay/aurapay/src/app/api/bills/saved-entities/route.ts` | `saved-entity-bank.ts` + schema | **Shipped** |
 | Y3.3 Lab bills UI | `ElioPay/aurapay/src/app/lab-bills/page.tsx`, `api/lab-bills/upload/route.ts` | `elio/apps/pay/app/lab-bills/page.tsx` | |
 | Y3.4 Bulk payments | `ElioPay/aurapay/src/app/bulk-payments/page.tsx`, `api/bills/bulk-payment/route.ts` | `elio/apps/pay/app/bulk-payments/page.tsx` | Starling CSV |
 | Y3.5 Pay settings | `ElioPay/aurapay/src/app/settings/page.tsx`, `api/settings/route.ts` | `elio/apps/pay/app/settings/page.tsx` | Full sections |

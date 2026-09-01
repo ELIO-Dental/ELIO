@@ -30,6 +30,8 @@ export default async function SupplierInvoicesPage() {
             amountPence: i.amountPence,
             description: i.description,
             invoiceDate: i.invoiceDate ? i.invoiceDate.toISOString() : null,
+            paid: i.paid,
+            paidAt: i.paidAt?.toISOString() ?? null,
             createdAt: i.createdAt.toISOString(),
           }))}
           suppliers={suppliers}

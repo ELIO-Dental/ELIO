@@ -42,6 +42,8 @@ interface SupplierInvoiceRow {
   amountPence: number;
   description: string | null;
   invoiceDate: string | null;
+  paid: boolean;
+  paidAt: string | null;
   createdAt: string;
 }
 
@@ -60,6 +62,26 @@ export function SupplierInvoicesClient({
   const [error, setError] = React.useState<string | null>(null);
   const [formSupplierId, setFormSupplierId] = React.useState<string>(NO_SUPPLIER);
   const [filterSupplierName, setFilterSupplierName] = React.useState<string>("");
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
+
+  const togglePaid = async (invoice: SupplierInvoiceRow) => {
+    setPendingId(invoice.id);
+    setError(null);
+    try {
+      const res = await fetch(`/pay/api/supplier-invoices/${invoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: !invoice.paid }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Update failed");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setPendingId(null);
+    }
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -176,6 +198,7 @@ export function SupplierInvoicesClient({
                 <TableHead>Supplier</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -187,6 +210,20 @@ export function SupplierInvoicesClient({
                   <TableCell>{i.supplierName ?? "Unassigned"}</TableCell>
                   <TableCell>{i.description ?? "—"}</TableCell>
                   <TableCellMoney>{formatMoneyGBP(i.amountPence)}</TableCellMoney>
+                  <TableCell>
+                    <button
+                      type="button"
+                      disabled={pendingId === i.id}
+                      onClick={() => void togglePaid(i)}
+                      className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
+                        i.paid
+                          ? "bg-(--color-success-subtle) text-(--color-success)"
+                          : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                      }`}
+                    >
+                      {i.paid ? "Paid" : "Unpaid"}
+                    </button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

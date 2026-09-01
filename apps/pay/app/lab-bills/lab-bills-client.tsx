@@ -41,6 +41,8 @@ interface LabBillRow {
   dentistName: string | null;
   amountPence: number;
   description: string | null;
+  paid: boolean;
+  paidAt: string | null;
   createdAt: string;
 }
 
@@ -59,6 +61,26 @@ export function LabBillsClient({
   const [error, setError] = React.useState<string | null>(null);
   const [formDentistId, setFormDentistId] = React.useState<string>(NO_DENTIST);
   const [filterDentistId, setFilterDentistId] = React.useState<string>(ALL_DENTISTS);
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
+
+  const togglePaid = async (bill: LabBillRow) => {
+    setPendingId(bill.id);
+    setError(null);
+    try {
+      const res = await fetch(`/pay/api/lab-bills/${bill.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: !bill.paid }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Update failed");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setPendingId(null);
+    }
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -172,6 +194,7 @@ export function LabBillsClient({
                 <TableHead>Dentist</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -181,6 +204,20 @@ export function LabBillsClient({
                   <TableCell>{b.dentistName ?? "Unassigned"}</TableCell>
                   <TableCell>{b.description ?? "—"}</TableCell>
                   <TableCellMoney>{formatMoneyGBP(b.amountPence)}</TableCellMoney>
+                  <TableCell>
+                    <button
+                      type="button"
+                      disabled={pendingId === b.id}
+                      onClick={() => void togglePaid(b)}
+                      className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
+                        b.paid
+                          ? "bg-(--color-success-subtle) text-(--color-success)"
+                          : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                      }`}
+                    >
+                      {b.paid ? "Paid" : "Unpaid"}
+                    </button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

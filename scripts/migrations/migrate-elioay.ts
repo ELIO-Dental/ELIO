@@ -155,7 +155,15 @@ async function main() {
   for (const l of labs.rows) {
     if (l.account_name || l.sort_code || l.account_number) summary.savedLabs.bankDetailsFound++;
     if (EXECUTE) {
-      const created = await newPrisma.savedLab.create({ data: { practiceId: practice.id, name: String(l.name) } });
+      const created = await newPrisma.savedLab.create({
+        data: {
+          practiceId: practice.id,
+          name: String(l.name),
+          accountName: l.account_name ? String(l.account_name) : null,
+          sortCode: l.sort_code ? String(l.sort_code) : null,
+          accountNumber: l.account_number ? String(l.account_number) : null,
+        },
+      });
       idMap[`savedLab:${l.id}`] = created.id;
     }
     summary.savedLabs.migrated++;
@@ -166,7 +174,15 @@ async function main() {
   for (const s of suppliers.rows) {
     if (s.account_name || s.sort_code || s.account_number) summary.savedSuppliers.bankDetailsFound++;
     if (EXECUTE) {
-      const created = await newPrisma.savedSupplier.create({ data: { practiceId: practice.id, name: String(s.name) } });
+      const created = await newPrisma.savedSupplier.create({
+        data: {
+          practiceId: practice.id,
+          name: String(s.name),
+          accountName: s.account_name ? String(s.account_name) : null,
+          sortCode: s.sort_code ? String(s.sort_code) : null,
+          accountNumber: s.account_number ? String(s.account_number) : null,
+        },
+      });
       idMap[`savedSupplier:${s.id}`] = created.id;
     }
     summary.savedSuppliers.migrated++;
@@ -184,6 +200,8 @@ async function main() {
           dentistId: dentistId ?? null,
           amountPence: centsToStructuredPence(Number(lb.amount))!,
           description: lb.description ? String(lb.description) : (lb.lab_name ? String(lb.lab_name) : null),
+          paid: lb.paid === 1 || lb.paid === true,
+          paidAt: lb.paid_date ? new Date(String(lb.paid_date)) : null,
         },
       });
     }
@@ -202,6 +220,8 @@ async function main() {
           amountPence: centsToStructuredPence(Number(si.amount))!,
           description: si.description ? String(si.description) : (si.supplier_name ? String(si.supplier_name) : null),
           invoiceDate: si.date ? new Date(String(si.date)) : null,
+          paid: si.paid === 1 || si.paid === true,
+          paidAt: si.paid_date ? new Date(String(si.paid_date)) : null,
         },
       });
     }

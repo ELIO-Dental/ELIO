@@ -29,6 +29,8 @@ export default async function LabBillsPage() {
             dentistName: b.dentist?.name ?? null,
             amountPence: b.amountPence,
             description: b.description,
+            paid: b.paid,
+            paidAt: b.paidAt?.toISOString() ?? null,
             createdAt: b.createdAt.toISOString(),
           }))}
           dentists={dentists}

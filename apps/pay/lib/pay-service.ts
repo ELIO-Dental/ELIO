@@ -83,6 +83,8 @@ export interface CreateLabBillInput {
   dentistId?: string | null;
   amountPence: number;
   description?: string | null;
+  paid?: boolean;
+  paidAt?: Date | null;
 }
 
 export async function createLabBill(practiceId: string, input: CreateLabBillInput) {
@@ -93,7 +95,20 @@ export async function createLabBill(practiceId: string, input: CreateLabBillInpu
       dentistId: input.dentistId ?? null,
       amountPence: input.amountPence,
       description: input.description ?? null,
+      paid: input.paid ?? false,
+      paidAt: input.paid ? (input.paidAt ?? new Date()) : null,
     },
+  });
+}
+
+export async function updateLabBillPaid(practiceId: string, labBillId: string, paid: boolean, paidAt?: Date | null) {
+  const db = scopedDb(practiceId);
+  const existing = await db.labBillEntry.findFirst({ where: { id: labBillId, practiceId } });
+  if (!existing) throw new Error("Lab bill not found");
+
+  return db.labBillEntry.update({
+    where: { id: labBillId },
+    data: { paid, paidAt: paid ? (paidAt ?? new Date()) : null },
   });
 }
 
@@ -115,6 +130,8 @@ export interface CreateSupplierInvoiceInput {
   amountPence: number;
   description?: string | null;
   invoiceDate?: string | null;
+  paid?: boolean;
+  paidAt?: Date | null;
 }
 
 export async function createSupplierInvoice(practiceId: string, input: CreateSupplierInvoiceInput) {
@@ -126,7 +143,25 @@ export async function createSupplierInvoice(practiceId: string, input: CreateSup
       amountPence: input.amountPence,
       description: input.description ?? null,
       invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : null,
+      paid: input.paid ?? false,
+      paidAt: input.paid ? (input.paidAt ?? new Date()) : null,
     },
+  });
+}
+
+export async function updateSupplierInvoicePaid(
+  practiceId: string,
+  supplierInvoiceId: string,
+  paid: boolean,
+  paidAt?: Date | null
+) {
+  const db = scopedDb(practiceId);
+  const existing = await db.supplierInvoiceEntry.findFirst({ where: { id: supplierInvoiceId, practiceId } });
+  if (!existing) throw new Error("Supplier invoice not found");
+
+  return db.supplierInvoiceEntry.update({
+    where: { id: supplierInvoiceId },
+    data: { paid, paidAt: paid ? (paidAt ?? new Date()) : null },
   });
 }
 
