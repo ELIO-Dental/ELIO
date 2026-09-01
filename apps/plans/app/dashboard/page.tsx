@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireLicensedSession } from "@/lib/session";
+import { can, requireLicensedSession } from "@/lib/session";
+import type { Role } from "@elio/db";
 import { prisma } from "@elio/db";
 import {
   StatCard,
@@ -14,6 +15,7 @@ import {
   formatMoneyGBP,
 } from "@elio/ui";
 import { MoneyStatCard } from "@/components/money-stat-card";
+import { getDashboardStats } from "@/lib/dashboard-stats";
 
 function currentBillingPeriod() {
   const now = new Date();
@@ -22,35 +24,21 @@ function currentBillingPeriod() {
 
 export default async function DashboardPage() {
   const session = await requireLicensedSession();
+  const role = session.role as Role;
+  const canViewRevenue = can({ role }, "plans:view-payments");
 
   const practiceId = session.practiceId;
   const period = currentBillingPeriod();
 
-  const [activePatients, activePlanEnrolments, paymentsThisPeriod, overdueOrFailed, recentPayments] =
-    await Promise.all([
-      prisma.planPatient.count({ where: { practiceId, status: "ACTIVE" } }),
-      prisma.patientPlanEnrolment.findMany({
-        where: { practiceId, status: "ACTIVE" },
-        include: { plan: { select: { monthlyPricePence: true } } },
-      }),
-      prisma.planPayment.aggregate({
-        where: { practiceId, billingPeriod: period },
-        _sum: { amountPence: true },
-        _count: true,
-      }),
-      prisma.planPayment.count({
-        where: { practiceId, status: { in: ["FAILED", "CHARGED_BACK"] } },
-      }),
-      prisma.planPayment.findMany({
-        where: { practiceId },
-        orderBy: { createdAt: "desc" },
-        take: 8,
-        include: { planPatient: { include: { patient: true } } },
-      }),
-    ]);
-
-  const mrrPence = activePlanEnrolments.reduce((sum, e) => sum + e.plan.monthlyPricePence, 0);
-  const collectedThisPeriodPence = paymentsThisPeriod._sum.amountPence ?? 0;
+  const [stats, recentPayments] = await Promise.all([
+    getDashboardStats(practiceId),
+    prisma.planPayment.findMany({
+      where: { practiceId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      include: { planPatient: { include: { patient: true } } },
+    }),
+  ]);
 
   const statusVariant: Record<string, "success" | "warning" | "danger" | "neutral"> = {
     PENDING: "warning",
@@ -78,21 +66,23 @@ export default async function DashboardPage() {
       />
 
       <div className="mt-8 flex flex-col gap-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Active plan patients" value={activePatients} />
-          <MoneyStatCard label="Monthly recurring revenue" value={mrrPence} />
-          <MoneyStatCard label="Collected this period" value={collectedThisPeriodPence} />
-          <StatCard label="Overdue / failed payments" value={overdueOrFailed} />
+        <div
+          className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${canViewRevenue ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}
+        >
+          <StatCard label="Active members" value={stats.activeMembers} />
+          {canViewRevenue && <MoneyStatCard label="Monthly revenue" value={stats.monthlyRevenuePence} />}
+          <StatCard label="Failed payments" value={stats.failedPaymentsThisMonth} />
+          <StatCard label="New signups" value={stats.newSignupsThisMonth} />
         </div>
 
-        {overdueOrFailed > 0 && (
+        {stats.failedPaymentsThisMonth > 0 && (
           <Card className="flex items-center justify-between" accentColor="var(--color-danger)">
             <div>
               <p className="text-body font-medium text-(--color-text-primary)">
-                {overdueOrFailed} payment(s) failed or charged back
+                {stats.failedPaymentsThisMonth} payment(s) failed this month
               </p>
               <p className="text-body-sm text-(--color-text-secondary)">
-                Review patients below and check their mandate status.
+                Review patients and check their mandate status.
               </p>
             </div>
             <Link href="/patients">

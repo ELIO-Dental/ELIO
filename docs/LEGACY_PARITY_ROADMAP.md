@@ -648,7 +648,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 
 | Step | Task | Details |
 |------|------|---------|
-| P3.1 | **Dashboard: match legacy 4 cards** | Active Members (mandate-aware), Monthly Revenue (owner only), Failed Payments, New Signups |
+| P3.1 | **Dashboard: match legacy 4 cards** | Active Members (mandate-aware), Monthly Revenue (owner only), Failed Payments, New Signups | **Shipped** |
 | P3.2 | **Recent activity feed** | Last 10 audit entries |
 | P3.3 | **Quick actions row** | Add Patient, Send Invite, Failed Payments, Reports |
 | P3.4 | **Reports tabs** | Overview, Revenue, Redeems, Breakage; CSV export for owner |
@@ -930,7 +930,7 @@ Client sign-off when **every row** passes on production-like staging:
 
 - [ ] Dentally mappings page: map plan codes
 - [ ] **Sync from Dentally** imports patients on mapped plans
-- [ ] Dashboard Active Members matches mandate-aware count
+- [x] Dashboard Active Members matches mandate-aware count
 - [ ] Patient list: **PENDING_DD** filter chip works
 - [ ] Patient list rows link to **detail page** with all tabs (payments, appointments, notes, correspondence)
 - [x] Free child plan requires parent patient selection
@@ -1433,7 +1433,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P2.7 PENDING_DD filter | `ElioPlans/.../patients/page.tsx`, `src/app/api/patients/route.ts` | `patient-list-filters.ts` + FilterBar chip | **Shipped** |
 | P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | **Shipped** |
 | P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/packages/ui/lib/module-nav-items.ts` | **Shipped** |
-| P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `elio/apps/plans/app/dashboard/page.tsx` | Mandate-aware active count |
+| P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `dashboard-stats.ts` + `app/dashboard/page.tsx` | **Shipped** |
 | P3.2 Activity feed | `ElioPlans/.../dashboard/page.tsx` | Dashboard component | Last 10 audit entries |
 | P3.3 Quick actions | `ElioPlans/.../dashboard/page.tsx` | Dashboard row | |
 | P3.4 Reports tabs | `ElioPlans/.../reports/page.tsx`, `api/reports/route.ts` | `elio/apps/plans/app/reports/page.tsx` | Revenue, Breakage |
