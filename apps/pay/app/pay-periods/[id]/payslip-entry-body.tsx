@@ -10,6 +10,7 @@ import {
   formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { DentistFetchDetails } from "./dentist-fetch-details";
+import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
   totalChairMins?: number;
@@ -62,6 +63,7 @@ export interface PayslipEntryBodyProps {
     isFinance: boolean;
     flagged: boolean;
     treatmentDescription: string | null;
+    financeFeePence: number | null;
   }>;
 }
 
@@ -70,7 +72,19 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
   const p = props;
 
   return (
-    <div className="border-t border-(--color-border-subtle) bg-(--color-surface-dim) px-5 py-5">
+    <div className="border-t border-(--color-border-subtle) bg-(--color-surface-dim) px-5 py-5 space-y-6">
+      {p.payType === "PERCENTAGE_SPLIT" ? (
+        <PayslipExpandedSummary
+          grossPrivateRevenuePence={p.grossPrivateRevenuePence}
+          privateEarningsPence={p.privateEarningsPence}
+          nhsEarningsPence={p.nhsEarningsPence}
+          labDeductionPence={p.labDeductionPence}
+          superannuationPence={p.superannuationPence}
+          therapyMinutes={p.therapyMinutes}
+          therapyRatePerMinute={p.therapyRatePerMinute}
+          financeLines={p.privateRevenueLineItems}
+        />
+      ) : null}
       <TablePanel>
         <Table>
           <TableHeader>

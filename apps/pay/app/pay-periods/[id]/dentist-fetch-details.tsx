@@ -48,8 +48,10 @@ export function DentistFetchDetails({
 
   return (
     <div className="mt-4 space-y-4 border-t border-(--color-border-subtle) px-6 pb-6 pt-4">
-      {(analytics || therapyMinutes != null) && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {(analytics || therapyMinutes != null) && analytics?.totalChairMins ? (
+        <div>
+          <h3 className="mb-3 text-body-sm font-semibold text-(--color-text-primary)">Performance analytics</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {analytics?.totalPatients != null && (
             <Metric label="Patients" value={String(analytics.totalPatients)} />
           )}
@@ -65,11 +67,12 @@ export function DentistFetchDetails({
           {analytics?.utilizationPercent != null && (
             <Metric label="Utilisation" value={`${analytics.utilizationPercent}%`} />
           )}
-          {therapyMinutes != null && therapyMinutes > 0 && (
-            <Metric label="Therapy mins" value={String(therapyMinutes)} />
+          {analytics?.avgAppointmentMins != null && (
+            <Metric label="Avg appt" value={`${analytics.avgAppointmentMins}m`} />
           )}
+          </div>
         </div>
-      )}
+      ) : null}
 
       {lines.length > 0 && (
         <div>

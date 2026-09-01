@@ -182,6 +182,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         isFinance: line.isFinance,
                         flagged: line.flagged,
                         treatmentDescription: line.treatmentDescription,
+                        financeFeePence: line.financeFeePence,
                       }))}
                     />
                   </PayslipAccordionItem>

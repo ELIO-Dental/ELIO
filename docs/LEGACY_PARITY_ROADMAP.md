@@ -828,7 +828,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y2.1b | **Private patient row edit API** | Port `periods/patients` PUT semantics onto `PrivateRevenueLineItem` | **Shipped** |
 | Y2.2 | **Fetch results banner** | Summary stats after fetch (dismissible) | **Shipped** |
 | Y2.3 | **Per-dentist accordion** | Collapsed: name, split %, NHS badge, net pay | **Shipped** — `payslip-accordion.tsx` + `payslip-entry-body.tsx` |
-| Y2.4 | **Expanded: metrics + analytics cards** | Gross/net private, NHS, deductions, utilization, £/hr |
+| Y2.4 | **Expanded: metrics + analytics cards** | Gross/net private, NHS, deductions, utilization, £/hr | **Shipped** — `payslip-expanded-summary.tsx` + analytics grid in `dentist-fetch-details.tsx` |
 | Y2.5 | **Private patients table** | Columns: Patient, Date, Amount, Mins, £/hr, Status, Finance, actions |
 | Y2.6 | **Discrepancies panel** | Types + resolve/add from log |
 | Y2.7 | **Dentist log import** | Google Sheets + CSV paste + compare (if client still uses logs) |
@@ -1479,7 +1479,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y2.1b Patient row edit | `ElioPay/aurapay/src/app/api/periods/patients/route.ts` | `PUT/POST/DELETE /pay/api/pay-periods/[id]/patients` | **Shipped** |
 | Y2.2 Fetch banner | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `fetch-results-banner.tsx` at page top | **Shipped** |
 | Y2.3 Accordion header | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `payslip-accordion.tsx` + `payslip-entry-body.tsx` | **Shipped** |
-| Y2.4–Y2.5 Expanded detail | Same page (metrics + patients table) | `payslip-entry-body.tsx` + `dentist-fetch-details.tsx` | Partial — expand body shipped; Y2.4 cards + Y2.5 table columns next |
+| Y2.4 Expanded metrics | Same page (quick summary + deductions) | `payslip-expanded-summary.tsx` | **Shipped** |
+| Y2.5 Private patients table | Same page (patients table) | `dentist-fetch-details.tsx` | Partial — columns present; row actions next (Y2.5) |
 | Y2.6 Discrepancies | Same page (discrepancies panel) | Period detail component | |
 | Y2.7 Dentist log compare | `ElioPay/aurapay/src/app/api/periods/dentist-log/route.ts`, `api/google-sheets/takings/route.ts` | Optional — confirm with client | |
 | Y2.8 NHS panel | `ElioPay/aurapay/src/app/api/nhs-statement/route.ts` | `elio/apps/pay/app/pay-periods/[id]/compass-upload-form.tsx` + FP17 path | Coexist or choose |

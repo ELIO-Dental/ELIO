@@ -157,6 +157,7 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   // 7b. Per-dentist accordion expands to show figures (Y2.3).
   await page.getByTestId(`payslip-accordion-toggle-${payslip.id}`).click();
   await expect(page.getByRole("cell", { name: "Final pay" })).toBeVisible();
+  await expect(page.getByTestId("payslip-expanded-summary")).toBeVisible();
 
   // 8. Finalize the pay period from the header (Y2.1).
   await page.getByTestId("finalize-period").click();
