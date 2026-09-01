@@ -16,6 +16,13 @@ describe("dentist log compare (Y2.7)", () => {
     expect(entries[0]?.amount).toBe(250);
   });
 
+  it("parses tab-separated log rows", () => {
+    const entries = parseDentistLogCsv("Patient\tDate\tAmount\nJohn Smith\t15/01/2025\t250.00\tCrown");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.patientName).toBe("John Smith");
+    expect(entries[0]?.amount).toBe(250);
+  });
+
   it("formats UK-style dates", () => {
     expect(formatLogDate("15/01/2025")).toBe("2025-01-15");
   });

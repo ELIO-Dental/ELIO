@@ -19,6 +19,11 @@ export interface SystemPatientForLogCompare {
   status?: string | null;
 }
 
+function splitLogLine(line: string): string[] {
+  const delimiter = line.includes("\t") ? "\t" : ",";
+  return line.split(delimiter).map((p) => p.trim());
+}
+
 export function parseDentistLogCsv(csvData: string): DentistLogEntry[] {
   const entries: DentistLogEntry[] = [];
   const lines = csvData.trim().split("\n");
@@ -27,7 +32,7 @@ export function parseDentistLogCsv(csvData: string): DentistLogEntry[] {
     const line = lines[i]?.trim() ?? "";
     if (!line || (i === 0 && line.toLowerCase().includes("patient"))) continue;
 
-    const parts = line.split(",").map((p) => p.trim());
+    const parts = splitLogLine(line);
     if (parts.length < 3) continue;
 
     const [patientName, date, amountStr, treatment] = parts;
@@ -187,11 +192,20 @@ export function compareDentistLogWithSystem(
   };
 }
 
+export type DentistLogCompareSummary = {
+  logEntries: number;
+  systemPatients: number;
+  matched: number;
+  inLogNotSystem: number;
+  inSystemNotLog: number;
+  amountMismatches: number;
+};
+
 export function dentistLogCompareSummary(
   logEntries: DentistLogEntry[],
   systemPatients: SystemPatientForLogCompare[],
   logDiscrepancies: PayDiscrepancy[]
-) {
+): DentistLogCompareSummary {
   const matched = logEntries.length - logDiscrepancies.filter((d) => d.type === "in_log_not_system").length;
   return {
     logEntries: logEntries.length,
@@ -201,4 +215,8 @@ export function dentistLogCompareSummary(
     inSystemNotLog: logDiscrepancies.filter((d) => d.type === "in_system_not_log").length,
     amountMismatches: logDiscrepancies.filter((d) => d.type === "log_mismatch").length,
   };
+}
+
+export function formatDentistLogImportSummary(summary: DentistLogCompareSummary): string {
+  return `${summary.logEntries} log · ${summary.matched} matched · ${summary.inLogNotSystem} log-only · ${summary.inSystemNotLog} system-only · ${summary.amountMismatches} amount mismatches`;
 }

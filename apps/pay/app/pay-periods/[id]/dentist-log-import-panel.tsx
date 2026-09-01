@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { formatMoneyGBPOrDash } from "@elio/ui";
-import { parseDentistLogJson, type DentistLogEntry } from "@/lib/dentist-log-compare";
+import {
+  formatDentistLogImportSummary,
+  parseDentistLogJson,
+  type DentistLogCompareSummary,
+  type DentistLogEntry,
+} from "@/lib/dentist-log-compare";
 
 /** Dentist private log CSV / sheet import (legacy Y2.7). */
 export function DentistLogImportPanel({
@@ -27,6 +32,7 @@ export function DentistLogImportPanel({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DentistLogCompareSummary | null>(null);
 
   useEffect(() => {
     setLog(parseDentistLogJson(initialLog));
@@ -40,15 +46,21 @@ export function DentistLogImportPanel({
     setPending(true);
     setError(null);
     setMessage(null);
+    setSummary(null);
     try {
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payslipEntryId, csv_data: csvData }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        summary?: DentistLogCompareSummary;
+      };
       if (!res.ok) throw new Error(data.error ?? "Import failed");
       setMessage(data.message ?? "Log imported");
+      setSummary(data.summary ?? null);
       setShowPaste(false);
       setCsv("");
       router.refresh();
@@ -121,6 +133,9 @@ export function DentistLogImportPanel({
 
       {error ? <p className="mt-2 text-caption text-(--color-danger)">{error}</p> : null}
       {message ? <p className="mt-2 text-caption text-(--color-success)">{message}</p> : null}
+      {summary ? (
+        <p className="mt-1 text-caption text-(--color-text-tertiary)">{formatDentistLogImportSummary(summary)}</p>
+      ) : null}
 
       {showPaste ? (
         <div className="mt-3 space-y-3">
