@@ -8,7 +8,7 @@ function gbp(pence: number): string {
 
 /** Fetch results banner (Y2.2 partial) — button lives in period header (Y2.1). */
 export function FetchDentallyPanel() {
-  const { locked, fetchResult, fetchError, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
+  const { locked, fetchResult, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
 
   if (locked) return null;
 
@@ -64,12 +64,6 @@ export function FetchDentallyPanel() {
             </p>
           )}
         </div>
-      )}
-
-      {fetchError && (
-        <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-4 py-3 text-body-sm text-(--color-danger)">
-          {fetchError}
-        </p>
       )}
     </div>
   );

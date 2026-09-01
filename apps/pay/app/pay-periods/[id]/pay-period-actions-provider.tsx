@@ -39,7 +39,7 @@ interface PayPeriodActionsContextValue {
   unlocking: boolean;
   downloading: boolean;
   fetchResult: FetchResult | null;
-  fetchError: string | null;
+  actionError: string | null;
   fetchDismissed: boolean;
   dismissFetchResult: () => void;
   fetchFromDentally: () => Promise<void>;
@@ -75,19 +75,19 @@ export function PayPeriodActionsProvider({
   const [unlocking, setUnlocking] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
   const [fetchResult, setFetchResult] = React.useState<FetchResult | null>(null);
-  const [fetchError, setFetchError] = React.useState<string | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
   const [fetchDismissed, setFetchDismissed] = React.useState(false);
 
   const fetchFromDentally = React.useCallback(async () => {
     setFetching(true);
-    setFetchError(null);
+    setActionError(null);
     setFetchResult(null);
     setFetchDismissed(false);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, { method: "POST" });
       const data = (await res.json()) as FetchResult & { error?: string };
       if (!res.ok) {
-        setFetchError(data.error ?? "Failed to fetch from Dentally");
+        setActionError(data.error ?? "Failed to fetch from Dentally");
         return;
       }
       setFetchResult(data);
@@ -102,7 +102,7 @@ export function PayPeriodActionsProvider({
 
       router.refresh();
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Network error");
+      setActionError(err instanceof Error ? err.message : "Network error");
     } finally {
       setFetching(false);
     }
@@ -110,12 +110,12 @@ export function PayPeriodActionsProvider({
 
   const lockPeriod = React.useCallback(async () => {
     setLocking(true);
-    setFetchError(null);
+    setActionError(null);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/lock`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setFetchError((data as { error?: string }).error ?? "Lock failed");
+        setActionError((data as { error?: string }).error ?? "Lock failed");
         return;
       }
       router.refresh();
@@ -126,12 +126,12 @@ export function PayPeriodActionsProvider({
 
   const unlockPeriod = React.useCallback(async () => {
     setUnlocking(true);
-    setFetchError(null);
+    setActionError(null);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/unlock`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setFetchError((data as { error?: string }).error ?? "Reopen failed");
+        setActionError((data as { error?: string }).error ?? "Reopen failed");
         return;
       }
       router.refresh();
@@ -142,12 +142,12 @@ export function PayPeriodActionsProvider({
 
   const downloadAllPdfs = React.useCallback(async () => {
     setDownloading(true);
-    setFetchError(null);
+    setActionError(null);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/download-all`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setFetchError((data as { error?: string }).error ?? "Download failed");
+        setActionError((data as { error?: string }).error ?? "Download failed");
         return;
       }
       const blob = await res.blob();
@@ -161,7 +161,7 @@ export function PayPeriodActionsProvider({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Download failed");
+      setActionError(err instanceof Error ? err.message : "Download failed");
     } finally {
       setDownloading(false);
     }
@@ -176,7 +176,7 @@ export function PayPeriodActionsProvider({
     unlocking,
     downloading,
     fetchResult,
-    fetchError,
+    actionError,
     fetchDismissed,
     dismissFetchResult: () => setFetchDismissed(true),
     fetchFromDentally,

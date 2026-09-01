@@ -154,14 +154,26 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   const payslip = await prisma.payslipEntry.findFirstOrThrow({ where: { payPeriodId, dentistId } });
   expect(payslip.finalPayPence).not.toBeNull();
 
-  // 8. Lock the pay period.
-  await page.getByRole("button", { name: "Lock period" }).click();
+  // 8. Finalize the pay period from the header (Y2.1).
+  await page.getByTestId("finalize-period").click();
   await expect(page.getByText("This period is locked")).toBeVisible({ timeout: 15_000 });
 
   const lockedPeriod = await prisma.payPeriod.findUniqueOrThrow({ where: { id: payPeriodId } });
   expect(lockedPeriod.status).toBe("LOCKED");
 
-  // 9. Download the PDF payslip and confirm it's a real, non-empty file. Other dentists in
+  const fs = await import("fs");
+
+  // 9. Download all PDFs from header while locked.
+  const [zipDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("download-all-pdfs").click(),
+  ]);
+  const zipPath = await zipDownload.path();
+  expect(zipPath).toBeTruthy();
+  const zipStat = fs.statSync(zipPath!);
+  expect(zipStat.size).toBeGreaterThan(500);
+
+  // 10. Download a single PDF payslip and confirm it's a real, non-empty file.
   // this shared practice also got payslips this run, so target our own payslip's exact href
   // (known from the DB row above) rather than a name-based locator that would match several.
   const [download] = await Promise.all([
@@ -170,7 +182,6 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   ]);
   const downloadPath = await download.path();
   expect(downloadPath).toBeTruthy();
-  const fs = await import("fs");
   const stat = fs.statSync(downloadPath!);
   expect(stat.size).toBeGreaterThan(500);
   const bytes = fs.readFileSync(downloadPath!);

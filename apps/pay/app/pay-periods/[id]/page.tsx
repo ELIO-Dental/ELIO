@@ -24,6 +24,7 @@ import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
 import { PayPeriodActionsProvider } from "./pay-period-actions-provider";
 import { PeriodHeaderActions } from "./period-header-actions";
+import { PeriodActionAlerts } from "./period-action-alerts";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
 import { FetchDentallyPanel } from "./fetch-dentally-panel";
@@ -88,9 +89,15 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
     <PageContent>
       <PageHeader
         title={`${payPeriod.periodStart.toISOString().slice(0, 10)} – ${payPeriod.periodEnd.toISOString().slice(0, 10)}`}
-        description={<Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>{payPeriod.status}</Badge>}
+        description={
+          <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>
+            {payPeriod.status === "LOCKED" ? "Finalized" : "Draft"}
+          </Badge>
+        }
         actions={<PeriodHeaderActions />}
       />
+
+      <PeriodActionAlerts />
 
       <div className="mt-8 flex flex-col gap-8">
         <Card>
