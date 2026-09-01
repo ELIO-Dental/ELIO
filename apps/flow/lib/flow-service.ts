@@ -501,6 +501,7 @@ export interface FlowDashboardStats {
 
 export interface FlowDashboardRow {
   id: string;
+  patientId: string | null;
   patientName: string;
   patientEmail: string | null;
   patientPhone: string | null;
@@ -611,6 +612,7 @@ export async function getFlowDashboard(
 
     return {
       id: c.id,
+      patientId: patient?.id ?? null,
       patientName,
       patientEmail: patient?.email ?? null,
       patientPhone: patient?.phone ?? null,

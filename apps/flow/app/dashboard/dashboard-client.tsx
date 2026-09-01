@@ -22,6 +22,7 @@ import { FlowStatCard } from "@/components/flow-stat-card";
 import type { FlowDashboardData, FlowDashboardRow } from "@/lib/flow-service";
 import { DashboardCharts } from "./dashboard-charts";
 import { DashboardEditDialog } from "./dashboard-edit-dialog";
+import { DashboardPatientPanel } from "./dashboard-patient-panel";
 
 const DATE_PRESETS = [
   { id: "all", label: "All time" },
@@ -176,6 +177,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [importing, setImporting] = React.useState(false);
   const [view, setView] = React.useState<"table" | "charts">("table");
   const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
+  const [detailRow, setDetailRow] = React.useState<FlowDashboardRow | null>(null);
 
   async function loadDashboard(nextPreset = preset, nextDentist = dentistId) {
     setLoading(true);
@@ -404,7 +406,13 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                   {filteredRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <div className="font-medium">{row.patientName}</div>
+                        <button
+                          type="button"
+                          onClick={() => setDetailRow(row)}
+                          className="text-left font-medium text-(--color-brand) underline-offset-2 hover:underline"
+                        >
+                          {row.patientName}
+                        </button>
                         {row.patientPhone ? (
                           <div className="text-caption text-(--color-text-tertiary)">{row.patientPhone}</div>
                         ) : null}
@@ -453,6 +461,14 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           if (!open) setEditRow(null);
         }}
         onSaved={() => void loadDashboard()}
+      />
+
+      <DashboardPatientPanel
+        row={detailRow}
+        open={detailRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailRow(null);
+        }}
       />
     </div>
   );

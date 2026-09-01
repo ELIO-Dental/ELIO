@@ -1391,7 +1391,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F2.7 Export CSV | `ElioFlow/pages/index.tsx` (`exportCSV`) | `dashboard-client.tsx` client export | **Shipped** |
 | F2.8 Edit modal | `ElioFlow/pages/index.tsx` (edit modal), `pages/api/status.ts` | `dashboard-edit-dialog.tsx` + `PATCH /flow/api/consults/[id]` | **Shipped** |
 | F2.9 Progress dots | `ElioFlow/pages/index.tsx` | `dashboard-client.tsx` ProgressDots | **Shipped** |
-| F2.10 Patient detail panel | `ElioFlow/pages/api/patient/[id].ts` | Slide-over on dashboard | Live Dentally fetch |
+| F2.10 Patient detail panel | `ElioFlow/pages/api/patient/[id].ts` | `dashboard-patient-panel.tsx` + `GET /flow/api/patients/[id]/live` | **Shipped** |
 | F2.11 Keep kanban | — | `elio/apps/flow/app/pipeline/` + Board nav | **Shipped** — Dashboard + Board tabs |
 | F3.1 Flow settings | `ElioFlow/pages/settings.tsx`, `pages/api/settings.ts` | `elio/apps/flow/app/settings/` (to create) | Plan name, thresholds |
 | F3.2 Dentist visibility | `ElioFlow/pages/index.tsx` (dentist filter), `pages/api/users.ts` | `@elio/auth` permission `flow:view-all-patients` | |

@@ -34,4 +34,12 @@ export {
 } from "./src/flow-consult-import";
 export type { CosmeticConsultImportResult } from "./src/flow-consult-import";
 
+export { fetchLivePatientPanel } from "./src/live-patient";
+export type {
+  LivePatientPanel,
+  LivePatientAppointment,
+  LivePatientInvoice,
+  LivePatientPayment,
+} from "./src/live-patient";
+
 export * from "./src/types";
