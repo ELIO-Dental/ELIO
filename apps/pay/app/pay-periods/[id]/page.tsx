@@ -27,7 +27,7 @@ import { PeriodHeaderActions } from "./period-header-actions";
 import { PeriodActionAlerts } from "./period-action-alerts";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
-import { FetchDentallyPanel } from "./fetch-dentally-panel";
+import { FetchResultsBanner } from "./fetch-results-banner";
 import { DentistFetchDetails } from "./dentist-fetch-details";
 
 function asAnalytics(value: unknown): {
@@ -98,17 +98,20 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       />
 
       <PeriodActionAlerts />
+      <FetchResultsBanner />
 
       <div className="mt-8 flex flex-col gap-8">
         <Card>
           <CardHeader className="flex-col items-start gap-1">
             <CardTitle>Dentally</CardTitle>
             <p className="text-body-sm text-(--color-text-secondary)">
-              Pull private invoice data for this pay period from Dentally, then run calculation.
+              Pull private invoice data for this pay period from Dentally using the header button, then run calculation.
             </p>
           </CardHeader>
           <CardContent>
-            <FetchDentallyPanel />
+            <p className="text-body-sm text-(--color-text-tertiary)">
+              Use <strong>Fetch from Dentally</strong> in the page header. Summary stats appear in the banner above after each fetch.
+            </p>
           </CardContent>
         </Card>
 
