@@ -209,6 +209,7 @@ model Practice {
 
   /** Per-practice Pay settings (therapy rates, splits, Dentally IDs, SMTP) — legacy AuraPay `settings` KV (Y3.5). */
   paySettingsJson Json?
+  flowSettingsJson Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

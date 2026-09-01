@@ -5,9 +5,8 @@
 
 import { scopedDb } from "@elio/db";
 import { getAccounts, getAppointments, getPayments } from "./queries";
+import { getFlowSettings } from "./flow-settings-service";
 
-const DEPOSIT_THRESHOLD_PENCE = 5000;
-const COSMETIC_CONSULT_REASON = "cosmetic consultation";
 const CONSULT_IMPORT_MONTHS = 12;
 
 export function resolveConsultBookedBy(bookedByName: string | null | undefined): string | null {
@@ -24,6 +23,13 @@ export function shouldUpdatePractitionerFromSync(
   return !consult.practitionerDentistId;
 }
 
+export function shouldMarkPractitionerEdited(
+  currentPractitionerDentistId: string | null,
+  nextPractitionerDentistId: string | null
+): boolean {
+  return nextPractitionerDentistId !== currentPractitionerDentistId;
+}
+
 export interface CosmeticConsultImportResult {
   scanned: number;
   created: number;
@@ -34,6 +40,7 @@ export interface CosmeticConsultImportResult {
 
 export async function syncConsultFinancialsFromSyncedCore(practiceId: string, consultId: string) {
   const db = scopedDb(practiceId);
+  const settings = await getFlowSettings(practiceId);
   const consult = await db.consult.findUnique({
     where: { id: consultId },
     include: { enquiry: true, appointment: true },
@@ -54,7 +61,7 @@ export async function syncConsultFinancialsFromSyncedCore(practiceId: string, co
   const consultDate = consult.appointment?.startsAt ?? consult.createdAt;
   const hasDeposit = payments.some(
     (p) =>
-      (p.amountPence ?? 0) >= DEPOSIT_THRESHOLD_PENCE &&
+      (p.amountPence ?? 0) >= settings.depositThresholdPence &&
       p.paidAt != null &&
       p.paidAt >= consultDate
   );
@@ -84,6 +91,7 @@ export async function importCosmeticConsultsFromDentally(
   practiceId: string
 ): Promise<CosmeticConsultImportResult> {
   const db = scopedDb(practiceId);
+  const settings = await getFlowSettings(practiceId);
   const since = new Date();
   since.setMonth(since.getMonth() - CONSULT_IMPORT_MONTHS);
 
@@ -92,7 +100,7 @@ export async function importCosmeticConsultsFromDentally(
       practiceId,
       patientId: { not: null },
       startsAt: { gte: since },
-      reason: { contains: COSMETIC_CONSULT_REASON, mode: "insensitive" },
+      reason: { contains: settings.cosmeticConsultReason, mode: "insensitive" },
     },
     orderBy: { startsAt: "desc" },
   });

@@ -29,9 +29,18 @@ export { inngest, dentallySyncFunction, requestDentallySync, inngestConfigured }
 export { runDentallySyncJob, setDentallyPostSyncHook } from "./src/sync-job";
 
 export {
+  DEFAULT_FLOW_SETTINGS,
+  mergeFlowSettingsInput,
+  parseFlowSettingsJson,
+  type FlowSettings,
+} from "./src/flow-settings";
+export { getFlowSettings, saveFlowSettings } from "./src/flow-settings-service";
+export {
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
   syncAllConsultFinancialsFromSyncedCore,
+  resolveConsultBookedBy,
+  shouldUpdatePractitionerFromSync,
 } from "./src/flow-consult-import";
 export type { CosmeticConsultImportResult, SyncAllConsultFinancialsResult } from "./src/flow-consult-import";
 

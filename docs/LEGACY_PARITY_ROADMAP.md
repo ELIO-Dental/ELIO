@@ -419,7 +419,7 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 
 | Step | Task | Details |
 |------|------|---------|
-| F3.1 | **Flow settings page** | Plan display name (AuraCare), cosmetic consult reason filter, conversion thresholds (£50 deposit, £450 paid) |
+| F3.1 | **Flow settings page** | Plan display name (AuraCare), cosmetic consult reason filter, conversion thresholds (£50 deposit, £450 paid) | **Shipped** — `/flow/settings` + `flowSettingsJson` + wired to import/conversion |
 | F3.2 | **Practitioner visibility** | Dentists see own pipeline unless `flow:view-all-patients` permission |
 | F3.3 | **Branding overrides** | Optional: practice logo/name in Flow header (read from portal/practice settings) |
 
@@ -1393,7 +1393,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F2.9 Progress dots | `ElioFlow/pages/index.tsx` | `dashboard-client.tsx` ProgressDots | **Shipped** |
 | F2.10 Patient detail panel | `ElioFlow/pages/api/patient/[id].ts` | `dashboard-patient-panel.tsx` + `GET /flow/api/patients/[id]/live` | **Shipped** |
 | F2.11 Keep kanban | — | `elio/apps/flow/app/pipeline/` + Board nav | **Shipped** — Dashboard + Board tabs |
-| F3.1 Flow settings | `ElioFlow/pages/settings.tsx`, `pages/api/settings.ts` | `elio/apps/flow/app/settings/` (to create) | Plan name, thresholds |
+| F3.1 Flow settings | `ElioFlow/pages/settings.tsx`, `pages/api/settings.ts` | `elio/apps/flow/app/settings/` + `flowSettingsJson` | **Shipped** |
 | F3.2 Dentist visibility | `ElioFlow/pages/index.tsx` (dentist filter), `pages/api/users.ts` | `@elio/auth` permission `flow:view-all-patients` | |
 | F3.3 Branding | `ElioFlow/pages/settings.tsx` | Read from portal/practice settings | |
 | F4.x Verification | Export legacy Sheets + compare | E2E in `elio/apps/flow/e2e/` | Side-by-side stats |

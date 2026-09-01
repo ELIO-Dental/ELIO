@@ -60,4 +60,5 @@ export const FLOW_MODULE_NAV: ModuleNavLink[] = [
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
   { id: "enquiries", label: "Enquiries", href: "/enquiries", icon: MessageSquare },
   { id: "reminders", label: "Reminders", href: "/reminders", icon: Bell },
+  { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];

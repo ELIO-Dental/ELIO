@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveConsultBookedBy,
+  shouldMarkPractitionerEdited,
   shouldUpdatePractitionerFromSync,
 } from "./flow-consult-import";
 
@@ -38,5 +39,13 @@ describe("shouldUpdatePractitionerFromSync", () => {
         "dentist-2"
       )
     ).toBe(false);
+  });
+});
+
+describe("shouldMarkPractitionerEdited", () => {
+  it("is true only when dentist id changes", () => {
+    expect(shouldMarkPractitionerEdited("a", "b")).toBe(true);
+    expect(shouldMarkPractitionerEdited("a", "a")).toBe(false);
+    expect(shouldMarkPractitionerEdited(null, null)).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import { scopedDb } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 import {
   getAppointments,
+  getFlowSettings,
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
 } from "@elio/dentally";
@@ -173,7 +174,9 @@ export async function updateConsultDetails(
   if ("treatmentBooked" in input) data.treatmentBooked = input.treatmentBooked;
   if ("practitionerDentistId" in input) {
     data.practitionerDentistId = input.practitionerDentistId;
-    data.practitionerEdited = true;
+    if (input.practitionerDentistId !== consult.practitionerDentistId) {
+      data.practitionerEdited = true;
+    }
   }
   if ("notes" in input) data.notes = input.notes;
   if ("planSignedUp" in input) data.planSignedUp = input.planSignedUp;
@@ -489,7 +492,7 @@ export async function syncConsultFinancials(practiceId: string, consultId: strin
 // Dashboard (F2.1–F2.5 — legacy ElioFlow home parity)
 // ---------------------------------------------------------------------------
 
-const PAID_CONVERSION_THRESHOLD_PENCE = 45_000; // £450 — legacy conversion rule
+const DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE = 45_000; // £450 — legacy default
 
 export interface FlowDashboardStats {
   totalConsultations: number;
@@ -532,6 +535,7 @@ export interface FlowDashboardData {
   stats: FlowDashboardStats;
   rows: FlowDashboardRow[];
   dentists: { id: string; name: string }[];
+  planDisplayName: string;
 }
 
 function planValuePence(c: { quotePenceOverride: number | null; quotePence: number | null }) {
@@ -543,28 +547,35 @@ function consultDate(c: { appointment: { startsAt: Date | null } | null; created
 }
 
 /** Legacy ElioFlow conversion: ACCEPTED/planSignedUp OR (deposit/£450+ paid + treatment booked). */
-export function isLegacyConverted(c: {
-  outcome: string | null;
-  planSignedUp: boolean;
-  hasDeposit: boolean | null;
-  totalPaidPence: number | null;
-  treatmentBooked: boolean | null;
-}): boolean {
+export function isLegacyConverted(
+  c: {
+    outcome: string | null;
+    planSignedUp: boolean;
+    hasDeposit: boolean | null;
+    totalPaidPence: number | null;
+    treatmentBooked: boolean | null;
+  },
+  paidConversionThresholdPence = DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE
+): boolean {
   if (c.outcome === "ACCEPTED" || c.planSignedUp) return true;
-  const paidEnough = Boolean(c.hasDeposit) || (c.totalPaidPence ?? 0) >= PAID_CONVERSION_THRESHOLD_PENCE;
+  const paidEnough =
+    Boolean(c.hasDeposit) || (c.totalPaidPence ?? 0) >= paidConversionThresholdPence;
   return paidEnough && Boolean(c.treatmentBooked);
 }
 
-function dashboardStatusLabel(c: {
-  outcome: string | null;
-  stuckReason: string | null;
-  attended: boolean | null;
-  planSignedUp: boolean;
-  hasDeposit: boolean | null;
-  totalPaidPence: number | null;
-  treatmentBooked: boolean | null;
-}): { label: string; key: string } {
-  if (isLegacyConverted(c)) {
+function dashboardStatusLabel(
+  c: {
+    outcome: string | null;
+    stuckReason: string | null;
+    attended: boolean | null;
+    planSignedUp: boolean;
+    hasDeposit: boolean | null;
+    totalPaidPence: number | null;
+    treatmentBooked: boolean | null;
+  },
+  paidConversionThresholdPence = DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE
+): { label: string; key: string } {
+  if (isLegacyConverted(c, paidConversionThresholdPence)) {
     return c.planSignedUp ? { label: "Completed", key: "completed" } : { label: "Converted", key: "converted" };
   }
   if (c.attended === true) {
@@ -584,6 +595,7 @@ export async function getFlowDashboard(
   opts?: { from?: Date; to?: Date; dentistId?: string | null }
 ): Promise<FlowDashboardData> {
   const db = scopedDb(practiceId);
+  const settings = await getFlowSettings(practiceId);
 
   const consults = await db.consult.findMany({
     where: {
@@ -612,7 +624,7 @@ export async function getFlowDashboard(
       : "Unlinked lead";
     const d = consultDate(c);
     const planValue = planValuePence(c);
-    const { label, key } = dashboardStatusLabel(c);
+    const { label, key } = dashboardStatusLabel(c, settings.paidConversionThresholdPence);
 
     return {
       id: c.id,
@@ -642,8 +654,10 @@ export async function getFlowDashboard(
   });
 
   const attended = filtered.filter((c) => c.attended === true).length;
-  const converted = filtered.filter((c) => isLegacyConverted(c)).length;
-  const stuck = filtered.filter((c) => c.attended === true && !isLegacyConverted(c)).length;
+  const converted = filtered.filter((c) => isLegacyConverted(c, settings.paidConversionThresholdPence)).length;
+  const stuck = filtered.filter(
+    (c) => c.attended === true && !isLegacyConverted(c, settings.paidConversionThresholdPence)
+  ).length;
 
   const stats: FlowDashboardStats = {
     totalConsultations: filtered.length,
@@ -663,7 +677,7 @@ export async function getFlowDashboard(
   });
   const dentists = dentistRows.map((d) => ({ id: d.id, name: d.name }));
 
-  return { stats, rows, dentists };
+  return { stats, rows, dentists, planDisplayName: settings.planDisplayName };
 }
 
 // ---------------------------------------------------------------------------
