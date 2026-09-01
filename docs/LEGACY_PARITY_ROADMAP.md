@@ -1129,7 +1129,7 @@ Items that block parity and are **not** just missing UI:
 | 12 | `GET /api/reports` | Inline in `/reports` page | 🟡 |
 | 13 | `POST /api/seed-terms` | `POST /plans/api/documents/seed-terms` | ✅ |
 | 14 | `GET/PATCH /api/redeems/[id]` | `/plans/api/redeems/[id]` | ✅ |
-| 15 | `GET/POST /api/redeems` | List page only; no POST create | ❌ |
+| 15 | `GET/POST /api/redeems` | `GET` list page + `POST /plans/api/redeems` create | ✅ |
 | 16 | `GET/POST /api/plans` | `/plans/api/plans` (POST create) | 🟡 |
 | 17 | `GET/PUT/DELETE /api/plans/[id]` | None | ❌ |
 | 18 | `POST /api/plans/[id]/price-increase` | `POST /plans/api/plans/[id]/price-increase` | ✅ |
@@ -1443,7 +1443,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `documents-manager.tsx` + APIs | **Shipped** |
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `settings-manager.tsx` + `plan_practice_settings` | **Shipped** |
 | P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `guide-manager.tsx` + APIs + nav | **Shipped** |
-| P4.6 Redeem create | `ElioPlans/src/app/api/redeems/route.ts`, `.../redeems/page.tsx` | `elio/apps/plans/app/redeems/` + API POST | From Dentally appt |
+| P4.6 Redeem create | `ElioPlans/src/app/api/redeems/route.ts`, `.../redeems/page.tsx` | `createRedeem` + patient detail dialog | **Shipped** |
 | P4.7 Branding upload | `ElioPlans/src/app/api/branding/route.ts`, `api/upload/route.ts`, `src/lib/branding-context.tsx` | Plans settings + blob storage | |
 | P5.x Verification | Legacy DB export | Staging compare | Patient counts after sync |
 
