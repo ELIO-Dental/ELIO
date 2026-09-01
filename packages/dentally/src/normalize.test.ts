@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeAppointment,
   normalizeInvoice,
   normalizePatient,
   normalizePayment,
@@ -27,6 +28,18 @@ describe("normalizePatient", () => {
       email: null,
       phone: "+447951408659",
     });
+  });
+});
+
+describe("normalizeAppointment", () => {
+  it("maps user_name to bookedByName", () => {
+    const result = normalizeAppointment({
+      id: 42,
+      patient_id: 9,
+      user_name: "  Reception Desk  ",
+      reason: "Cosmetic Consultation",
+    });
+    expect(result.bookedByName).toBe("Reception Desk");
   });
 });
 

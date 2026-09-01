@@ -507,6 +507,7 @@ export interface FlowDashboardRow {
   patientPhone: string | null;
   dentistId: string | null;
   dentistName: string;
+  bookedBy: string | null;
   consultationDate: string | null;
   planValuePence: number;
   quotePence: number | null;
@@ -618,6 +619,7 @@ export async function getFlowDashboard(
       patientPhone: patient?.phone ?? null,
       dentistId: c.practitionerDentistId,
       dentistName: c.practitionerDentist?.name ?? "Unassigned",
+      bookedBy: c.bookedBy,
       consultationDate: d.toISOString().slice(0, 10),
       planValuePence: planValue,
       quotePence: c.quotePence,

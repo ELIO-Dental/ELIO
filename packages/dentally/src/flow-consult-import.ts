@@ -108,6 +108,8 @@ export async function importCosmeticConsultsFromDentally(
         practitionerDentistId = dentist?.id ?? null;
       }
 
+      const bookedBy = apt.bookedByName?.trim() || null;
+
       const existing = await db.consult.findFirst({
         where: { practiceId, enquiry: { patientId } },
         include: { appointment: true },
@@ -129,6 +131,7 @@ export async function importCosmeticConsultsFromDentally(
             appointmentId: apt.id,
             attended: derivedAttended,
             practitionerDentistId,
+            bookedBy,
           },
         });
         await syncConsultFinancialsFromSyncedCore(practiceId, consult.id);
@@ -145,6 +148,7 @@ export async function importCosmeticConsultsFromDentally(
         appointmentId?: string;
         attended?: boolean | null;
         practitionerDentistId?: string | null;
+        bookedBy?: string | null;
       } = {};
 
       if (shouldLinkAppointment) patch.appointmentId = apt.id;
@@ -152,6 +156,7 @@ export async function importCosmeticConsultsFromDentally(
       if (!existing.practitionerDentistId && practitionerDentistId) {
         patch.practitionerDentistId = practitionerDentistId;
       }
+      if (bookedBy) patch.bookedBy = bookedBy;
 
       if (Object.keys(patch).length > 0) {
         await db.consult.update({ where: { id: existing.id }, data: patch });

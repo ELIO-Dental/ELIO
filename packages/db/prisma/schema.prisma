@@ -448,6 +448,8 @@ model Appointment {
   reason         String?
   practitionerId String?
 
+  bookedByName   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1383,6 +1385,7 @@ model Consult {
   // real join, not string matching.
   practitionerDentistId String?
   practitionerDentist   Dentist?            @relation(fields: [practitionerDentistId], references: [id])
+  bookedBy              String?
   quotePence            Int?
   // Manual override of quotePence, e.g. a discount agreed verbally — old
   // ElioFlow's `planValueOverride` semantics: once set, sync/re-derivation

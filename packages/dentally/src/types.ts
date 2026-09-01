@@ -29,6 +29,7 @@ export interface DentallyAppointmentRaw {
   patient_id?: number | null;
   practitioner_id?: number | null;
   user_id?: number | string | null;
+  user_name?: string | null;
   start_time?: string | null;
   finish_time?: string | null;
   starts_at?: string | null;

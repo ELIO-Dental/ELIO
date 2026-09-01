@@ -35,6 +35,7 @@ export function normalizeAppointment(raw: DentallyAppointmentRaw) {
     dentallyState: raw.state ?? null,
     reason: raw.reason ?? null,
     practitionerId: raw.practitioner_id != null ? String(raw.practitioner_id) : null,
+    bookedByName: raw.user_name?.trim() || null,
   };
 }
 
