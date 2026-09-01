@@ -159,12 +159,7 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   await expect(page.getByRole("cell", { name: "Final pay" })).toBeVisible();
   await expect(page.getByTestId("payslip-expanded-summary")).toBeVisible();
   await expect(page.getByTestId("private-patients-table")).toBeVisible();
-
-  // 7c. Discrepancies panel renders when present (may be empty for this E2E dentist).
-  const discrepanciesPanel = page.getByTestId("discrepancies-panel");
-  if (await discrepanciesPanel.count()) {
-    await expect(discrepanciesPanel).toBeVisible();
-  }
+  await expect(page.getByTestId("dentist-log-import-panel")).toBeVisible();
 
   // 8. Finalize the pay period from the header (Y2.1).
   await page.getByTestId("finalize-period").click();

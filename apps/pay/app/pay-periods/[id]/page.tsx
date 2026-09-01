@@ -153,6 +153,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                     <PayslipEntryBody
                       payPeriodId={payPeriod.id}
                       payslipEntryId={p.id}
+                      dentistName={p.dentist.name}
                       locked={payPeriod.status === "LOCKED"}
                       payType={p.payType}
                       udas={p.udas}
@@ -173,6 +174,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       finalPayPence={p.finalPayPence}
                       dentallyAnalyticsJson={p.dentallyAnalyticsJson}
                       dentallyDiscrepanciesJson={p.dentallyDiscrepanciesJson}
+                      dentallyDentistLogJson={p.dentallyDentistLogJson}
                       privateRevenueLineItems={p.privateRevenueLineItems.map((line) => ({
                         id: line.id,
                         patientName: line.patientName,

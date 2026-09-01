@@ -737,6 +737,7 @@ model PayslipEntry {
   dentallyAnalyticsJson     Json?
   dentallyTherapyJson       Json?
   dentallyDiscrepanciesJson Json?
+  dentallyDentistLogJson      Json?
   therapyMinutes            Decimal? @db.Decimal(8, 2)
   therapyRatePerMinute      Decimal? @db.Decimal(10, 4) // legacy AuraPay therapy_rate (£/min)
 
