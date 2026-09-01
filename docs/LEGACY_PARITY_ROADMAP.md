@@ -825,7 +825,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 |------|------|---------|
 | Y2.1 | **Period header actions** | Fetch from Dentally, Download All PDFs, Email All, Finalize/**Reopen** | **Shipped** — header actions + unlock + download-all; Email All stubbed (Y3.8) |
 | Y2.1a | **`PUT /pay-periods/[id]/entries`** | Save single dentist without full recalculate | **Shipped** |
-| Y2.1b | **Private patient row edit API** | Port `periods/patients` PUT semantics onto `PrivateRevenueLineItem` |
+| Y2.1b | **Private patient row edit API** | Port `periods/patients` PUT semantics onto `PrivateRevenueLineItem` | **Shipped** |
 | Y2.2 | **Fetch results banner** | Summary stats after fetch (dismissible) |
 | Y2.3 | **Per-dentist accordion** | Collapsed: name, split %, NHS badge, net pay |
 | Y2.4 | **Expanded: metrics + analytics cards** | Gross/net private, NHS, deductions, utilization, £/hr |
@@ -1476,7 +1476,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y1.7 Wire calculate | `ElioPay/aurapay/src/lib/calculations.ts` | calculate route + `calculatePayslipForDentist` (preserves Dentally lines) | **Shipped** |
 | Y2.1 Period header actions | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `pay-periods/[id]/period-header-actions.tsx` + APIs | **Shipped** |
 | Y2.1a Save entry | `ElioPay/aurapay/src/app/api/periods/entries/route.ts` | `PUT /pay/api/pay-periods/[id]/entries` | **Shipped** |
-| Y2.1b Patient row edit | `ElioPay/aurapay/src/app/api/periods/patients/route.ts` | Map to `PrivateRevenueLineItem` API | |
+| Y2.1b Patient row edit | `ElioPay/aurapay/src/app/api/periods/patients/route.ts` | `PUT/POST/DELETE /pay/api/pay-periods/[id]/patients` | **Shipped** |
 | Y2.2 Fetch banner | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | Period detail page | Summary stats |
 | Y2.3–Y2.5 Accordion UI | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | Extend period detail | Per-dentist expand |
 | Y2.6 Discrepancies | Same page (discrepancies panel) | Period detail component | |
