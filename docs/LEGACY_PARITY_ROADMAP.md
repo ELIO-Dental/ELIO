@@ -146,7 +146,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 | Inngest background jobs | N/A (inline serverless) | Required for shell sync | 🟡 Must verify prod |
 | SMTP / email payslips | Pay AuraPay | Not wired in new Pay | ❌ |
 | Blob/file storage | Pay bills, logos | Partial (Compass upload in-memory) | 🟡 |
-| GoCardless mandate sync cron | Plans `gc-sync` daily | Webhooks only; no gc-sync cron | 🟡 |
+| GoCardless mandate sync cron | Plans `gc-sync` daily | `GET /plans/api/cron/gc-sync` (`0 8 * * *`) | ✅ |
 | Admin impersonation | N/A | Platform admin console | ✅ New capability |
 | PWA / offline pages | No | All apps have `/offline` | ✅ New capability |
 
@@ -156,7 +156,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 |-----|--------|----------|----------|----------|--------|
 | Flow full sync | ElioFlow `vercel.json` | `*/10 6-8 * * *` | Shell generic sync | `0 3 * * *` | ❌ Different scope + frequency |
 | Plans Dentally sync | ElioPlans | `0 6 * * *` | Shell generic (no plan filter) | `0 5 * * *` on plans app | ✅ |
-| Plans gc-sync | ElioPlans | `0 8 * * *` | None | — | ❌ |
+| Plans gc-sync | ElioPlans | `0 8 * * *` | `GET /plans/api/cron/gc-sync` | `0 8 * * *` | ✅ |
 | Plans reconcile | ElioPlans | `0 9 * * *` | `/plans/api/cron/reconcile-payments` | `0 7 * * *` | ✅ (1h earlier) |
 | Plans create charges | N/A | — | `/plans/api/cron/create-charges` | `0 6 * * *` | ✅ New (keep) |
 | Pay Dentally fetch | AuraPay | Manual only | `POST /pay/api/pay-periods/[id]/fetch-dentally` | On demand (UI) | ✅ Y1 shipped |
@@ -587,7 +587,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Audit log | Exists | ✅ |
 | **Patient detail page** (`/patients/[id]`) | **Does not exist** — table rows not links | ❌ Critical |
 | **DentallyPlanMapping in DB** | **Not migrated, model missing** in new schema | `DentallyPlanMapping` model (P1.2) | ✅ |
-| **`gc-sync` cron** (mandate reconciliation) | No equivalent cron | ❌ |
+| **`gc-sync` cron** (mandate reconciliation) | `GET /plans/api/cron/gc-sync` | ✅ |
 | **`reassign-plans` utility** | `POST /plans/api/dentally/reassign-plans` | ✅ |
 | **`setup-gc-links` admin** | None | ❌ |
 | **`setup/dentally-plans` seed mappings** | None | ❌ |
@@ -626,7 +626,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P1.5 | **`GET/POST /plans/api/dentally/mappings`** | CRUD mappings | **Shipped** |
 | P1.6 | Use per-practice API key from Phase A | Same as shell sync | **Shipped** |
 | P1.7 | Audit log on every sync run | Match legacy `AuditLog` actions | **Shipped** |
-| P1.8 | **Port `gc-sync` cron** — reconcile mandates/payments from GoCardless | `GET /plans/api/cron/gc-sync` |
+| P1.8 | **Port `gc-sync` cron** — reconcile mandates/payments from GoCardless | `GET /plans/api/cron/gc-sync` | **Shipped** |
 | P1.9 | **`POST /plans/api/dentally/reassign-plans`** | Utility after mapping changes | **Shipped** |
 
 #### Phase P2 — Dentally & Patients UI
@@ -1160,7 +1160,7 @@ Items that block parity and are **not** just missing UI:
 | 43 | `GET/POST /api/dentally/mappings` | `GET/POST /plans/api/dentally/mappings` | ✅ |
 | 44 | `GET /api/dashboard/stats` | Inline dashboard queries | 🟡 |
 | 45 | `GET /api/cron/reconcile-payments` | `/plans/api/cron/reconcile-payments` | ✅ |
-| 46 | `GET /api/cron/gc-sync` | **Missing** | ❌ |
+| 46 | `GET /api/cron/gc-sync` | `GET /plans/api/cron/gc-sync` | ✅ |
 | 47 | `GET /api/cron/dentally-sync` | `GET /plans/api/cron/dentally-sync` | ✅ |
 | 48 | `GET /api/branding/public` | None | ❌ |
 | 49 | `GET/PUT /api/branding` | None | ❌ |
@@ -1421,7 +1421,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P1.5 Mappings CRUD | `ElioPlans/src/app/api/dentally/mappings/route.ts`, `mappings/[id]/route.ts` | `elio/apps/plans/app/api/dentally/mappings/` | **Shipped** |
 | P1.6 Per-practice key | `ElioPlans/src/lib/dentally-sync.ts`, `src/lib/settings.ts` | Phase A.1 | **Shipped** |
 | P1.7 Audit on sync | `ElioPlans/src/lib/audit.ts` | `elio/apps/plans` sync + cron routes | **Shipped** |
-| P1.8 gc-sync cron | `ElioPlans/src/app/api/cron/gc-sync/route.ts`, `src/lib/gocardless.ts` | `elio/apps/plans/app/api/cron/gc-sync/route.ts` (to create) | |
+| P1.8 gc-sync cron | `ElioPlans/src/app/api/cron/gc-sync/route.ts`, `src/lib/gocardless.ts` | `elio/apps/plans/app/api/cron/gc-sync/route.ts` | **Shipped** |
 | P1.9 Reassign plans | `ElioPlans/src/app/api/dentally/reassign-plans/route.ts` | `elio/apps/plans/app/api/dentally/reassign-plans/route.ts` | **Shipped** |
 | P2.1 Mappings page | `ElioPlans/src/app/(dashboard)/dashboard/dentally/page.tsx` | `elio/apps/plans/app/dentally/page.tsx` (to create) | Add to nav |
 | P2.2 Sync button | `ElioPlans/.../patients/page.tsx` (toolbar) | `elio/apps/plans/app/patients/` | Toast with counts |

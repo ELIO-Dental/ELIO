@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/dentally-sync",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/gc-sync",
+      "schedule": "0 8 * * *"
     }
   ]
 }

@@ -26,6 +26,7 @@ import {
   mapMandateStatus,
   mapPaymentStatus,
   verifyWebhookSignature,
+  classifyGcMandatePollStatus,
 } from "@elio/plans-engine";
 
 // Deliberately duck-typed on `.code` rather than `instanceof
@@ -233,23 +234,8 @@ export async function publicCreateMandateFlow(
   });
 }
 
-/** Shared by the redirect path (publicRecordMandate) and the webhook path
- * (handleBillingRequestEvent) — records the mandate and flips the enrolment
- * from PENDING to ACTIVE, and the PlanPatient itself out of INVITED, now
- * that a mandate exists. Idempotent (recordMandate's own unique-constraint
- * guard), safe to call from both paths for the same mandate — including
- * both paths racing for the SAME mandate, which is exactly why the
- * confirmation email is gated on updateMany's own count rather than just
- * "this function ran": only the call that actually flips INVITED -> ACTIVE
- * (a real state transition, happens exactly once) sends it, not every
- * idempotent re-entry (a webhook retry, or the redirect firing after the
- * webhook already won). */
-async function recordMandateAndActivate(
-  practiceId: string,
-  planPatientId: string,
-  gocardlessMandateId: string,
-) {
-  const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
+/** Flips PlanPatient + enrolment to ACTIVE and sends the signup email once. */
+async function activatePlanMembershipAfterMandate(practiceId: string, planPatientId: string) {
   const db = scopedDb(practiceId);
   const activated = await db.planPatient.updateMany({
     where: { id: planPatientId, status: "INVITED" },
@@ -276,6 +262,27 @@ async function recordMandateAndActivate(
     }
   }
 
+  return activated.count > 0;
+}
+
+/** Shared by the redirect path (publicRecordMandate) and the webhook path
+ * (handleBillingRequestEvent) — records the mandate and flips the enrolment
+ * from PENDING to ACTIVE, and the PlanPatient itself out of INVITED, now
+ * that a mandate exists. Idempotent (recordMandate's own unique-constraint
+ * guard), safe to call from both paths for the same mandate — including
+ * both paths racing for the SAME mandate, which is exactly why the
+ * confirmation email is gated on updateMany's own count rather than just
+ * "this function ran": only the call that actually flips INVITED -> ACTIVE
+ * (a real state transition, happens exactly once) sends it, not every
+ * idempotent re-entry (a webhook retry, or the redirect firing after the
+ * webhook already won). */
+async function recordMandateAndActivate(
+  practiceId: string,
+  planPatientId: string,
+  gocardlessMandateId: string,
+) {
+  const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
+  await activatePlanMembershipAfterMandate(practiceId, planPatientId);
   return { mandate };
 }
 
@@ -747,20 +754,22 @@ async function handleMandateEvent(action: string, gocardlessMandateId: string) {
     | "CANCELLED"
     | "EXPIRED";
 
-  const newPatientStatus =
-    action === "active"
-      ? "ACTIVE"
-      : action === "failed"
-        ? "PAUSED"
-        : action === "cancelled"
-          ? "CANCELLED"
-          : mandate.planPatient.status;
-
   const db = scopedDb(mandate.practiceId);
-  await db.$transaction([
-    db.planMandate.update({ where: { id: mandate.id }, data: { status: newStatus } }),
-    db.planPatient.update({ where: { id: mandate.planPatientId }, data: { status: newPatientStatus } }),
-  ]);
+  await db.planMandate.update({ where: { id: mandate.id }, data: { status: newStatus } });
+
+  if (action === "active") {
+    await activatePlanMembershipAfterMandate(mandate.practiceId, mandate.planPatientId);
+    return;
+  }
+
+  const newPatientStatus =
+    action === "failed"
+      ? "PAUSED"
+      : action === "cancelled"
+        ? "CANCELLED"
+        : mandate.planPatient.status;
+
+  await db.planPatient.update({ where: { id: mandate.planPatientId }, data: { status: newPatientStatus } });
 }
 
 async function handlePaymentEvent(action: string, gocardlessPaymentId: string, details?: Record<string, unknown>) {
@@ -901,6 +910,77 @@ export async function ensureSubscription(
   dayOfMonth = 1,
 ) {
   return createSubscription(gocardlessMandateId, amountPence, "GBP", planName, dayOfMonth);
+}
+
+export type GcMandateSyncResult = {
+  checked: number;
+  activated: number;
+  failed: number;
+  cancelled: number;
+  unchanged: number;
+  errors: string[];
+};
+
+/**
+ * Poll GoCardless for PENDING mandates and reconcile local state (P1.8).
+ * Webhook-first architecture — this is the safety net when events are missed.
+ */
+export async function syncPendingMandatesForPractice(practiceId: string): Promise<GcMandateSyncResult> {
+  const db = scopedDb(practiceId);
+  const pendingMandates = await db.planMandate.findMany({
+    where: { status: "PENDING" },
+    select: { id: true, planPatientId: true, gocardlessMandateId: true },
+  });
+
+  const results: GcMandateSyncResult = {
+    checked: pendingMandates.length,
+    activated: 0,
+    failed: 0,
+    cancelled: 0,
+    unchanged: 0,
+    errors: [],
+  };
+
+  for (const mandate of pendingMandates) {
+    try {
+      const gcMandate = await getMandate(mandate.gocardlessMandateId);
+      const outcome = classifyGcMandatePollStatus(gcMandate?.status as string | undefined);
+
+      if (outcome === "unchanged") {
+        results.unchanged++;
+        continue;
+      }
+
+      if (outcome === "activate") {
+        await db.planMandate.update({ where: { id: mandate.id }, data: { status: "ACTIVE" } });
+        await activatePlanMembershipAfterMandate(practiceId, mandate.planPatientId);
+        results.activated++;
+        continue;
+      }
+
+      if (outcome === "fail") {
+        await db.planMandate.update({ where: { id: mandate.id }, data: { status: "FAILED" } });
+        await db.planPatient.update({ where: { id: mandate.planPatientId }, data: { status: "PAUSED" } });
+        results.failed++;
+        continue;
+      }
+
+      const gcStatus = gcMandate?.status as string;
+      await db.planMandate.update({
+        where: { id: mandate.id },
+        data: { status: gcStatus === "cancelled" ? "CANCELLED" : "EXPIRED" },
+      });
+      if (gcStatus === "cancelled") {
+        await db.planPatient.update({ where: { id: mandate.planPatientId }, data: { status: "CANCELLED" } });
+      }
+      results.cancelled++;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.errors.push(`Mandate ${mandate.gocardlessMandateId}: ${message}`);
+    }
+  }
+
+  return results;
 }
 
 export { getMandate, getCustomer };
