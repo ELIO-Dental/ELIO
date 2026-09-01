@@ -833,7 +833,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y2.6 | **Discrepancies panel** | Types + resolve/add from log | **Shipped** — `discrepancies-panel.tsx` + `pay-discrepancies.ts` |
 | Y2.7 | **Dentist log import** | Google Sheets + CSV paste + compare (if client still uses logs) | **Shipped** — `dentist-log-import-panel.tsx` + compare API; TSV + summary stats; Google Sheets stub until service account configured |
 | Y2.8 | **NHS statement panel** | FP17 upload OR continue Compass path — **decide with client** | **Shipped** — `nhs-statement-panel.tsx` + manual UDAs + period dates; coexists with Compass upload |
-| Y2.9 | **Editable fields when draft** | Therapy mins, superannuation, adjustments, lab bills |
+| Y2.9 | **Editable fields when draft** | Therapy mins, superannuation, adjustments, lab bills | **Shipped** — `payslip-editable-fields.tsx` + persisted `labBillsJson` / `adjustmentsJson` |
 | Y2.10 | **Legacy payslip archive viewer** | Read-only view of pre-migration payslips |
 
 #### Phase Y3 — Lab bills, bulk payments, settings
@@ -1484,7 +1484,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y2.6 Discrepancies | Same page (discrepancies panel) | `discrepancies-panel.tsx` | **Shipped** |
 | Y2.7 Dentist log compare | `ElioPay/aurapay/src/app/api/periods/dentist-log/route.ts` | `dentist-log/route.ts` + `dentist-log-compare.ts` | **Shipped** (Google Sheets deferred) |
 | Y2.8 NHS panel | `ElioPay/aurapay/src/app/api/nhs-statement/route.ts` | `nhs-statement/route.ts` + `nhs-statement-panel.tsx` | **Shipped** (coexists with Compass) |
-| Y2.9 Editable draft fields | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | Period detail forms | |
+| Y2.9 Editable draft fields | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `payslip-editable-fields.tsx` + PUT entries | **Shipped** |
 | Y2.10 Legacy archive | Turso payslip JSON (migrated) | `LegacyPayslipArchive` viewer in Pay | Read-only |
 | Y3.1 Paid flag schema | `ElioPay/aurapay/src/app/api/bills/lab/route.ts` | `elio/packages/db/prisma/schema.prisma` | |
 | Y3.2 Bank details schema | `ElioPay/aurapay/src/app/api/bills/saved-entities/route.ts` | Same schema | |

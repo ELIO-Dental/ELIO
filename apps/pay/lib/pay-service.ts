@@ -494,6 +494,8 @@ export interface SavePayslipEntryInput {
   financeFeesPence?: number;
   dentallyPatientsJson?: unknown;
   dentallyDiscrepanciesJson?: unknown;
+  labBillsJson?: unknown;
+  adjustmentsJson?: unknown;
 }
 
 export async function savePayslipEntry(
@@ -597,6 +599,8 @@ export async function savePayslipEntry(
       ...(input.dentallyDiscrepanciesJson !== undefined
         ? { dentallyDiscrepanciesJson: input.dentallyDiscrepanciesJson as object }
         : {}),
+      ...(input.labBillsJson !== undefined ? { labBillsJson: input.labBillsJson as object } : {}),
+      ...(input.adjustmentsJson !== undefined ? { adjustmentsJson: input.adjustmentsJson as object } : {}),
     },
   });
 }

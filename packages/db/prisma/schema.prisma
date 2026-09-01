@@ -741,6 +741,9 @@ model PayslipEntry {
   dentallyTherapyJson       Json?
   dentallyDiscrepanciesJson Json?
   dentallyDentistLogJson      Json?
+  /** Legacy lab_bills_json / adjustments_json (Y2.9 editable draft fields). */
+  labBillsJson                Json?
+  adjustmentsJson             Json?
   therapyMinutes            Decimal? @db.Decimal(8, 2)
   therapyRatePerMinute      Decimal? @db.Decimal(10, 4) // legacy AuraPay therapy_rate (£/min)
 

@@ -103,5 +103,7 @@ export function normalizeSavePayslipEntryInput(body: Record<string, unknown>): S
         : patientTotals.financeFeesPence ?? poundsToPence(body.finance_fees),
     dentallyPatientsJson: privatePatients ?? body.dentallyPatientsJson,
     dentallyDiscrepanciesJson: body.discrepancies ?? body.dentallyDiscrepanciesJson,
+    labBillsJson: labBills ?? body.labBillsJson ?? body.lab_bills_json,
+    adjustmentsJson: adjustments ?? body.adjustmentsJson ?? body.adjustments_json,
   };
 }

@@ -11,6 +11,7 @@ import {
 } from "@elio/ui";
 import { DentistFetchDetails } from "./dentist-fetch-details";
 import { NhsPeriodBanner } from "./nhs-period-banner";
+import { PayslipEditableFields } from "./payslip-editable-fields";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
@@ -64,6 +65,8 @@ export interface PayslipEntryBodyProps {
   dentallyAnalyticsJson: unknown;
   dentallyDiscrepanciesJson: unknown;
   dentallyDentistLogJson: unknown;
+  labBillsJson: unknown;
+  adjustmentsJson: unknown;
   privateRevenueLineItems: Array<{
     id: string;
     patientName: string | null;
@@ -194,6 +197,21 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           </TableBody>
         </Table>
       </TablePanel>
+      {p.payType === "PERCENTAGE_SPLIT" ? (
+        <PayslipEditableFields
+          payPeriodId={p.payPeriodId}
+          payslipEntryId={p.payslipEntryId}
+          locked={p.locked}
+          isNhs={Boolean(p.isNhs)}
+          hasPatientLines={p.privateRevenueLineItems.length > 0}
+          udas={p.udas?.toString() ?? null}
+          therapyMinutes={p.therapyMinutes}
+          therapyRatePerMinute={p.therapyRatePerMinute}
+          superannuationPence={p.superannuationPence}
+          labBillsJson={p.labBillsJson}
+          adjustmentsJson={p.adjustmentsJson}
+        />
+      ) : null}
       <div className="mt-6">
         <DentistFetchDetails
           payPeriodId={p.payPeriodId}
