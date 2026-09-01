@@ -59,14 +59,8 @@ export interface DentallyPatientRow {
   hourlyRate?: number;
 }
 
-export interface DentallyAnalytics {
-  totalChairMins: number;
-  totalPatients: number;
-  grossPerHour: number;
-  netPerHour: number;
-  avgAppointmentMins: number;
-  utilizationPercent: number;
-}
+export type { DentallyAnalytics } from "./dentally-analytics";
+import { calculateDentistAnalytics } from "./dentally-analytics";
 
 export interface TherapyBreakdownItem {
   patientName: string;
@@ -275,31 +269,6 @@ function buildAppointmentMap(appointments: DentallyAppointmentRaw[]): Map<string
     map.get(key)!.push(apt);
   }
   return map;
-}
-
-function calculateDentistAnalytics(
-  patients: DentallyPatientRow[],
-  splitPercentage: number,
-  weeklyHours = 40
-): DentallyAnalytics {
-  const withDuration = patients.filter((p) => p.durationMins && p.durationMins > 0);
-  const totalChairMins = withDuration.reduce((sum, p) => sum + (p.durationMins || 0), 0);
-  const totalAmount = patients.reduce((sum, p) => sum + p.amount, 0);
-  const totalHours = totalChairMins / 60;
-  const grossPerHour = totalHours > 0 ? totalAmount / totalHours : 0;
-  const netPerHour = totalHours > 0 ? (totalAmount * (splitPercentage / 100)) / totalHours : 0;
-  const avgAppointmentMins = withDuration.length > 0 ? totalChairMins / withDuration.length : 0;
-  const monthlyAvailableHours = weeklyHours * 4.3;
-  const utilizationPercent = monthlyAvailableHours > 0 ? (totalHours / monthlyAvailableHours) * 100 : 0;
-
-  return {
-    totalChairMins,
-    totalPatients: patients.length,
-    grossPerHour: Math.round(grossPerHour * 100) / 100,
-    netPerHour: Math.round(netPerHour * 100) / 100,
-    avgAppointmentMins: Math.round(avgAppointmentMins),
-    utilizationPercent: Math.round(utilizationPercent * 10) / 10,
-  };
 }
 
 async function loadClinicianUsers(
@@ -658,7 +627,16 @@ export async function fetchDentallyForPayPeriod(
     if (!dentist || dentist.payType === "HOURLY") continue;
 
     const split = Number(dentist.privateSplitPercent ?? 0);
-    const analytics = calculateDentistAnalytics(data.patients, split);
+    const analytics = calculateDentistAnalytics(
+      data.patients.map((p) => ({
+        name: p.name,
+        amount: p.amount,
+        durationMins: p.durationMins,
+        treatment: p.treatment,
+        hourlyRate: p.hourlyRate,
+      })),
+      split
+    );
     const therapyItems = therapyByDentist.get(dentistId) || [];
     const totalTherapyMinutes = therapyItems.reduce((sum, t) => sum + t.minutes, 0);
 
