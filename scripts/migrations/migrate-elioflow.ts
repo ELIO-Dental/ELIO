@@ -295,6 +295,7 @@ async function main() {
           stuckReason: stuckReason as any,
           planSignedUp: parseBool(row.elioCare),
           notes: row.notes || null,
+          bookedBy: row.bookedBy || null,
         },
         update: {},
       });

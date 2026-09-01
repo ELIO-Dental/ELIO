@@ -10,6 +10,20 @@ const DEPOSIT_THRESHOLD_PENCE = 5000;
 const COSMETIC_CONSULT_REASON = "cosmetic consultation";
 const CONSULT_IMPORT_MONTHS = 12;
 
+export function resolveConsultBookedBy(bookedByName: string | null | undefined): string | null {
+  const trimmed = bookedByName?.trim();
+  return trimmed || null;
+}
+
+export function shouldUpdatePractitionerFromSync(
+  consult: { practitionerDentistId: string | null; practitionerEdited: boolean },
+  candidatePractitionerDentistId: string | null
+): boolean {
+  if (!candidatePractitionerDentistId) return false;
+  if (consult.practitionerEdited) return false;
+  return !consult.practitionerDentistId;
+}
+
 export interface CosmeticConsultImportResult {
   scanned: number;
   created: number;
@@ -108,7 +122,7 @@ export async function importCosmeticConsultsFromDentally(
         practitionerDentistId = dentist?.id ?? null;
       }
 
-      const bookedBy = apt.bookedByName?.trim() || null;
+      const bookedBy = resolveConsultBookedBy(apt.bookedByName);
 
       const existing = await db.consult.findFirst({
         where: { practiceId, enquiry: { patientId } },
@@ -153,7 +167,7 @@ export async function importCosmeticConsultsFromDentally(
 
       if (shouldLinkAppointment) patch.appointmentId = apt.id;
       if (existing.attended == null && derivedAttended != null) patch.attended = derivedAttended;
-      if (!existing.practitionerDentistId && practitionerDentistId) {
+      if (shouldUpdatePractitionerFromSync(existing, practitionerDentistId)) {
         patch.practitionerDentistId = practitionerDentistId;
       }
       if (bookedBy) patch.bookedBy = bookedBy;

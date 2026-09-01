@@ -350,7 +350,7 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 | **Touch points** counter | Replaced by `Reminder` count per consult — UI does not show legacy-style count | 🟡 Design change |
 | **Quote override** editable field | `quotePenceOverride` on model; limited edit UI | 🟡 |
 | **Manual elioCare / planSignedUp toggle** | Set only via Plans handoff, not manual checkbox | 🟡 |
-| **Practitioner edited flag** (don't overwrite on sync) | No `practitionerEdited` field — sync may overwrite dentist | ❌ |
+| **Practitioner edited flag** (don't overwrite on sync) | `practitionerEdited` on Consult — sync skips overwrite when true | ✅ |
 | **Plans Given** funnel stage metric | Not in reporting (legacy chart used treatment plan value > 0) | 🟡 |
 | **Pipeline value by status** (unconverted only) | Reporting shows totals; legacy chart excluded converted | 🟡 |
 | **Total Paid stat card on home** | Only on reporting, not default landing | ❌ |
@@ -397,7 +397,7 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 | F1.7 | **Manual sync API** | `POST /flow/api/sync/dentally` — full + payment-only modes; auth + audit log | **Shipped** — API + dashboard Full sync / Sync payments + E2E |
 | F1.8 | **Add `bookedBy` to Consult** (optional string) + populate from Dentally appointment `user_name` | Table column parity | **Shipped** — schema + sync + dashboard column |
 | F1.9 | **Touch points** — add `touchPointCount` on Consult OR surface `LegacyFlowTouchPointArchive` with edit UI | Legacy counter restored |
-| F1.10 | **`practitionerEdited` flag** — skip practitioner overwrite on sync when true | Match legacy Sheets column L behaviour |
+| F1.10 | **`practitionerEdited` flag** — skip practitioner overwrite on sync when true | Match legacy Sheets column L behaviour | **Shipped** — schema + sync guard + manual edit sets flag |
 
 #### Phase F2 — Dashboard UI (parity layout)
 
@@ -1004,8 +1004,8 @@ Items that block parity and are **not** just missing UI:
 | `Setting` KV (~25 keys) | ElioPlans `Setting` table | **Not migrated** | Extend `Practice` JSON or `PracticeSetting` table |
 | `PlanEligibilityRule` UI | Per-plan rules (e.g. Dentally Fit) | **Schema exists** — no admin UI | Build plan edit form |
 | `PlanModel.parentPlanId` / versioning | Price increase creates new version | **Shipped** — `increasePlanPrice()` versions plan + migrates enrolments | |
-| `Consult.bookedBy` | Sheets column P | **Missing** | Add optional string field |
-| `Consult.practitionerEdited` | Sheets column L | **Missing** | Boolean flag for sync preserve |
+| `Consult.bookedBy` | Sheets column P | **Shipped** — `Consult.bookedBy` + dashboard column |
+| `Consult.practitionerEdited` | Sheets column L | **Shipped** — sync guard + manual edit sets flag |
 | `Appointment.dentallyState` | Legacy `appointmentState` on row | **Exists** on `Appointment` | Join in Flow table UI (no new column) |
 | Flow touch points | Manual counter on row | **`Reminder` count** per consult | Show count in UI; optional archive import |
 | `LabBillEntry.paid` | AuraPay bills | **Missing** | Boolean + `paidAt` |
@@ -1381,7 +1381,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F1.7 Manual sync API | `ElioFlow/pages/api/run-sync.ts`, `run-manual-sync.ts` | `elio/apps/flow/app/api/sync/dentally/route.ts` | **Shipped** — full (202) + payments + dashboard buttons + E2E |
 | F1.8 `bookedBy` field | `ElioFlow/pages/api/sync.ts` (`user_name`), `lib/sheets.ts` col P | `Consult.bookedBy` + `Appointment.bookedByName` + dashboard column | **Shipped** |
 | F1.9 Touch points display | `ElioFlow/pages/index.tsx` (touchPoints column) | `elio/apps/flow/` — count `Reminder` where `sentAt != null` | Design change — see executive summary |
-| F1.10 `practitionerEdited` | `ElioFlow/pages/api/manual-sync.ts` (keep practitioner) | `Consult.practitionerEdited` + sync guard | Migration required |
+| F1.10 `practitionerEdited` | `ElioFlow/pages/api/manual-sync.ts` (keep practitioner) | `Consult.practitionerEdited` + sync guard | **Shipped** |
 | F2.1 Dashboard route | `ElioFlow/pages/index.tsx` | `elio/apps/flow/app/dashboard/page.tsx` | **Shipped** — default landing |
 | F2.2 Header toolbar | `ElioFlow/pages/index.tsx` | `dashboard-client.tsx` | **Shipped** — date presets, dentist filter, refresh, import |
 | F2.3 Eight stat cards | `ElioFlow/pages/index.tsx`, `pages/api/pipeline.ts` | `getFlowDashboard` | **Shipped** |
