@@ -98,12 +98,65 @@ const SIGNUP_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * shape as the test-only e2e route this mirrors. */
 export async function enrolPatient(
   practiceId: string,
-  input: { patientId: string; planId: string },
+  input: { patientId: string; planId: string; parentPatientId?: string },
 ) {
   const db = scopedDb(practiceId);
 
   const plan = await db.planModel.findUnique({ where: { id: input.planId } });
   if (!plan) throw new Error("Plan not found");
+
+  const isFreePlan = plan.monthlyPricePence === 0;
+
+  if (isFreePlan) {
+    const parentPatientId = input.parentPatientId?.trim();
+    if (!parentPatientId) {
+      throw new Error(
+        "Please link this patient to a parent/guardian. Children on a free plan must be linked to an adult member.",
+      );
+    }
+    const parent = await db.planPatient.findFirst({
+      where: { id: parentPatientId, practiceId, status: "ACTIVE" },
+      include: { patient: { select: { id: true } } },
+    });
+    if (!parent) throw new Error("Parent member not found or not active");
+    if (parent.patient.id === input.patientId) {
+      throw new Error("A patient cannot be their own parent");
+    }
+
+    let planPatient = await db.planPatient.findFirst({ where: { patientId: input.patientId } });
+    if (!planPatient) {
+      planPatient = await db.planPatient.create({
+        data: {
+          practiceId,
+          patientId: input.patientId,
+          status: "ACTIVE",
+          planModelId: plan.id,
+          parentPatientId,
+        },
+      });
+    } else {
+      planPatient = await db.planPatient.update({
+        where: { id: planPatient.id },
+        data: { status: "ACTIVE", planModelId: plan.id, parentPatientId },
+      });
+    }
+
+    const enrolment = await db.patientPlanEnrolment.create({
+      data: {
+        practiceId,
+        planPatientId: planPatient.id,
+        planId: plan.id,
+        status: "ACTIVE",
+        startDate: new Date(),
+      },
+    });
+
+    return { planPatient, enrolment, signupToken: null as string | null };
+  }
+
+  if (input.parentPatientId) {
+    throw new Error("Parent linking is only required for free child plans");
+  }
 
   const document = await db.planDocument.findFirst({
     where: { type: "TERMS_AND_CONDITIONS", isActive: true },
@@ -993,6 +1046,12 @@ export async function syncPendingMandatesForPractice(practiceId: string): Promis
 const PLAN_PATIENT_DETAIL_INCLUDE = {
   patient: true,
   planModel: { select: { id: true, name: true, monthlyPricePence: true, requiresAdultMembership: true } },
+  parentPatient: {
+    include: { patient: { select: { id: true, firstName: true, lastName: true } } },
+  },
+  childPatients: {
+    include: { patient: { select: { id: true, firstName: true, lastName: true } } },
+  },
   mandates: { orderBy: { createdAt: "desc" as const } },
   payments: { orderBy: { createdAt: "desc" as const }, take: 100 },
   redeems: { orderBy: { createdAt: "desc" as const }, take: 50 },

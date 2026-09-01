@@ -64,13 +64,14 @@ export async function POST(req: Request) {
     }
 
     const planId = typeof body?.planId === "string" ? body.planId : "";
+    const parentPatientId = typeof body?.parentPatientId === "string" ? body.parentPatientId.trim() : undefined;
     if (planId) {
-      const enrolment = await enrolPatient(session.practiceId, { patientId, planId });
+      const enrolment = await enrolPatient(session.practiceId, { patientId, planId, parentPatientId });
       return NextResponse.json({
         patientId,
         created: !match,
         matchedBy,
-        signupUrl: `/plans/signup/${enrolment.signupToken}`,
+        signupUrl: enrolment.signupToken ? `/plans/signup/${enrolment.signupToken}` : null,
       });
     }
 

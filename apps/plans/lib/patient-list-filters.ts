@@ -21,6 +21,11 @@ export function derivePatientDisplayStatus(pp: PlanPatientLike): string {
   return isPendingDirectDebit(pp) ? "PENDING_DD" : pp.status;
 }
 
+/** Free (£0) plans require linking to an active adult member (legacy P2.8). */
+export function isFreeChildPlan(plan: { monthlyPricePence: number }): boolean {
+  return plan.monthlyPricePence === 0;
+}
+
 export function buildPlanPatientListWhere(
   practiceId: string,
   options?: { q?: string; status?: string },

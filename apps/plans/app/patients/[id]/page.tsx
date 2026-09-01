@@ -27,6 +27,18 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     createdAt: detail.createdAt.toISOString(),
     patient: detail.patient,
     planModel: detail.planModel,
+    parentPatient: detail.parentPatient
+      ? {
+          id: detail.parentPatient.id,
+          status: detail.parentPatient.status,
+          patient: detail.parentPatient.patient,
+        }
+      : null,
+    childPatients: detail.childPatients.map((child) => ({
+      id: child.id,
+      status: child.status,
+      patient: child.patient,
+    })),
     mandates: detail.mandates.map((m) => ({
       id: m.id,
       status: m.status,

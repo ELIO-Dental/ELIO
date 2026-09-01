@@ -596,7 +596,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | **`sign/[token]` standalone doc signing** | Folded into `/signup/[token]` flow | 🟡 Verify parity |
 | **FINANCE / AUDITOR roles** in team UI | Schema supports; UI may not expose | 🟡 |
 | **Patient notes** (`PatientNote`) | Model not in new schema | ❌ |
-| **Family / parent-child plans** (`parentPatientId`) | Legacy links child to paying parent; **field missing** on `PlanPatient` | ❌ |
+| **Family / parent-child plans** (`parentPatientId`) | Legacy links child to paying parent | **Shipped** — `PlanPatient.parentPatientId` + enrol/import UI |
 | **PENDING_DD derived status filter** | Legacy filter chip (ACTIVE + no mandate); new list has no chip | ❌ |
 | **Plan eligibility rules UI** | Legacy `PlanEligibilityRule` per plan; schema exists in new DB, **no UI** | ❌ |
 | **Plan edit / delete / deactivate** | Legacy full CRUD on `/dashboard/plans`; new create + list only | ❌ |
@@ -641,7 +641,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P2.5 | **Export CSV** on patients list | | **Shipped** |
 | P2.6 | **Bulk Check GoCardless** button | Link mandates for imported patients | **Shipped** |
 | P2.7 | **PENDING_DD filter chip** | Derived: ACTIVE enrolment + no active mandate | **Shipped** |
-| P2.8 | **Family / child plan enrolment** | `parentPatientId` on `PlanPatient` + UI when plan price = 0 |
+| P2.8 | **Family / child plan enrolment** | `parentPatientId` on `PlanPatient` + UI when plan price = 0 | **Shipped** |
 | P2.9 | **Add Dentally to `PLANS_MODULE_NAV`** | Route `/dentally` | **Shipped** |
 
 #### Phase P3 — Dashboard & reports parity
@@ -933,7 +933,7 @@ Client sign-off when **every row** passes on production-like staging:
 - [ ] Dashboard Active Members matches mandate-aware count
 - [ ] Patient list: **PENDING_DD** filter chip works
 - [ ] Patient list rows link to **detail page** with all tabs (payments, appointments, notes, correspondence)
-- [ ] Free child plan requires parent patient selection
+- [x] Free child plan requires parent patient selection
 - [ ] Bulk Check GoCardless links mandates
 - [ ] Plan edit: inclusions, discounts, eligibility rules
 - [ ] Export CSV patients
@@ -997,7 +997,7 @@ Items that block parity and are **not** just missing UI:
 | Gap | Legacy | New ELIO | Action |
 |-----|--------|----------|--------|
 | `DentallyPlanMapping` | `ElioPlans` Prisma model | `plans_dentally_plan_mappings` (P1.2) | **Shipped** — seed UI in P2.1 |
-| `PlanPatient.parentPatientId` | Child plan linked to paying parent | **Missing** on `PlanPatient` | Add optional FK + UI for free child plans |
+| `PlanPatient.parentPatientId` | Child plan linked to paying parent | **Shipped** — optional self-FK on `PlanPatient` + enrol/import UI | |
 | `PatientNote` | ElioPlans patient notes tab | **Missing** | New model or audit-log substitute |
 | `EmailLog` | Sent email history per patient | **Not migrated** | New model or drop if correspondence not required |
 | `UserPermission` | Per-user permission overrides | **Missing** — role-only in new auth | Map to `@elio/auth` or add override table |
@@ -1431,7 +1431,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P2.5 Export CSV | `ElioPlans/.../patients/page.tsx` | `GET /plans/api/patients/export` + header button | **Shipped** |
 | P2.6 Bulk Check GC | `ElioPlans/src/app/api/admin/bulk-check-gc/route.ts` | `POST /plans/api/admin/bulk-check-gc` + toolbar button | **Shipped** |
 | P2.7 PENDING_DD filter | `ElioPlans/.../patients/page.tsx`, `src/app/api/patients/route.ts` | `patient-list-filters.ts` + FilterBar chip | **Shipped** |
-| P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | Free plan requires parent |
+| P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | **Shipped** |
 | P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/packages/ui/lib/module-nav-items.ts` | **Shipped** |
 | P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `elio/apps/plans/app/dashboard/page.tsx` | Mandate-aware active count |
 | P3.2 Activity feed | `ElioPlans/.../dashboard/page.tsx` | Dashboard component | Last 10 audit entries |

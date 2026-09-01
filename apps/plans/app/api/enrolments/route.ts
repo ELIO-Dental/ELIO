@@ -11,9 +11,17 @@ export async function POST(req: Request) {
     if (typeof body?.patientId !== "string" || typeof body?.planId !== "string") {
       return NextResponse.json({ error: "patientId and planId are required" }, { status: 400 });
     }
-    const result = await enrolPatient(session.practiceId, body);
+    const parentPatientId = typeof body?.parentPatientId === "string" ? body.parentPatientId.trim() : undefined;
+    const result = await enrolPatient(session.practiceId, {
+      patientId: body.patientId,
+      planId: body.planId,
+      parentPatientId,
+    });
     return NextResponse.json(
-      { ...result, signupUrl: `/plans/signup/${result.signupToken}` },
+      {
+        ...result,
+        signupUrl: result.signupToken ? `/plans/signup/${result.signupToken}` : null,
+      },
       { status: 201 },
     );
   } catch (e) {

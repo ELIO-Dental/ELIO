@@ -50,7 +50,7 @@ export default async function PatientsPage({
 
   const where = buildPlanPatientListWhere(practiceId, { q, status });
 
-  const [planPatients, totalCount, enrolledPatientIds, corePatients, plans] = await Promise.all([
+  const [planPatients, totalCount, enrolledPatientIds, corePatients, plans, activeParentMembers] = await Promise.all([
     prisma.planPatient.findMany({
       where,
       include: {
@@ -59,6 +59,7 @@ export default async function PatientsPage({
         mandates: { select: { status: true } },
         documentAcceptances: { take: 1, select: { id: true } },
         patientPlans: { orderBy: { createdAt: "desc" }, take: 1, include: { plan: { select: { name: true } } } },
+        parentPatient: { include: { patient: { select: { firstName: true, lastName: true } } } },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -68,7 +69,18 @@ export default async function PatientsPage({
     prisma.planPatient.findMany({ where: { practiceId }, select: { patientId: true } }),
     prisma.patient.findMany({ where: { practiceId }, orderBy: { createdAt: "desc" }, take: 200 }),
     prisma.planModel.findMany({ where: { practiceId, isCurrentVersion: true, active: true }, orderBy: { sortOrder: "asc" } }),
+    prisma.planPatient.findMany({
+      where: { practiceId, status: "ACTIVE" },
+      include: { patient: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+
+  const parentMembers = activeParentMembers.map((pp) => ({
+    id: pp.id,
+    firstName: pp.patient.firstName,
+    lastName: pp.patient.lastName,
+  }));
 
   const enrolledIds = new Set(enrolledPatientIds.map((p) => p.patientId));
   const unenrolledPatients = corePatients.filter((p) => !enrolledIds.has(p.id));
@@ -81,6 +93,7 @@ export default async function PatientsPage({
         <div className="mt-8">
           <PatientsDentallyTools
             plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
+            parentMembers={parentMembers}
           />
         </div>
       )}
@@ -94,6 +107,7 @@ export default async function PatientsPage({
             email: p.email,
           }))}
           plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
+          parentMembers={parentMembers}
           initialPatientId={prefillPatientId}
         />
       </div>
@@ -127,6 +141,9 @@ export default async function PatientsPage({
                   const name = [pp.patient.firstName, pp.patient.lastName].filter(Boolean).join(" ") || "—";
                   const planName = pp.patientPlans[0]?.plan.name ?? pp.planModel?.name ?? "—";
                   const displayStatus = derivePatientDisplayStatus(pp);
+                  const parentName = pp.parentPatient
+                    ? [pp.parentPatient.patient.firstName, pp.parentPatient.patient.lastName].filter(Boolean).join(" ")
+                    : null;
                   return (
                     <TableRow key={pp.id}>
                       <TableCell>
@@ -136,6 +153,14 @@ export default async function PatientsPage({
                         >
                           {name}
                         </Link>
+                        {parentName && (
+                          <p className="mt-0.5 text-caption text-(--color-text-tertiary)">
+                            Child of{" "}
+                            <Link href={`/patients/${pp.parentPatient!.id}`} className="text-(--color-primary-fg) hover:underline">
+                              {parentName}
+                            </Link>
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell>{pp.patient.email ?? "—"}</TableCell>
                       <TableCell>{planName}</TableCell>

@@ -1036,8 +1036,14 @@ model PlanPatient {
   planModel           PlanModel?               @relation(fields: [planModelId], references: [id])
   planModelId         String?
 
+  // Parent/child linking for free child plans (e.g. AuraCare Mini) — P2.8
+  parentPatientId   String?
+  parentPatient     PlanPatient?  @relation("PlanPatientParentChild", fields: [parentPatientId], references: [id])
+  childPatients     PlanPatient[] @relation("PlanPatientParentChild")
+
   @@index([practiceId])
   @@index([patientId])
+  @@index([parentPatientId])
   @@map("plans_patients")
 }
 

@@ -21,6 +21,8 @@ import {
   toast,
 } from "@elio/ui";
 import { Search } from "lucide-react";
+import { ParentMemberSelect, validateFreeChildParent, type ParentMemberOption } from "./parent-member-select";
+import { isFreeChildPlan } from "@/lib/patient-list-filters";
 
 type DentallySearchPatient = {
   id: string;
@@ -46,7 +48,13 @@ function formatDob(value?: string): string | null {
 }
 
 /** Search Dentally and import a single patient (P2.4). */
-export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
+export function ImportFromDentally({
+  plans,
+  parentMembers,
+}: {
+  plans: PlanOption[];
+  parentMembers: ParentMemberOption[];
+}) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [searching, setSearching] = React.useState(false);
@@ -59,7 +67,10 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
   const [email, setEmail] = React.useState("");
   const [mobile, setMobile] = React.useState("");
   const [planId, setPlanId] = React.useState("");
+  const [parentPatientId, setParentPatientId] = React.useState("");
   const [importing, setImporting] = React.useState(false);
+
+  const selectedPlan = plans.find((p) => p.id === planId);
 
   function selectPatient(patient: DentallySearchPatient) {
     setSelected(patient);
@@ -76,6 +87,7 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
     setEmail("");
     setMobile("");
     setPlanId("");
+    setParentPatientId("");
   }
 
   async function search() {
@@ -102,6 +114,11 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
 
   async function handleImport() {
     if (!selected) return;
+    const parentError = validateFreeChildParent(selectedPlan, parentPatientId);
+    if (parentError) {
+      toast.error(parentError);
+      return;
+    }
     setImporting(true);
     try {
       const res = await fetch("/plans/api/dentally/import-patient", {
@@ -114,6 +131,7 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
           email: email || undefined,
           mobile: mobile || undefined,
           planId: planId || undefined,
+          ...(parentPatientId ? { parentPatientId } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -125,7 +143,12 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
       const patientName = [firstName, lastName].filter(Boolean).join(" ") || `Patient ${selected.id}`;
       if (data.created) {
         toast.success(`Patient imported from Dentally`, {
-          description: data.signupUrl ? "Signup link created — check enrolment card below." : undefined,
+          description:
+            data.signupUrl
+              ? "Signup link created — check enrolment card below."
+              : selectedPlan && isFreeChildPlan(selectedPlan)
+                ? "Free child plan — patient activated immediately."
+                : undefined,
         });
       } else {
         toast.success(`Linked to existing patient: ${patientName}`, {
@@ -255,7 +278,13 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
 
             <div>
               <Label htmlFor="import-plan">Assign plan (optional)</Label>
-              <Select value={planId} onValueChange={setPlanId}>
+              <Select
+                value={planId}
+                onValueChange={(value) => {
+                  setPlanId(value);
+                  setParentPatientId("");
+                }}
+              >
                 <SelectTrigger id="import-plan">
                   <SelectValue placeholder="Import only — no plan yet" />
                 </SelectTrigger>
@@ -268,6 +297,14 @@ export function ImportFromDentally({ plans }: { plans: PlanOption[] }) {
                 </SelectContent>
               </Select>
             </div>
+
+            <ParentMemberSelect
+              plans={plans}
+              planId={planId}
+              parentPatientId={parentPatientId}
+              onParentPatientIdChange={setParentPatientId}
+              parentMembers={parentMembers}
+            />
 
             <Button onClick={handleImport} loading={importing}>
               {planId ? "Import and enrol" : "Import patient"}

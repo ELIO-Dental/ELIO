@@ -48,6 +48,16 @@ type PlanPatientDetail = {
     monthlyPricePence: number;
     requiresAdultMembership: boolean;
   } | null;
+  parentPatient: {
+    id: string;
+    status: string;
+    patient: { firstName: string | null; lastName: string | null };
+  } | null;
+  childPatients: Array<{
+    id: string;
+    status: string;
+    patient: { firstName: string | null; lastName: string | null };
+  }>;
   mandates: Array<{ id: string; status: string; gocardlessMandateId: string; createdAt: string }>;
   payments: Array<{
     id: string;
@@ -246,6 +256,16 @@ export function PatientDetailClient({
             <h2 className="text-h2 text-(--color-text-primary)">{name}</h2>
             <Badge variant={STATUS_VARIANT[detail.status] ?? "neutral"}>{detail.status}</Badge>
             {pendingDd && <Badge variant="warning">PENDING DD</Badge>}
+            {detail.parentPatient && (
+              <Link href={`/patients/${detail.parentPatient.id}`}>
+                <Badge variant="neutral">
+                  Child of{" "}
+                  {[detail.parentPatient.patient.firstName, detail.parentPatient.patient.lastName]
+                    .filter(Boolean)
+                    .join(" ")}
+                </Badge>
+              </Link>
+            )}
           </div>
           <p className="mt-1 text-body-sm text-(--color-text-secondary)">
             {detail.patient.email ?? "No email"} · Dentally ID {detail.patient.dentallyId}
@@ -415,6 +435,46 @@ export function PatientDetailClient({
               )}
             </CardContent>
           </Card>
+          {(detail.parentPatient || detail.childPatients.length > 0) && (
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Family</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-body-sm">
+                {detail.parentPatient && (
+                  <div>
+                    <p className="mb-2 text-(--color-text-secondary)">Parent/guardian</p>
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href={`/patients/${detail.parentPatient.id}`}>
+                        {[detail.parentPatient.patient.firstName, detail.parentPatient.patient.lastName]
+                          .filter(Boolean)
+                          .join(" ") || "View parent"}
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+                {detail.childPatients.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-(--color-text-secondary)">Linked children</p>
+                    <ul className="space-y-2">
+                      {detail.childPatients.map((child) => {
+                        const childName =
+                          [child.patient.firstName, child.patient.lastName].filter(Boolean).join(" ") || "Child";
+                        return (
+                          <li key={child.id} className="flex items-center justify-between gap-2">
+                            <Button variant="secondary" size="sm" asChild>
+                              <Link href={`/patients/${child.id}`}>{childName}</Link>
+                            </Button>
+                            <Badge variant={STATUS_VARIANT[child.status] ?? "neutral"}>{child.status}</Badge>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
