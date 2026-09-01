@@ -527,7 +527,7 @@ CRUD; roles SUPER_ADMIN, ADMIN, STAFF (FINANCE/AUDITOR in schema but not in UI)
 
 Dashboard, Patients, Plans, Payments, Reconciliation, Redeems, Reports, Documents, Action Required, Audit Log, Users, Settings
 
-**Missing nav vs legacy:** Dentally (mappings), Guide
+**Missing nav vs legacy:** none (Guide added P4.5)
 
 #### Dashboard stats
 
@@ -576,7 +576,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Reports tabs (Revenue, Breakage) | Simpler reports page | 🟡 |
 | Documents CRUD + seed T&C | Create + view + seed; edit added | ✅ |
 | Settings 6 tabs | 6 tabs + redeem/reconciliation | ✅ |
-| Guide / help articles | None | ❌ |
+| Guide / help articles | Guide page + seed | ✅ |
 | Branding settings | None in Plans | ❌ |
 | Export CSV patients | None | ❌ |
 | Bulk Check GoCardless | None | ❌ |
@@ -662,7 +662,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P4.2 | **Plan price increase flow** | Uses `parentPlanId` versioning + email members | **Shipped** |
 | P4.3 | **Documents: create/edit/seed T&C** | | **Shipped** |
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys | **Shipped** |
-| P4.5 | **Guide section** | Help articles (optional if content in migrated DB) |
+| P4.5 | **Guide section** | Help articles (optional if content in migrated DB) | **Shipped** |
 | P4.6 | **Redeem create flow** | From completed Dentally appointment |
 | P4.7 | **Branding upload** | Logo/favicon + public branding endpoint |
 

@@ -1255,7 +1255,7 @@ model PlanGuideArticle {
   practiceId String
   practice   Practice @relation(fields: [practiceId], references: [id])
   title      String
-  slug       String   @unique
+  slug       String
   content    String
   category   String   @default("general")
   sortOrder  Int      @default(0)
@@ -1264,6 +1264,7 @@ model PlanGuideArticle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([practiceId, slug])
   @@index([practiceId])
   @@map("plans_guide_articles")
 }
