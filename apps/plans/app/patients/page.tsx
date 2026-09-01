@@ -1,5 +1,5 @@
-import { requireLicensedSession } from "@/lib/session";
-import { prisma } from "@elio/db";
+import { can, requireLicensedSession } from "@/lib/session";
+import { prisma, type Role } from "@elio/db";
 import {
   Table,
   TableHeader,
@@ -18,6 +18,8 @@ import {
 } from "@elio/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { EnrolPatientForm } from "./enrol-patient-form";
+import { ImportFromDentally } from "./import-from-dentally";
+import { PatientsSyncButton } from "./patients-sync-button";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   INVITED: "neutral",
@@ -34,6 +36,7 @@ export default async function PatientsPage({
 }) {
   const session = await requireLicensedSession();
   const practiceId = session.practiceId;
+  const canInvite = can({ role: session.role as Role }, "plans:invite-patients");
 
   const params = await searchParams;
   const { q, status, patientId: prefillPatientId } = params;
@@ -78,7 +81,19 @@ export default async function PatientsPage({
 
   return (
     <PageContent>
-      <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
+      <PageHeader
+        title="Patients"
+        description="Patients enrolled on a membership plan."
+        actions={canInvite ? <PatientsSyncButton /> : undefined}
+      />
+
+      {canInvite && (
+        <div className="mt-8">
+          <ImportFromDentally
+            plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
+          />
+        </div>
+      )}
 
       <div className="mt-8">
         <EnrolPatientForm

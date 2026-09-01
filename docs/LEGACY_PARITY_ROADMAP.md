@@ -633,16 +633,16 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 
 | Step | Task | Details |
 |------|------|---------|
-| P2.1 | **Nav: Dentally** → `/dentally` mappings page (SUPER_ADMIN / OWNER) | Table: code, name, mapped plan, active, actions |
-| P2.2 | **Patients toolbar: Sync from Dentally** | Loading state + result toast (imported/updated/skipped/errors) |
+| P2.1 | **Nav: Dentally** → `/dentally` mappings page (SUPER_ADMIN / OWNER) | Table: code, name, mapped plan, active, actions | **Shipped** |
+| P2.2 | **Patients toolbar: Sync from Dentally** | Loading state + result toast (imported/updated/skipped/errors) | **Shipped** |
 | P2.3 | **`/patients/[id]` detail page** (critical) | All tabs + header actions from legacy |
 | P2.3a | **Patient sub-route APIs** | pause, cancel, invite, send-terms, send-dd-link, check-gc, payment-trail, appointments, notes, correspondence |
-| P2.4 | **Add Patient dialog** — tab “Import from Dentally” | Search → select → confirm |
+| P2.4 | **Add Patient dialog** — tab “Import from Dentally” | Search → select → confirm | **Shipped** |
 | P2.5 | **Export CSV** on patients list | |
 | P2.6 | **Bulk Check GoCardless** button | Link mandates for imported patients |
 | P2.7 | **PENDING_DD filter chip** | Derived: ACTIVE enrolment + no active mandate |
 | P2.8 | **Family / child plan enrolment** | `parentPatientId` on `PlanPatient` + UI when plan price = 0 |
-| P2.9 | **Add Dentally to `PLANS_MODULE_NAV`** | Route `/dentally` |
+| P2.9 | **Add Dentally to `PLANS_MODULE_NAV`** | Route `/dentally` | **Shipped** |
 
 #### Phase P3 — Dashboard & reports parity
 
@@ -1423,16 +1423,16 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P1.7 Audit on sync | `ElioPlans/src/lib/audit.ts` | `elio/apps/plans` sync + cron routes | **Shipped** |
 | P1.8 gc-sync cron | `ElioPlans/src/app/api/cron/gc-sync/route.ts`, `src/lib/gocardless.ts` | `elio/apps/plans/app/api/cron/gc-sync/route.ts` | **Shipped** |
 | P1.9 Reassign plans | `ElioPlans/src/app/api/dentally/reassign-plans/route.ts` | `elio/apps/plans/app/api/dentally/reassign-plans/route.ts` | **Shipped** |
-| P2.1 Mappings page | `ElioPlans/src/app/(dashboard)/dashboard/dentally/page.tsx` | `elio/apps/plans/app/dentally/page.tsx` (to create) | Add to nav |
-| P2.2 Sync button | `ElioPlans/.../patients/page.tsx` (toolbar) | `elio/apps/plans/app/patients/` | Toast with counts |
+| P2.1 Mappings page | `ElioPlans/src/app/(dashboard)/dashboard/dentally/page.tsx` | `elio/apps/plans/app/dentally/page.tsx` | **Shipped** |
+| P2.2 Sync button | `ElioPlans/.../patients/page.tsx` (toolbar) | `elio/apps/plans/app/patients/patients-sync-button.tsx` | **Shipped** |
 | P2.3 Patient detail page | `ElioPlans/.../patients/[id]/page.tsx` | `elio/apps/plans/app/patients/[id]/page.tsx` (to create) | **Critical** |
 | P2.3a Patient sub-APIs | `ElioPlans/src/app/api/patients/[id]/*.ts` (10 routes) | `elio/apps/plans/app/api/patients/[id]/` (to create) | pause, cancel, invite, etc. |
-| P2.4 Import dialog | `ElioPlans/.../patients/page.tsx` (Add Patient tabs) | Patients page dialog | |
+| P2.4 Import dialog | `ElioPlans/.../patients/page.tsx` (Add Patient tabs) | `import-from-dentally.tsx` + `POST /api/dentally/import-patient` | **Shipped** |
 | P2.5 Export CSV | `ElioPlans/.../patients/page.tsx` | Client or API export | |
 | P2.6 Bulk Check GC | `ElioPlans/src/app/api/admin/bulk-check-gc/route.ts` | `elio/apps/plans/app/api/admin/bulk-check-gc/route.ts` (to create) | |
 | P2.7 PENDING_DD filter | `ElioPlans/.../patients/page.tsx`, `src/app/api/patients/route.ts` | `elio/apps/plans/app/patients/` | Derived status |
 | P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | Free plan requires parent |
-| P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/apps/plans/lib/module-nav.ts` or equivalent | Route `/dentally` |
+| P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/packages/ui/lib/module-nav-items.ts` | **Shipped** |
 | P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `elio/apps/plans/app/dashboard/page.tsx` | Mandate-aware active count |
 | P3.2 Activity feed | `ElioPlans/.../dashboard/page.tsx` | Dashboard component | Last 10 audit entries |
 | P3.3 Quick actions | `ElioPlans/.../dashboard/page.tsx` | Dashboard row | |

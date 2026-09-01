@@ -11,6 +11,7 @@ import {
   ScrollText,
   UserCog,
   Settings,
+  Link2,
   FlaskConical,
   Calendar,
   Kanban,
@@ -36,6 +37,7 @@ export const PAY_MODULE_NAV: ModuleNavLink[] = [
 export const PLANS_MODULE_NAV: ModuleNavLink[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { id: "patients", label: "Patients", href: "/patients", icon: Users },
+  { id: "dentally", label: "Dentally", href: "/dentally", icon: Link2 },
   { id: "plans", label: "Plans", href: "/plans", icon: HeartHandshake },
   { id: "payments", label: "Payments", href: "/payments", icon: CreditCard },
   { id: "reconciliation", label: "Reconciliation", href: "/reconciliation", icon: Scale },

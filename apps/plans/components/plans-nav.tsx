@@ -6,6 +6,7 @@ import { getModuleColor } from "@elio/ui";
 const LINKS = [
   { href: "/plans/dashboard", label: "Dashboard" },
   { href: "/plans/patients", label: "Patients" },
+  { href: "/plans/dentally", label: "Dentally" },
   { href: "/plans/plans", label: "Plans" },
   { href: "/plans/payments", label: "Payments" },
   { href: "/plans/reconciliation", label: "Reconciliation" },
