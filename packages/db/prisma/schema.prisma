@@ -247,6 +247,7 @@ model Practice {
   planDocuments        PlanDocument[]
   planSigningRequests  PlanSigningRequest[]
   planGuideArticles    PlanGuideArticle[]
+  dentallyPlanMappings DentallyPlanMapping[]
 
   // ElioFlow (draft)
   enquiries                    Enquiry[]
@@ -940,8 +941,29 @@ model PlanModel {
   eligibilityRules      PlanEligibilityRule[]
   redeemRules           PlanRedeemRule[]
 
+  dentallyPlanMappings DentallyPlanMapping[]
+
   @@index([practiceId])
   @@map("plans_plans")
+}
+
+// Maps a Dentally payment plan name (from B.3 sync) to an ELIO PlanModel — P1.2.
+// Legacy ElioPlans matched patients by `payment_plan_id` → plan name → this mapping.
+model DentallyPlanMapping {
+  id               String    @id @default(cuid())
+  practiceId       String
+  practice         Practice  @relation(fields: [practiceId], references: [id])
+  dentallyPlanName String
+  planModelId      String
+  planModel        PlanModel @relation(fields: [planModelId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, dentallyPlanName])
+  @@index([practiceId])
+  @@index([planModelId])
+  @@map("plans_dentally_plan_mappings")
 }
 
 model PlanInclusion {
