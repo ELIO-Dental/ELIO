@@ -27,16 +27,19 @@ async function resolveLineId(
   payslipEntryId: string,
   lineItemId?: string,
   patientIndex?: number
-): Promise<string | null> {
-  if (lineItemId) return lineItemId;
-  if (patientIndex == null || patientIndex < 0) return null;
+): Promise<{ lineItemId: string | null; error?: string }> {
+  if (lineItemId) return { lineItemId };
+  if (patientIndex == null || patientIndex < 0) return { lineItemId: null };
   const db = scopedDb(practiceId);
   const payslip = await db.payslipEntry.findFirst({
     where: { id: payslipEntryId, payPeriodId, practiceId },
     include: { privateRevenueLineItems: true },
   });
-  if (!payslip) return null;
-  return resolveLineItemIdByIndex(payslip.privateRevenueLineItems, patientIndex);
+  if (!payslip) return { lineItemId: null, error: "Payslip not found" };
+  if (patientIndex >= payslip.privateRevenueLineItems.length) {
+    return { lineItemId: null, error: "Patient index out of range" };
+  }
+  return { lineItemId: resolveLineItemIdByIndex(payslip.privateRevenueLineItems, patientIndex) };
 }
 
 function handleError(err: unknown) {
@@ -57,7 +60,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const body = (await req.json()) as Record<string, unknown>;
 
     const payslipEntryId = String(body.payslipEntryId ?? body.entry_id ?? "");
-    const lineItemId = await resolveLineId(
+    const resolved = await resolveLineId(
       session.practiceId,
       payPeriodId,
       payslipEntryId,
@@ -65,7 +68,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       body.patient_index != null ? Number(body.patient_index) : undefined
     );
 
-    if (!payslipEntryId || !lineItemId) {
+    if (resolved.error === "Patient index out of range") {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    if (!payslipEntryId || !resolved.lineItemId) {
       return NextResponse.json({ error: "payslipEntryId and lineItemId (or patient_index) required" }, { status: 400 });
     }
 
@@ -73,7 +79,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       session.practiceId,
       payPeriodId,
       payslipEntryId,
-      lineItemId,
+      resolved.lineItemId,
       mapLegacyUpdates((body.updates as Record<string, unknown>) ?? {})
     );
     return NextResponse.json({ ok: true, ...result });
@@ -120,7 +126,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const lineItemIdParam = searchParams.get("lineItemId");
     const patientIndex = searchParams.get("patient_index");
 
-    const lineItemId = await resolveLineId(
+    const resolved = await resolveLineId(
       session.practiceId,
       payPeriodId,
       payslipEntryId,
@@ -128,11 +134,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       patientIndex != null ? Number(patientIndex) : undefined
     );
 
-    if (!payslipEntryId || !lineItemId) {
+    if (resolved.error === "Patient index out of range") {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    if (!payslipEntryId || !resolved.lineItemId) {
       return NextResponse.json({ error: "payslipEntryId and lineItemId (or patient_index) required" }, { status: 400 });
     }
 
-    const result = await deletePrivatePatientLine(session.practiceId, payPeriodId, payslipEntryId, lineItemId);
+    const result = await deletePrivatePatientLine(session.practiceId, payPeriodId, payslipEntryId, resolved.lineItemId);
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     return handleError(err);

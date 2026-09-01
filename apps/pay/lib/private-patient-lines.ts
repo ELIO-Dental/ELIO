@@ -1,17 +1,22 @@
 import { scopedDb } from "@elio/db";
 import { savePayslipEntry } from "./pay-service";
-import { resolveLineItemIdByIndex, totalsFromLines } from "./private-patient-line-utils";
+import {
+  applyPrivatePatientLineUpdates,
+  legacyTotalsFromPence,
+  patientIndexForLineId,
+  resolveLineItemIdByIndex,
+  totalsFromLines,
+  type PrivatePatientLineUpdates,
+} from "./private-patient-line-utils";
 
-export { resolveLineItemIdByIndex, totalsFromLines } from "./private-patient-line-utils";
-
-export type PrivatePatientLineUpdates = {
-  paymentStatus?: "paid" | "partial" | "unpaid";
-  isFinance?: boolean;
-  financeFeePence?: number;
-  amountPence?: number;
-  flagged?: boolean;
-  flagReason?: string | null;
-};
+export {
+  applyPrivatePatientLineUpdates,
+  legacyTotalsFromPence,
+  patientIndexForLineId,
+  resolveLineItemIdByIndex,
+  totalsFromLines,
+  type PrivatePatientLineUpdates,
+} from "./private-patient-line-utils";
 
 function assertDraftPeriod(status: string) {
   if (status === "LOCKED") throw new Error("Pay period is locked");
@@ -29,69 +34,6 @@ async function loadLineContext(practiceId: string, payPeriodId: string, payslipE
   const line = payslip.privateRevenueLineItems.find((li) => li.id === lineItemId);
   if (!line) throw new Error("Patient line not found");
   return { db, payslip, line };
-}
-
-function applyLineUpdates(
-  line: {
-    amountPence: number;
-    amountPaidPence: number | null;
-    amountOutstandingPence: number | null;
-    paymentStatus: string | null;
-    isFinance: boolean;
-    financeFeePence: number | null;
-    flagged: boolean;
-    flagReason: string | null;
-  },
-  updates: PrivatePatientLineUpdates
-) {
-  if (updates.amountPence !== undefined) {
-    line.amountPence = updates.amountPence;
-    if (line.paymentStatus === "paid") {
-      line.amountPaidPence = updates.amountPence;
-      line.amountOutstandingPence = 0;
-    } else if (line.paymentStatus === "unpaid") {
-      line.amountPaidPence = 0;
-      line.amountOutstandingPence = updates.amountPence;
-    } else if (line.paymentStatus === "partial" && line.amountPaidPence != null) {
-      line.amountOutstandingPence = Math.max(0, updates.amountPence - line.amountPaidPence);
-    }
-  }
-
-  if (updates.paymentStatus !== undefined) {
-    line.paymentStatus = updates.paymentStatus;
-    if (updates.paymentStatus === "paid") {
-      line.amountPaidPence = line.amountPence;
-      line.amountOutstandingPence = 0;
-      line.flagged = line.isFinance;
-      if (!line.isFinance) line.flagReason = null;
-    } else if (updates.paymentStatus === "unpaid") {
-      line.amountPaidPence = 0;
-      line.amountOutstandingPence = line.amountPence;
-      line.flagged = true;
-      line.flagReason = "Invoice not paid";
-    }
-  }
-
-  if (updates.isFinance !== undefined) {
-    line.isFinance = updates.isFinance;
-    if (updates.isFinance && line.paymentStatus === "paid") {
-      line.flagged = true;
-      line.flagReason = "Paid via finance - verify fee deduction";
-    }
-  }
-
-  if (updates.financeFeePence !== undefined) {
-    line.financeFeePence = updates.financeFeePence;
-  }
-
-  if (updates.flagged !== undefined) {
-    line.flagged = updates.flagged;
-    if (updates.flagged === false) line.flagReason = null;
-  }
-
-  if (updates.flagReason !== undefined) {
-    line.flagReason = updates.flagReason;
-  }
 }
 
 async function recalcPayslipTotals(practiceId: string, payPeriodId: string, payslipEntryId: string, lines: Array<{ amountPaidPence?: number | null; isFinance: boolean; financeFeePence?: number | null }>) {
@@ -113,7 +55,7 @@ export async function updatePrivatePatientLine(
 ) {
   const { db, payslip, line } = await loadLineContext(practiceId, payPeriodId, payslipEntryId, lineItemId);
   const draft = { ...line };
-  applyLineUpdates(draft, updates);
+  applyPrivatePatientLineUpdates(draft, updates);
 
   await db.privateRevenueLineItem.update({
     where: { id: lineItemId },
@@ -145,7 +87,12 @@ export async function updatePrivatePatientLine(
 
   const payslipAfter = await recalcPayslipTotals(practiceId, payPeriodId, payslipEntryId, refreshedLines);
   const totals = totalsFromLines(refreshedLines);
-  return { line: draft, totals, payslip: payslipAfter };
+  return {
+    patient: draft,
+    totals: legacyTotalsFromPence(totals),
+    payslip: payslipAfter,
+    patientIndex: patientIndexForLineId(payslip.privateRevenueLineItems, lineItemId),
+  };
 }
 
 export type ManualPrivatePatientInput = {
@@ -196,17 +143,21 @@ export async function addManualPrivatePatientLine(
     },
   });
 
-  const refreshedLines = [
-    ...payslip.privateRevenueLineItems.map((li) => ({
-      amountPaidPence: li.amountPaidPence,
-      isFinance: li.isFinance,
-      financeFeePence: li.financeFeePence,
-    })),
-    { amountPaidPence: line.amountPaidPence, isFinance: line.isFinance, financeFeePence: line.financeFeePence },
-  ];
+  const allLines = [...payslip.privateRevenueLineItems, line];
+  const refreshedLines = allLines.map((li) => ({
+    amountPaidPence: li.amountPaidPence,
+    isFinance: li.isFinance,
+    financeFeePence: li.financeFeePence,
+  }));
 
   const payslipAfter = await recalcPayslipTotals(practiceId, payPeriodId, payslipEntryId, refreshedLines);
-  return { line, totals: totalsFromLines(refreshedLines), payslip: payslipAfter };
+  const totals = totalsFromLines(refreshedLines);
+  return {
+    patient: line,
+    patientIndex: patientIndexForLineId(allLines, line.id),
+    totals: legacyTotalsFromPence(totals),
+    payslip: payslipAfter,
+  };
 }
 
 /** Delete a private patient row (legacy DELETE /periods/patients, Y2.1b). */
@@ -228,5 +179,6 @@ export async function deletePrivatePatientLine(
     }));
 
   const payslipAfter = await recalcPayslipTotals(practiceId, payPeriodId, payslipEntryId, refreshedLines);
-  return { removed: line, totals: totalsFromLines(refreshedLines), payslip: payslipAfter };
+  const totals = totalsFromLines(refreshedLines);
+  return { removed: line, totals: legacyTotalsFromPence(totals), payslip: payslipAfter };
 }
