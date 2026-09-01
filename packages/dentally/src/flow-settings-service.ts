@@ -3,6 +3,7 @@ import {
   flowSettingsToJson,
   mergeFlowSettingsInput,
   parseFlowSettingsJson,
+  resolveFlowBrandTitle,
   type FlowSettings,
 } from "./flow-settings";
 
@@ -21,7 +22,7 @@ export async function getFlowBranding(practiceId: string): Promise<{ brandTitle:
     select: { name: true, flowSettingsJson: true },
   });
   const settings = parseFlowSettingsJson(practice.flowSettingsJson);
-  const brandTitle = settings.appDisplayName || practice.name.trim() || "ELIO FLOW";
+  const brandTitle = resolveFlowBrandTitle(settings, practice.name);
   return {
     brandTitle,
     logoUrl: settings.logoUrl || undefined,
@@ -46,4 +47,5 @@ export {
   DEFAULT_FLOW_SETTINGS,
   mergeFlowSettingsInput,
   parseFlowSettingsJson,
+  resolveFlowBrandTitle,
 } from "./flow-settings";

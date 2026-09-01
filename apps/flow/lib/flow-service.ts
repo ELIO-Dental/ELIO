@@ -543,6 +543,7 @@ export interface FlowDashboardData {
   rows: FlowDashboardRow[];
   dentists: { id: string; name: string }[];
   planDisplayName: string;
+  appDisplayName: string;
   practitionerScope: { viewAll: boolean; dentistId: string | null };
 }
 
@@ -694,7 +695,7 @@ export async function getFlowDashboard(
     ? { viewAll: opts.scope.viewAll, dentistId: opts.scope.dentistId }
     : { viewAll: true, dentistId: null };
 
-  return { stats, rows, dentists, planDisplayName: settings.planDisplayName, practitionerScope };
+  return { stats, rows, dentists, planDisplayName: settings.planDisplayName, appDisplayName: settings.appDisplayName, practitionerScope };
 }
 
 // ---------------------------------------------------------------------------

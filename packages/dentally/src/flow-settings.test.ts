@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeFlowSettingsInput, parseFlowSettingsJson } from "./flow-settings";
+import { mergeFlowSettingsInput, parseFlowSettingsJson, resolveFlowBrandTitle } from "./flow-settings";
 
 describe("parseFlowSettingsJson", () => {
   it("returns defaults for empty input", () => {
@@ -41,5 +41,16 @@ describe("mergeFlowSettingsInput", () => {
     expect(merged.cosmeticConsultReason).toBe("Smile Consultation");
     expect(merged.paidConversionThresholdPence).toBe(50000);
     expect(merged.planDisplayName).toBe("AuraCare");
+  });
+});
+
+describe("resolveFlowBrandTitle", () => {
+  it("prefers custom app name over practice name", () => {
+    expect(resolveFlowBrandTitle({ appDisplayName: "Aura Flow" }, "Seed Practice")).toBe("Aura Flow");
+  });
+
+  it("falls back to practice name then default", () => {
+    expect(resolveFlowBrandTitle({ appDisplayName: "" }, "Aura Dental")).toBe("Aura Dental");
+    expect(resolveFlowBrandTitle({ appDisplayName: "" }, "")).toBe("ELIO FLOW");
   });
 });

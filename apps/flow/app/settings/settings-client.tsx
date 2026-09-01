@@ -24,6 +24,28 @@ export function FlowSettingsClient({
 }) {
   const [settings, setSettings] = React.useState(initialSettings);
   const [saving, setSaving] = React.useState(false);
+  const [uploadingLogo, setUploadingLogo] = React.useState(false);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+
+  async function uploadLogo(file: File) {
+    if (!canEdit) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const res = await fetch("/flow/api/upload", { method: "POST", body: formData });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Upload failed");
+      setSettings((s) => ({ ...s, logoUrl: body.url }));
+      toast.success("Logo uploaded — save settings to apply in the sidebar");
+    } catch (err) {
+      toast.error("Logo upload failed", {
+        description: err instanceof Error ? err.message : "Use PNG, JPG, or SVG under 1MB.",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +91,60 @@ export function FlowSettingsClient({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <Label>Logo</Label>
+              <div className="mt-2 flex items-start gap-4">
+                <div
+                  className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-md) border border-dashed border-(--color-border) bg-(--color-bg-subtle)"
+                  data-testid="flow-logo-preview"
+                >
+                  {settings.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={settings.logoUrl} alt="Practice logo" className="size-full object-contain p-2" />
+                  ) : (
+                    <span className="text-caption text-(--color-text-tertiary)">No logo</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadLogo(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  {canEdit ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        loading={uploadingLogo}
+                        onClick={() => logoInputRef.current?.click()}
+                        data-testid="flow-logo-upload"
+                      >
+                        Upload logo
+                      </Button>
+                      {settings.logoUrl ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setSettings((s) => ({ ...s, logoUrl: "" }))}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <p className="text-caption text-(--color-text-tertiary)">
+                    PNG, JPG, or SVG. Max 1MB. Also used as the browser favicon after save.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div>
               <Label htmlFor="appDisplayName">App display name</Label>
               <Input
                 id="appDisplayName"
@@ -82,17 +158,14 @@ export function FlowSettingsClient({
               </p>
             </div>
             <div>
-              <Label htmlFor="logoUrl">Logo URL</Label>
+              <Label htmlFor="logoUrl">Or enter logo URL</Label>
               <Input
                 id="logoUrl"
-                value={settings.logoUrl}
+                value={settings.logoUrl.startsWith("data:") ? "" : settings.logoUrl}
                 disabled={!canEdit}
                 onChange={(e) => setSettings((s) => ({ ...s, logoUrl: e.target.value }))}
                 placeholder="https://example.com/logo.png"
               />
-              <p className="mt-1 text-caption text-(--color-text-tertiary)">
-                Optional image URL for the sidebar logo. Reload the page after saving to see it.
-              </p>
             </div>
           </CardContent>
         </Card>

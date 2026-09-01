@@ -427,10 +427,10 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 
 | Step | Task |
 |------|------|
-| F4.1 | Compare stat card numbers against legacy Sheets export for same date range |
-| F4.2 | Run cosmetic import on staging; confirm new Dentally consult appears within one sync cycle |
-| F4.3 | E2E: sync button → table updates → CSV export matches |
-| F4.4 | Client UAT script: walk through legacy daily workflow step-by-step |
+| F4.1 | Compare stat card numbers against legacy Sheets export for same date range | **Shipped** — `scripts/verify-flow-parity.ts` |
+| F4.2 | Run cosmetic import on staging; confirm new Dentally consult appears within one sync cycle | Manual — see `FLOW_UAT_SCRIPT.md` §2 |
+| F4.3 | E2E: sync button → table updates → CSV export matches | **Shipped** — `e2e/verification.spec.ts` + `e2e/branding.spec.ts` |
+| F4.4 | Client UAT script: walk through legacy daily workflow step-by-step | **Shipped** — `docs/FLOW_UAT_SCRIPT.md` |
 
 ---
 
@@ -1396,7 +1396,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F3.1 Flow settings | `ElioFlow/pages/settings.tsx`, `pages/api/settings.ts` | `elio/apps/flow/app/settings/` + `flowSettingsJson` | **Shipped** |
 | F3.2 Dentist visibility | `ElioFlow/pages/index.tsx` (dentist filter), `pages/api/users.ts` | `@elio/auth` permission `flow:view-all-patients` + `flow-scope.ts` | **Shipped** |
 | F3.3 Branding | `ElioFlow/pages/settings.tsx` | Flow settings + `SidebarBrand` logo | **Shipped** |
-| F4.x Verification | Export legacy Sheets + compare | E2E in `elio/apps/flow/e2e/` | Side-by-side stats |
+| F4.x Verification | Export legacy Sheets + compare | `verify-flow-parity.ts` + `FLOW_UAT_SCRIPT.md` + E2E | **Shipped** |
 
 **Flow — supporting legacy files (read when stuck)**
 

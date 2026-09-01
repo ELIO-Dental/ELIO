@@ -29,7 +29,7 @@ export function ShellLayout({
       }
       pwaAppId="flow"
     >
-      <FlowBrandingHead brandName={brandTitle} />
+      <FlowBrandingHead brandName={brandTitle} logoUrl={brandLogoUrl} />
       {children}
     </ModuleAppLayout>
   );

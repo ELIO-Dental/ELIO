@@ -74,3 +74,11 @@ export function mergeFlowSettingsInput(
 export function flowSettingsToJson(settings: FlowSettings): object {
   return { ...settings };
 }
+
+/** F3.3 — sidebar title: custom app name, then practice name, then default. */
+export function resolveFlowBrandTitle(
+  settings: Pick<FlowSettings, "appDisplayName">,
+  practiceName: string
+): string {
+  return settings.appDisplayName || practiceName.trim() || "ELIO FLOW";
+}

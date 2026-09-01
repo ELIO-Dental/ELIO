@@ -15,6 +15,7 @@
     "verify:dentally-sync": "tsx scripts/verify-dentally-sync-infra.ts",
     "verify:plans-parity": "tsx scripts/verify-plans-parity.ts",
     "verify:pay-parity": "tsx scripts/verify-pay-parity.ts",
+    "verify:flow-parity": "tsx scripts/verify-flow-parity.ts",
     "seed": "npm run seed --workspace=@elio/db",
     "pwa:assets": "npm run generate-assets --workspace=@elio/pwa",
     "postinstall": "prisma generate --schema packages/db/prisma/schema.prisma"

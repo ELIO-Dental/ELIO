@@ -128,7 +128,7 @@ function ProgressDots({
   );
 }
 
-function exportRowsCsv(rows: FlowDashboardRow[]) {
+function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDisplayName: string) {
   const headers = [
     "Name",
     "Phone",
@@ -164,7 +164,8 @@ function exportRowsCsv(rows: FlowDashboardRow[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `flow-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  const slug = (appDisplayName || "flow").toLowerCase().replace(/\s+/g, "-");
+  a.download = `${slug}-export-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -403,7 +404,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </button>
           </div>
           {view === "table" ? (
-            <Button variant="secondary" onClick={() => exportRowsCsv(filteredRows)}>
+            <Button variant="secondary" onClick={() => exportRowsCsv(filteredRows, data.planDisplayName, data.appDisplayName)} data-testid="flow-export-csv">
               Export CSV
             </Button>
           ) : null}
