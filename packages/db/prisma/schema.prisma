@@ -886,6 +886,9 @@ model SavedLab {
   practiceId String
   practice   Practice @relation(fields: [practiceId], references: [id])
   name       String
+  accountName   String?
+  sortCode      String?
+  accountNumber String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -899,6 +902,9 @@ model SavedSupplier {
   practiceId String
   practice   Practice @relation(fields: [practiceId], references: [id])
   name       String
+  accountName   String?
+  sortCode      String?
+  accountNumber String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
