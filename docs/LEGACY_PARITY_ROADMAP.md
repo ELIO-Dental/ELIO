@@ -1003,7 +1003,7 @@ Items that block parity and are **not** just missing UI:
 | `UserPermission` | Per-user permission overrides | **Missing** — role-only in new auth | Map to `@elio/auth` or add override table |
 | `Setting` KV (~25 keys) | ElioPlans `Setting` table | **Not migrated** | Extend `Practice` JSON or `PracticeSetting` table |
 | `PlanEligibilityRule` UI | Per-plan rules (e.g. Dentally Fit) | **Schema exists** — no admin UI | Build plan edit form |
-| `PlanModel.parentPlanId` / versioning | Price increase creates new version | **Schema exists** — no price-increase flow | Port `POST /plans/[id]/price-increase` |
+| `PlanModel.parentPlanId` / versioning | Price increase creates new version | **Shipped** — `increasePlanPrice()` versions plan + migrates enrolments | |
 | `Consult.bookedBy` | Sheets column P | **Missing** | Add optional string field |
 | `Consult.practitionerEdited` | Sheets column L | **Missing** | Boolean flag for sync preserve |
 | `Appointment.dentallyState` | Legacy `appointmentState` on row | **Exists** on `Appointment` | Join in Flow table UI (no new column) |
