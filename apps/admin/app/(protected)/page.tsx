@@ -139,17 +139,24 @@ export default async function TenantListPage({
                     </TableCell>
                     <TableCell>{t._count.users}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          t.dentallyConnectionStatus === "CONNECTED"
-                            ? "success"
-                            : t.dentallyConnectionStatus === "ERROR"
-                              ? "danger"
-                              : "neutral"
-                        }
+                      <Link
+                        href={`/tenants/${t.id}#dentally-sync-logs`}
+                        className="inline-flex items-center gap-2"
+                        data-testid={`tenant-dentally-logs-${t.id}`}
                       >
-                        {t.dentallyConnectionStatus}
-                      </Badge>
+                        <Badge
+                          variant={
+                            t.dentallyConnectionStatus === "CONNECTED"
+                              ? "success"
+                              : t.dentallyConnectionStatus === "ERROR"
+                                ? "danger"
+                                : "neutral"
+                          }
+                        >
+                          {t.dentallyConnectionStatus}
+                        </Badge>
+                        <span className="text-caption text-(--color-primary-fg) hover:underline">Logs</span>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       {t.suspendedAt ? (

@@ -218,3 +218,26 @@ test("toggling a feature flag updates real DB state, and audit-logs the change",
   });
   expect(restored.enabled).toBe(false);
 });
+
+test("tenant detail shows Dentally sync log history", async ({ page }) => {
+  const run = await prisma.dentallySyncRun.create({
+    data: {
+      practiceId: "seed-practice",
+      trigger: "MANUAL",
+      status: "SUCCESS",
+      finishedAt: new Date(),
+      counts: { patients: 3, appointments: 7, invoices: 2 },
+    },
+  });
+
+  try {
+    await loginAsSuperAdmin(page);
+    await page.getByTestId("tenant-dentally-logs-seed-practice").click();
+    await page.waitForURL(/\/tenants\/seed-practice/);
+    await expect(page.getByTestId("dentally-sync-logs")).toBeVisible();
+    await expect(page.getByTestId(`dentally-sync-run-${run.id}`)).toBeVisible();
+    await expect(page.getByTestId(`dentally-sync-run-${run.id}`)).toContainText("3 patients");
+  } finally {
+    await prisma.dentallySyncRun.delete({ where: { id: run.id } });
+  }
+});

@@ -44,8 +44,24 @@ export async function getTenantDetail(practiceId: string) {
   });
   if (!practice) return null;
 
-  const dentistCount = await prisma.dentist.count({ where: { practiceId } });
-  return { practice, dentistCount };
+  const [dentistCount, dentallySyncRuns] = await Promise.all([
+    prisma.dentist.count({ where: { practiceId } }),
+    prisma.dentallySyncRun.findMany({
+      where: { practiceId },
+      orderBy: { startedAt: "desc" },
+      take: 25,
+    }),
+  ]);
+  return { practice, dentistCount, dentallySyncRuns };
+}
+
+export async function listDentallySyncRuns(practiceId: string, opts?: { take?: number; skip?: number }) {
+  return prisma.dentallySyncRun.findMany({
+    where: { practiceId },
+    orderBy: { startedAt: "desc" },
+    take: opts?.take ?? 25,
+    skip: opts?.skip ?? 0,
+  });
 }
 
 const ALL_MODULES: ModuleId[] = ["PAY", "PLANS", "FLOW"];

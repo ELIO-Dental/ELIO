@@ -62,6 +62,10 @@ export default function SignupPage() {
       setDentallyTestError("Enter an API key to test.");
       return;
     }
+    if (key.length < 8) {
+      setDentallyTestError("API key looks too short.");
+      return;
+    }
     setDentallyTesting(true);
     try {
       const res = await fetch("/api/public/dentally/test", {
