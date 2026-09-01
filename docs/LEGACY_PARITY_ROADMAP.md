@@ -658,7 +658,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 
 | Step | Task | Details |
 |------|------|---------|
-| P4.1 | **Plans: full edit** | Inclusions, discounts, eligibility rules, GC link, active toggle, delete guard |
+| P4.1 | **Plans: full edit** | Inclusions, discounts, eligibility rules, GC link, active toggle, delete guard | **Shipped** |
 | P4.2 | **Plan price increase flow** | Uses `parentPlanId` versioning + email members |
 | P4.3 | **Documents: create/edit/seed T&C** | |
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys |
@@ -1438,7 +1438,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P3.3 Quick actions | `ElioPlans/.../dashboard/page.tsx` | `dashboard-quick-actions.tsx` | **Shipped** |
 | P3.4 Reports tabs | `ElioPlans/.../reports/page.tsx`, `api/reports/route.ts` | `reports-service.ts` + tabbed UI + CSV export | **Shipped** |
 | P3.5 Payment schedule card | `ElioPlans/.../dashboard/page.tsx` | `payment-schedule-card.tsx` | **Shipped** |
-| P4.1 Plan edit | `ElioPlans/.../plans/page.tsx`, `api/plans/[id]/route.ts` | `elio/apps/plans/app/plans/[id]/` (to create) | Inclusions, discounts, eligibility |
+| P4.1 Plan edit | `ElioPlans/.../plans/page.tsx`, `api/plans/[id]/route.ts` | `plans-manager.tsx` + `api/plans/[id]` | **Shipped** |
 | P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `elio/apps/plans/app/api/plans/[id]/price-increase/route.ts` | Uses `parentPlanId` |
 | P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `elio/apps/plans/app/documents/` (extend) | |
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `elio/apps/plans/app/settings/page.tsx` | Part 15 keys |
@@ -1560,3 +1560,4 @@ Use this to confirm nothing was missed before starting implementation:
 ---
 
 *This document should be updated as each phase ships. Link PRs to phase/step IDs (e.g. `F2.3`, `Y1.2`) in commit messages for traceability. When a step ships, add the PR link in the Part 16 row.*
+                              

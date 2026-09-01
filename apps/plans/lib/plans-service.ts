@@ -56,24 +56,208 @@ export async function listPlans(practiceId: string) {
   const db = scopedDb(practiceId);
   return db.planModel.findMany({
     where: { isCurrentVersion: true },
-    include: { inclusions: true, discounts: true, eligibilityRules: true },
+    include: {
+      inclusions: { orderBy: { sortOrder: "asc" } },
+      discounts: { orderBy: { sortOrder: "asc" } },
+      eligibilityRules: { orderBy: { sortOrder: "asc" } },
+      _count: { select: { patientPlanEnrolments: true } },
+    },
     orderBy: { sortOrder: "asc" },
   });
 }
 
-export async function createPlan(
-  practiceId: string,
-  input: {
-    name: string;
-    monthlyPricePence: number;
-    description?: string;
-    publicDescription?: string;
-    requiresAdultMembership?: boolean;
-    dentistPayoutPerExamPence?: number;
-  },
-) {
+export type PlanInclusionInput = {
+  name: string;
+  itemType?: string;
+  quantity?: number | null;
+  period?: string | null;
+  description?: string | null;
+  sortOrder: number;
+};
+
+export type PlanDiscountInput = {
+  name: string;
+  percentage: number;
+  applicableTo?: string | null;
+  excludes?: string | null;
+  description?: string | null;
+  sortOrder: number;
+};
+
+export type PlanEligibilityRuleInput = {
+  ruleType: string;
+  ruleValue?: string | null;
+  description?: string | null;
+  active?: boolean;
+  sortOrder: number;
+};
+
+export type PlanWriteInput = {
+  name: string;
+  monthlyPricePence: number;
+  description?: string | null;
+  publicDescription?: string | null;
+  gocardlessLink?: string | null;
+  active?: boolean;
+  eligibilityDentalFit?: boolean;
+  requiresAdultMembership?: boolean;
+  dentistPayoutPerExamPence?: number | null;
+  sortOrder?: number;
+  inclusions?: PlanInclusionInput[];
+  discounts?: PlanDiscountInput[];
+  eligibilityRules?: PlanEligibilityRuleInput[];
+};
+
+const PLAN_DETAIL_INCLUDE = {
+  inclusions: { orderBy: { sortOrder: "asc" as const } },
+  discounts: { orderBy: { sortOrder: "asc" as const } },
+  eligibilityRules: { orderBy: { sortOrder: "asc" as const } },
+  _count: { select: { patientPlanEnrolments: true } },
+} as const;
+
+export async function getPlan(practiceId: string, planId: string) {
   const db = scopedDb(practiceId);
-  return db.planModel.create({ data: { practiceId, ...input } });
+  return db.planModel.findFirst({
+    where: { id: planId, isCurrentVersion: true },
+    include: PLAN_DETAIL_INCLUDE,
+  });
+}
+
+export async function createPlan(practiceId: string, input: PlanWriteInput) {
+  const db = scopedDb(practiceId);
+  const { inclusions, discounts, eligibilityRules, ...planData } = input;
+  return db.planModel.create({
+    data: {
+      practiceId,
+      ...planData,
+      inclusions: inclusions?.length
+        ? {
+            create: inclusions.map((inc) => ({
+              practiceId,
+              name: inc.name,
+              itemType: (inc.itemType as "EXAMINATION" | "HYGIENE" | "DISCOUNT" | "OTHER") ?? "OTHER",
+              quantity: inc.quantity ?? null,
+              period: inc.period ?? null,
+              description: inc.description ?? null,
+              sortOrder: inc.sortOrder,
+            })),
+          }
+        : undefined,
+      discounts: discounts?.length
+        ? {
+            create: discounts.map((disc) => ({
+              practiceId,
+              name: disc.name,
+              percentage: disc.percentage,
+              applicableTo: disc.applicableTo ?? null,
+              excludes: disc.excludes ?? null,
+              description: disc.description ?? null,
+              sortOrder: disc.sortOrder,
+            })),
+          }
+        : undefined,
+      eligibilityRules: eligibilityRules?.length
+        ? {
+            create: eligibilityRules.map((rule) => ({
+              practiceId,
+              ruleType: rule.ruleType,
+              ruleValue: rule.ruleValue ?? null,
+              description: rule.description ?? null,
+              active: rule.active ?? true,
+              sortOrder: rule.sortOrder,
+            })),
+          }
+        : undefined,
+    },
+    include: PLAN_DETAIL_INCLUDE,
+  });
+}
+
+export async function updatePlan(practiceId: string, planId: string, input: PlanWriteInput) {
+  const db = scopedDb(practiceId);
+  const existing = await db.planModel.findFirst({ where: { id: planId, isCurrentVersion: true } });
+  if (!existing) throw new Error("Plan not found");
+
+  const { inclusions, discounts, eligibilityRules, ...planData } = input;
+
+  return db.$transaction(async (tx) => {
+    await tx.planModel.update({ where: { id: planId }, data: planData });
+
+    if (inclusions) {
+      await tx.planInclusion.deleteMany({ where: { planId } });
+      if (inclusions.length > 0) {
+        await tx.planInclusion.createMany({
+          data: inclusions.map((inc) => ({
+            practiceId,
+            planId,
+            name: inc.name,
+            itemType: (inc.itemType as "EXAMINATION" | "HYGIENE" | "DISCOUNT" | "OTHER") ?? "OTHER",
+            quantity: inc.quantity ?? null,
+            period: inc.period ?? null,
+            description: inc.description ?? null,
+            sortOrder: inc.sortOrder,
+          })),
+        });
+      }
+    }
+
+    if (discounts) {
+      await tx.planDiscount.deleteMany({ where: { planId } });
+      if (discounts.length > 0) {
+        await tx.planDiscount.createMany({
+          data: discounts.map((disc) => ({
+            practiceId,
+            planId,
+            name: disc.name,
+            percentage: disc.percentage,
+            applicableTo: disc.applicableTo ?? null,
+            excludes: disc.excludes ?? null,
+            description: disc.description ?? null,
+            sortOrder: disc.sortOrder,
+          })),
+        });
+      }
+    }
+
+    if (eligibilityRules) {
+      await tx.planEligibilityRule.deleteMany({ where: { planId } });
+      if (eligibilityRules.length > 0) {
+        await tx.planEligibilityRule.createMany({
+          data: eligibilityRules.map((rule) => ({
+            practiceId,
+            planId,
+            ruleType: rule.ruleType,
+            ruleValue: rule.ruleValue ?? null,
+            description: rule.description ?? null,
+            active: rule.active ?? true,
+            sortOrder: rule.sortOrder,
+          })),
+        });
+      }
+    }
+
+    return tx.planModel.findUnique({ where: { id: planId }, include: PLAN_DETAIL_INCLUDE });
+  });
+}
+
+export async function deletePlan(practiceId: string, planId: string) {
+  const db = scopedDb(practiceId);
+  const existing = await db.planModel.findFirst({ where: { id: planId, isCurrentVersion: true } });
+  if (!existing) throw new Error("Plan not found");
+
+  const activeEnrolments = await db.patientPlanEnrolment.count({
+    where: { planId, status: "ACTIVE" },
+  });
+  if (activeEnrolments > 0) {
+    throw new Error("Cannot delete plan with active patients");
+  }
+
+  const anyEnrolments = await db.patientPlanEnrolment.count({ where: { planId } });
+  if (anyEnrolments > 0) {
+    throw new Error("Cannot delete plan that has enrolled patients — deactivate it instead");
+  }
+
+  await db.planModel.delete({ where: { id: planId } });
 }
 
 // ---------------------------------------------------------------------------
