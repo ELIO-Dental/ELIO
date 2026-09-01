@@ -856,7 +856,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 |------|------|---------|
 | Y4.1 | **Reporting page** | Monthly costs, dentist net pay trend, anomaly detection (port from legacy) | **Shipped** — `bills-reporting` lib + full reporting UI |
 | Y4.2 | **Compare one period** legacy AuraPay vs new Pay after fetch — same net pay ±£1 | **Shipped** — `pay-period-parity` lib + `npm run verify:pay-parity` |
-| Y4.3 | **E2E: create period → fetch Dentally → calculate → PDF** |
+| Y4.3 | **E2E: create period → fetch Dentally → calculate → PDF** | **Shipped** — `e2e/pay-period-dentally-flow.spec.ts` |
 
 ---
 
@@ -1496,7 +1496,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y3.8 Email payslips | `ElioPay/aurapay/src/app/api/payslips/send-email/route.ts`, `send-all-emails/route.ts` | `pay/api/payslips/[id]/send-email`, `pay/api/pay-periods/[id]/send-all-emails` | **Shipped** |
 | Y3.9 Download all PDFs | `ElioPay/aurapay/src/app/api/payslips/download-all/route.ts`, `src/lib/pdf-generator.ts` | `pay/api/pay-periods/[id]/download-all` | **Shipped** |
 | Y4.1 Reporting | `ElioPay/aurapay/src/app/reporting/page.tsx`, `api/bills/reporting/route.ts` | `pay/app/reporting` + `pay/api/reporting` | **Shipped** |
-| Y4.2–Y4.3 Verification | Legacy AuraPay period export | `scripts/verify-pay-parity.ts` + pay-period-parity lib | **Y4.2 Shipped** |
+| Y4.2–Y4.3 Verification | Legacy AuraPay period export + E2E Dentally flow | `verify-pay-parity.ts` + `pay-period-dentally-flow.spec.ts` | **Shipped** |
 
 **Pay — supporting legacy files (read when stuck)**
 
