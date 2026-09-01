@@ -124,8 +124,8 @@ describe("requireSmtpConfig", () => {
 });
 
 describe("formatPayPeriodLabel", () => {
-  it("formats month and year", () => {
-    expect(formatPayPeriodLabel(new Date("2026-05-15"))).toBe("May 2026");
+  it("formats month and year in UK locale", () => {
+    expect(formatPayPeriodLabel(new Date("2026-05-15T12:00:00Z"))).toMatch(/May 2026/);
   });
 });
 

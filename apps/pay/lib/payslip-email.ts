@@ -19,24 +19,12 @@ export class PayslipEmailConfigError extends Error {
   }
 }
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const;
-
 export function formatPayPeriodLabel(periodStart: Date): string {
-  const month = MONTH_NAMES[periodStart.getUTCMonth()] ?? "Unknown";
-  return `${month} ${periodStart.getUTCFullYear()}`;
+  return periodStart.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
 }
 
 export function resolveSmtpConfig(settings: PaySettings): SmtpConfig | null {
@@ -105,6 +93,7 @@ export function createSmtpTransporter(config: SmtpConfig): Transporter {
     host: config.host,
     port: config.port,
     secure: config.port === 465,
+    requireTLS: config.port === 587,
     auth: { user: config.user, pass: config.pass },
   });
 }
