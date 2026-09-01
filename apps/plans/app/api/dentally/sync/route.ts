@@ -14,7 +14,8 @@ export async function POST() {
       ...resolveAuditActor(session),
       practiceId: session.practiceId,
       action: "plans.dentally.sync",
-      targetType: "Patient",
+      targetType: "Practice",
+      targetId: session.practiceId,
       metadata: {
         trigger: "manual",
         imported: result.imported,

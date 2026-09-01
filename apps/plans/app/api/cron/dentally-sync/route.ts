@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, writeAuditLog } from "@elio/auth";
+import { auth } from "@elio/auth";
 import { prisma } from "@elio/db";
 import { runPlansDentallySync, PlansDentallySyncConfigError } from "@elio/dentally";
 
@@ -34,20 +34,6 @@ export async function GET(request: NextRequest) {
     practices.map(async (practice) => {
       try {
         const result = await runPlansDentallySync(practice.id);
-        await writeAuditLog({
-          practiceId: practice.id,
-          action: "plans.dentally.sync",
-          targetType: "Patient",
-          metadata: {
-            trigger: "cron",
-            imported: result.imported,
-            updated: result.updated,
-            skipped: result.skipped,
-            errors: result.errors.length,
-            errorMessages: result.errors,
-            syncedPlanIds: result.syncedPlanIds,
-          },
-        });
         return { practiceId: practice.id, ...result };
       } catch (error) {
         if (error instanceof PlansDentallySyncConfigError) {
