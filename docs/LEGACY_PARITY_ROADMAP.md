@@ -639,8 +639,8 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P2.3a | **Patient sub-route APIs** | pause, cancel, invite, send-terms, send-dd-link, check-gc, payment-trail, appointments, notes, correspondence | **Shipped** (notes/correspondence N/A; resume + GC discover + setup-dd + link-mandate) |
 | P2.4 | **Add Patient dialog** — tab “Import from Dentally” | Search → select → confirm | **Shipped** |
 | P2.5 | **Export CSV** on patients list | | **Shipped** |
-| P2.6 | **Bulk Check GoCardless** button | Link mandates for imported patients |
-| P2.7 | **PENDING_DD filter chip** | Derived: ACTIVE enrolment + no active mandate |
+| P2.6 | **Bulk Check GoCardless** button | Link mandates for imported patients | **Shipped** |
+| P2.7 | **PENDING_DD filter chip** | Derived: ACTIVE enrolment + no active mandate | **Shipped** |
 | P2.8 | **Family / child plan enrolment** | `parentPatientId` on `PlanPatient` + UI when plan price = 0 |
 | P2.9 | **Add Dentally to `PLANS_MODULE_NAV`** | Route `/dentally` | **Shipped** |
 
@@ -1168,7 +1168,7 @@ Items that block parity and are **not** just missing UI:
 | 51 | `GET /api/audit-log` | `/audit-log` page | ✅ |
 | 52 | `POST /api/admin/setup-gc-links` | None | ❌ |
 | 53 | `GET /api/admin/check-gc-connection` | None | ❌ |
-| 54 | `POST /api/admin/bulk-check-gc` | None | ❌ |
+| 54 | `POST /api/admin/bulk-check-gc` | `POST /plans/api/admin/bulk-check-gc` | ✅ |
 
 **New-only Plans APIs (keep, not in legacy):**
 
@@ -1429,8 +1429,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P2.3a Patient sub-APIs | `ElioPlans/src/app/api/patients/[id]/*.ts` (10 routes) | `elio/apps/plans/app/api/patients/[id]/` | **Shipped** |
 | P2.4 Import dialog | `ElioPlans/.../patients/page.tsx` (Add Patient tabs) | `import-from-dentally.tsx` + `POST /api/dentally/import-patient` | **Shipped** |
 | P2.5 Export CSV | `ElioPlans/.../patients/page.tsx` | `GET /plans/api/patients/export` + header button | **Shipped** |
-| P2.6 Bulk Check GC | `ElioPlans/src/app/api/admin/bulk-check-gc/route.ts` | `elio/apps/plans/app/api/admin/bulk-check-gc/route.ts` (to create) | |
-| P2.7 PENDING_DD filter | `ElioPlans/.../patients/page.tsx`, `src/app/api/patients/route.ts` | `elio/apps/plans/app/patients/` | Derived status |
+| P2.6 Bulk Check GC | `ElioPlans/src/app/api/admin/bulk-check-gc/route.ts` | `POST /plans/api/admin/bulk-check-gc` + toolbar button | **Shipped** |
+| P2.7 PENDING_DD filter | `ElioPlans/.../patients/page.tsx`, `src/app/api/patients/route.ts` | `patient-list-filters.ts` + FilterBar chip | **Shipped** |
 | P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | Free plan requires parent |
 | P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/packages/ui/lib/module-nav-items.ts` | **Shipped** |
 | P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `elio/apps/plans/app/dashboard/page.tsx` | Mandate-aware active count |

@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Input, Badge, Button } from "@elio/ui";
 
-const STATUS_OPTIONS = ["INVITED", "SIGNED", "ACTIVE", "PAUSED", "CANCELLED"] as const;
+const STATUS_OPTIONS = ["INVITED", "SIGNED", "ACTIVE", "PENDING_DD", "PAUSED", "CANCELLED"] as const;
 
 /**
  * THEME_GUIDELINE.md §5.16 filter bar — search input (300ms debounce) +

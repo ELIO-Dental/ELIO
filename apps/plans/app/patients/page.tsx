@@ -20,12 +20,14 @@ import {
 import { FilterBar } from "@/components/filter-bar";
 import { EnrolPatientForm } from "./enrol-patient-form";
 import { PatientsDentallyTools } from "./patients-dentally-tools";
-import { PatientsExportButton } from "./patients-export-button";
+import { PatientsListToolbar } from "./patients-list-toolbar";
+import { buildPlanPatientListWhere, derivePatientDisplayStatus } from "@/lib/patient-list-filters";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   INVITED: "neutral",
   SIGNED: "info",
   ACTIVE: "success",
+  PENDING_DD: "warning",
   PAUSED: "warning",
   CANCELLED: "danger",
 };
@@ -37,34 +39,25 @@ export default async function PatientsPage({
 }) {
   const session = await requireLicensedSession();
   const practiceId = session.practiceId;
-  const canInvite = can({ role: session.role as Role }, "plans:invite-patients");
+  const role = session.role as Role;
+  const canInvite = can({ role }, "plans:invite-patients");
+  const canEdit = can({ role }, "plans:edit");
+  const canExport = can({ role }, "plans:view-payments") || can({ role }, "plans:view-payments:readonly");
 
   const params = await searchParams;
   const { q, status, patientId: prefillPatientId } = params;
   const { page, skip, pageSize } = parseTablePage(params);
 
-  const where = {
-    practiceId,
-    ...(status ? { status: status as "INVITED" | "SIGNED" | "ACTIVE" | "PAUSED" | "CANCELLED" } : {}),
-    ...(q
-      ? {
-          patient: {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" as const } },
-              { lastName: { contains: q, mode: "insensitive" as const } },
-              { email: { contains: q, mode: "insensitive" as const } },
-            ],
-          },
-        }
-      : {}),
-  };
+  const where = buildPlanPatientListWhere(practiceId, { q, status });
 
   const [planPatients, totalCount, enrolledPatientIds, corePatients, plans] = await Promise.all([
     prisma.planPatient.findMany({
       where,
       include: {
         patient: true,
-        planModel: { select: { name: true } },
+        planModel: { select: { name: true, monthlyPricePence: true } },
+        mandates: { select: { status: true } },
+        documentAcceptances: { take: 1, select: { id: true } },
         patientPlans: { orderBy: { createdAt: "desc" }, take: 1, include: { plan: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -82,11 +75,7 @@ export default async function PatientsPage({
 
   return (
     <PageContent>
-      <PageHeader
-        title="Patients"
-        description="Patients enrolled on a membership plan."
-        actions={<PatientsExportButton />}
-      />
+      <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
 
       {canInvite && (
         <div className="mt-8">
@@ -114,6 +103,7 @@ export default async function PatientsPage({
           toolbar={
             <TableToolbar>
               <FilterBar />
+              <PatientsListToolbar canSync={canInvite} canBulkGc={canEdit} canExport={canExport} />
             </TableToolbar>
           }
           footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
@@ -128,12 +118,15 @@ export default async function PatientsPage({
                   <TableHead>Email</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>T&amp;Cs</TableHead>
+                  <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {planPatients.map((pp) => {
                   const name = [pp.patient.firstName, pp.patient.lastName].filter(Boolean).join(" ") || "—";
                   const planName = pp.patientPlans[0]?.plan.name ?? pp.planModel?.name ?? "—";
+                  const displayStatus = derivePatientDisplayStatus(pp);
                   return (
                     <TableRow key={pp.id}>
                       <TableCell>
@@ -147,8 +140,10 @@ export default async function PatientsPage({
                       <TableCell>{pp.patient.email ?? "—"}</TableCell>
                       <TableCell>{planName}</TableCell>
                       <TableCell>
-                        <Badge variant={STATUS_VARIANT[pp.status] ?? "neutral"}>{pp.status}</Badge>
+                        <Badge variant={STATUS_VARIANT[displayStatus] ?? "neutral"}>{displayStatus}</Badge>
                       </TableCell>
+                      <TableCell>{pp.documentAcceptances.length > 0 ? "Signed" : "—"}</TableCell>
+                      <TableCell>{pp.createdAt.toLocaleDateString("en-GB")}</TableCell>
                     </TableRow>
                   );
                 })}

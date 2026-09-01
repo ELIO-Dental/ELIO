@@ -1274,4 +1274,40 @@ export async function checkPlanPatientGoCardless(practiceId: string, planPatient
   return { checked: mandates.length, results, discovery };
 }
 
+/** Bulk discover/link GoCardless mandates for patients missing an active mandate (P2.6). */
+export async function bulkCheckGoCardlessMandates(practiceId: string) {
+  const db = scopedDb(practiceId);
+  const candidates = await db.planPatient.findMany({
+    where: {
+      status: { in: ["INVITED", "SIGNED", "ACTIVE", "PAUSED"] },
+      patient: { email: { not: null } },
+      mandates: { none: { status: "ACTIVE" } },
+    },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+
+  let linked = 0;
+  let checked = 0;
+  const errors: string[] = [];
+
+  for (const candidate of candidates) {
+    checked++;
+    try {
+      const result = await discoverAndLinkGoCardlessMandate(practiceId, candidate.id);
+      linked += result.linked;
+      if (result.errors.length > 0) errors.push(...result.errors);
+      if (result.linked > 0) {
+        await checkPlanPatientGoCardless(practiceId, candidate.id);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`Patient ${candidate.id}: ${message}`);
+    }
+  }
+
+  return { checked, linked, errors: errors.slice(0, 50) };
+}
+
 export { getMandate, getCustomer };
