@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { scopedDb } from "@elio/db";
 import { calculatePrivateEarnings, calculateFinalPay, calculateLabDeduction } from "@elio/pay-engine";
+import { getPaySettings } from "@/lib/pay-settings-service";
+import { resolveFinanceFeeSplit, resolveLabBillSplit } from "@/lib/pay-settings";
 import {
   financeFeesDeductionPence,
   privateRevenueItemsToTreatments,
@@ -29,6 +31,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { id: payPeriodId } = await params;
     const body = (await req.json()) as { dentists: CalcDentistInput[] };
     const db = scopedDb(session.practiceId);
+    const paySettings = await getPaySettings(session.practiceId);
+    const labBillSplit = resolveLabBillSplit(paySettings);
+    const financeFeeSplit = resolveFinanceFeeSplit(paySettings);
 
     const payPeriod = await db.payPeriod.findUnique({ where: { id: payPeriodId } });
     if (!payPeriod) return NextResponse.json({ error: "Pay period not found" }, { status: 404 });
@@ -126,7 +131,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         _sum: { amountPence: true },
       });
       const labDeductionPence = calculateLabDeduction(
-        input.labBillsPence?.length ? input.labBillsPence : [labAgg._sum.amountPence ?? 0]
+        input.labBillsPence?.length ? input.labBillsPence : [labAgg._sum.amountPence ?? 0],
+        labBillSplit
       );
 
       const therapyDeduction = therapyDeductionPence(
@@ -134,7 +140,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         existingPayslip?.therapyRatePerMinute != null ? Number(existingPayslip.therapyRatePerMinute) : 0
       );
       const financeDeduction = financeFeesDeductionPence(
-        useManualItems ? [] : existingLines.map((li) => ({ financeFeePence: li.financeFeePence }))
+        useManualItems ? [] : existingLines.map((li) => ({ financeFeePence: li.financeFeePence })),
+        financeFeeSplit
       );
 
       const finalPayPence = calculateFinalPay({

@@ -12,6 +12,8 @@ import {
   type TreatmentRecord,
 } from "@elio/pay-engine";
 import { financeFeesDeductionPence, privateRevenueItemsToTreatments, therapyDeductionPence } from "./private-revenue";
+import { getPaySettings } from "./pay-settings-service";
+import { resolveFinanceFeeSplit, resolveLabBillSplit } from "./pay-settings";
 
 // ---------------------------------------------------------------------------
 // Dentists
@@ -487,11 +489,15 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
     periodStartIso
   );
 
+  const paySettings = await getPaySettings(practiceId);
+  const labBillSplit = resolveLabBillSplit(paySettings);
+  const financeFeeSplit = resolveFinanceFeeSplit(paySettings);
+
   const lab = await db.labBillEntry.aggregate({
     where: { dentistId },
     _sum: { amountPence: true },
   });
-  const labDeductionPence = calculateLabDeduction([lab._sum.amountPence ?? 0]);
+  const labDeductionPence = calculateLabDeduction([lab._sum.amountPence ?? 0], labBillSplit);
 
   // Latest confident PayLine for this dentist within this period's Compass statements.
   const payLine = await db.payLine.findFirst({
@@ -510,7 +516,8 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
       existing?.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0
     );
     const financeDeduction = financeFeesDeductionPence(
-      lineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+      lineItems.map((li) => ({ financeFeePence: li.financeFeePence })),
+      financeFeeSplit
     );
 
     const finalPayPence = calculateFinalPay({
@@ -635,6 +642,9 @@ export async function savePayslipEntry(
   const dentist = await db.dentist.findUnique({ where: { id: existing.dentistId } });
   if (!dentist) throw new Error("Dentist not found");
 
+  const paySettings = await getPaySettings(practiceId);
+  const financeFeeSplit = resolveFinanceFeeSplit(paySettings);
+
   const udas = input.udas ?? (existing.udas != null ? Number(existing.udas) : 0);
   const udaRatePence = existing.udaRatePence ?? dentist.udaRatePence ?? 0;
   const grossPrivateRevenuePence = input.grossPrivateRevenuePence ?? existing.grossPrivateRevenuePence ?? 0;
@@ -676,9 +686,10 @@ export async function savePayslipEntry(
   const therapyDeduction = therapyDeductionPence(therapyMinutes, therapyRatePerMinute);
   const financeDeduction =
     input.financeFeesPence != null
-      ? Math.round(input.financeFeesPence * 0.5)
+      ? Math.round(input.financeFeesPence * financeFeeSplit)
       : financeFeesDeductionPence(
-          existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+          existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence })),
+          financeFeeSplit
         );
 
   const finalPayPence = calculateFinalPay({

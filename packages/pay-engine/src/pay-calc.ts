@@ -127,10 +127,10 @@ export function calculateFinalPay(input: PayslipCalcInput): number {
   return hourlyEarningsPence + adjustments;
 }
 
-/** §6.4 — 50% of a dentist's attributable lab bills for the period is deducted from pay. */
-export function calculateLabDeduction(labBillsPence: number[]): number {
+/** §6.4 — dentist's share of attributable lab bills for the period (default 50%). */
+export function calculateLabDeduction(labBillsPence: number[], dentistShare = 0.5): number {
   const total = labBillsPence.reduce((sum, v) => sum + v, 0);
-  return Math.round(total / 2);
+  return Math.round(total * dentistShare);
 }
 
 /** §6.2 — NHS earnings = UDAs (Compass "Current Financial Year" figure) × ELIO's configured rate. */

@@ -19,6 +19,8 @@ import {
 import { FileWarning } from "lucide-react";
 import { MoneyStatCard } from "@/components/money-stat-card";
 import { WalletEmptyState } from "@/components/wallet-empty-state";
+import { getPaySettings } from "@/lib/pay-settings-service";
+import { resolveLabBillSplit } from "@/lib/pay-settings";
 
 export default async function PayDashboardPage() {
   const session = await auth();
@@ -46,6 +48,8 @@ export default async function PayDashboardPage() {
   }
 
   const currentPeriod = periods[0]!;
+  const paySettings = await getPaySettings(session.practiceId);
+  const labBillSplit = resolveLabBillSplit(paySettings);
   const [entries, dentistCount, labBills, needsReview] = await Promise.all([
     db.payslipEntry.findMany({ where: { payPeriodId: currentPeriod.id }, include: { dentist: true } }),
     db.dentist.count(),
@@ -55,7 +59,7 @@ export default async function PayDashboardPage() {
 
   const totalOwedPence = entries.reduce((sum, e) => sum + (e.finalPayPence ?? 0), 0);
   const dentistsPaid = entries.length;
-  const labDeductionsPence = labBills.reduce((sum, l) => sum + Math.round(l.amountPence / 2), 0);
+  const labDeductionsPence = labBills.reduce((sum, l) => sum + Math.round(l.amountPence * labBillSplit), 0);
 
   return (
     <PageContent>

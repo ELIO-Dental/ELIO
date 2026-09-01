@@ -111,6 +111,24 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <SettingsField label="Clinic name" value={settings.clinic_name} onChange={(v) => update("clinic_name", v)} className="sm:col-span-2" />
           <SettingsField label="Logo URL" value={settings.clinic_logo_url} onChange={(v) => update("clinic_logo_url", v)} className="sm:col-span-2" placeholder="https:// or local://..." />
+          <div className="sm:col-span-2">
+            <Label className="text-body-sm text-(--color-text-secondary)">Upload logo</Label>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="mt-1 block text-body-sm"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const form = new FormData();
+                form.append("file", file);
+                const res = await fetch("/pay/api/settings/logo", { method: "POST", body: form });
+                const data = await res.json();
+                if (res.ok && data.url) update("clinic_logo_url", data.url);
+              }}
+            />
+            <p className="mt-1 text-xs text-(--color-text-secondary)">PNG, JPG, SVG, or WebP. Max 2MB.</p>
+          </div>
           <SettingsField label="Address line 1" value={settings.clinic_address_line1} onChange={(v) => update("clinic_address_line1", v)} />
           <SettingsField label="Address line 2" value={settings.clinic_address_line2} onChange={(v) => update("clinic_address_line2", v)} />
           <SettingsField label="City" value={settings.clinic_city} onChange={(v) => update("clinic_city", v)} />
@@ -177,7 +195,6 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
             value={settings.cosmetic_consultation_treatment_code}
             onChange={(v) => update("cosmetic_consultation_treatment_code", v)}
             placeholder="e.g. COSM01"
-            data-testid="cosmetic-code-input"
           />
         </CardContent>
       </Card>

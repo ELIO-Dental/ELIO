@@ -19,6 +19,7 @@ import {
   parseTablePage,
 } from "@elio/ui";
 import { NewDentistForm } from "./new-dentist-form";
+import { DentallyConnectionPanel } from "./dentally-connection-panel";
 
 export default async function DentistsPage({
   searchParams,
@@ -40,6 +41,10 @@ export default async function DentistsPage({
       <PageHeader title="Dentists" description="Manage dentist profiles and pay configuration." />
 
       <div className="mt-8">
+        <DentallyConnectionPanel />
+      </div>
+
+      <div className="mt-8">
         <NewDentistForm />
       </div>
 
@@ -57,6 +62,7 @@ export default async function DentistsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Dentally ID</TableHead>
                   <TableHead>NHS performer #</TableHead>
                   <TableHead>Pay type</TableHead>
                   <TableHead>Split % / UDA rate</TableHead>
@@ -67,6 +73,7 @@ export default async function DentistsPage({
                 {dentists.map((d) => (
                   <TableRow key={d.id}>
                     <TableCell>{d.name}</TableCell>
+                    <TableCell className="font-mono text-sm">{d.dentallyPractitionerId ?? "—"}</TableCell>
                     <TableCell>{d.nhsPerformerNumber ?? "—"}</TableCell>
                     <TableCell>{d.payType}</TableCell>
                     <TableCell>

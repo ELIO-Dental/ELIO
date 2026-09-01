@@ -845,7 +845,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y3.3 | **Lab bills UI parity** | Summary cards, year/month/lab filters, paid toggle, file upload, matrix view | **Shipped** — enhanced `lab-bills-client.tsx` + schema fields + upload API |
 | Y3.4 | **Bulk payments tabs** | Bank Details + Unpaid Bills; mark paid; **Starling CSV** export | **Shipped** — `/api/bulk-payment` + tabbed `bulk-payments-client.tsx` |
 | Y3.5 | **Pay settings page — full sections** | Therapy rates, lab/finance splits, Tabeo rates, Dentally site ID, therapist IDs, NHS amounts, SMTP | **Shipped** — `paySettingsJson` + full settings UI + `/pay/setup` bulk import |
-| Y3.6 | **Dentists: Check Dentally connection** | Debug route + UI button |
+| Y3.6 | **Dentists: Check Dentally connection** | Debug route + UI button | **Shipped** — `/api/dentally/debug` + dentists page panel |
 | Y3.7 | **Practice-level Dentally token** | Owner can rotate key (encrypted on Practice) |
 | Y3.8 | **Email payslips** | SMTP from settings; single + send-all |
 | Y3.9 | **Download all PDFs** | ZIP generation |
@@ -1491,7 +1491,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y3.3 Lab bills UI | `ElioPay/aurapay/src/app/lab-bills/page.tsx`, `api/lab-bills/upload/route.ts` | `lab-bills-client.tsx` + `lab-bills-summary.ts` | **Shipped** |
 | Y3.4 Bulk payments | `ElioPay/aurapay/src/app/bulk-payments/page.tsx`, `api/bills/bulk-payment/route.ts` | `bulk-payments-client.tsx` + `bulk-payment.ts` | **Shipped** |
 | Y3.5 Pay settings | `ElioPay/aurapay/src/app/settings/page.tsx`, `api/settings/route.ts` | `settings-client.tsx` + `pay-settings.ts` + `/pay/setup` | **Shipped** |
-| Y3.6 Dentally debug | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts`, `dentists/page.tsx` | `elio/apps/pay/app/dentists/` + debug route | |
+| Y3.6 Dentally debug | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts`, `dentists/page.tsx` | `dentally-debug.ts` + `dentally-connection-panel.tsx` | **Shipped** |
 | Y3.7 Token rotation | `ElioPay/aurapay/src/app/api/admin/clinics/route.ts` | Portal integrations (Phase A) | Per-practice |
 | Y3.8 Email payslips | `ElioPay/aurapay/src/app/api/payslips/send-email/route.ts`, `send-all-emails/route.ts` | Pay API routes (to create) | SMTP from settings |
 | Y3.9 Download all PDFs | `ElioPay/aurapay/src/app/api/payslips/download-all/route.ts`, `src/lib/pdf-generator.ts` | ZIP route (to create) | Compare `elio/apps/pay/app/api/payslips/[id]/pdf/route.ts` |

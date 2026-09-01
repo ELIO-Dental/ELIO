@@ -130,9 +130,12 @@ describe("calculateFinalPay — §6.5 final formula", () => {
   });
 });
 
-describe("calculateLabDeduction — §6.4, 50% of attributable lab bills", () => {
-  it("deducts exactly half the total", () => {
+describe("calculateLabDeduction — §6.4, dentist share of attributable lab bills", () => {
+  it("defaults to 50%", () => {
     expect(calculateLabDeduction([10000, 5000, 999])).toBe(Math.round(15999 / 2));
+  });
+  it("accepts custom split from practice settings", () => {
+    expect(calculateLabDeduction([10000], 0.6)).toBe(6000);
   });
   it("zero bills = zero deduction", () => {
     expect(calculateLabDeduction([])).toBe(0);

@@ -6,6 +6,8 @@ import {
 } from "@elio/pay-engine";
 import { extractNhsPeriodDates, toValidISODate } from "./nhs-period-extract";
 import { financeFeesDeductionPence, therapyDeductionPence } from "./private-revenue";
+import { getPaySettings } from "./pay-settings-service";
+import { resolveFinanceFeeSplit } from "./pay-settings";
 
 // pdf-parse removed — use pay-engine extractPdfText
 
@@ -139,6 +141,8 @@ export async function processNhsStatement(
     });
   }
 
+  const financeFeeSplit = resolveFinanceFeeSplit(await getPaySettings(practiceId));
+
   const updates: string[] = [];
   for (const extraction of extractions) {
     const existing = await db.payslipEntry.findFirst({
@@ -155,7 +159,8 @@ export async function processNhsStatement(
       existing.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0
     );
     const financeDeduction = financeFeesDeductionPence(
-      existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence }))
+      existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence })),
+      financeFeeSplit
     );
 
     const finalPayPence = calculateFinalPay({
