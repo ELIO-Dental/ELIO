@@ -866,7 +866,7 @@ These items **stay** but need extension so client never says “can’t sync”:
 
 | Item | Current | Add |
 |------|---------|-----|
-| Signup step 2 — Dentally key | ✅ | Show validation / test connection |
+| Signup step 2 — Dentally key | ✅ | Show validation / test connection | **Shipped** — `POST /api/public/dentally/test` + signup Test connection UI |
 | Portal Settings | Profile, Team, PWA, theme | **Integrations tab**: status, last sync, Sync now, reconnect key |
 | Launcher | Module tiles | Show “Dentally connected” badge per practice | **Shipped** — `launcher-dashboard.tsx` badge on licensed tiles when `CONNECTED` |
 | Admin console | Tenant list shows connection status | Link to tenant Dentally sync logs |

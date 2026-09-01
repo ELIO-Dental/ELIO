@@ -81,6 +81,36 @@ test("full signup completes end-to-end with a throwaway test practice, no manual
   expect(flowLicence).toBeNull();
 });
 
+test("signup step 2 can test Dentally connection before continuing", async ({ page }) => {
+  await page.route("**/api/public/dentally/test", async (route) => {
+    const body = route.request().postDataJSON() as { apiKey?: string };
+    if (body.apiKey === "valid-dentally-key") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+      return;
+    }
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, error: "Invalid API key" }),
+    });
+  });
+
+  await page.goto("/signup");
+  await page.getByLabel("Practice name").fill("Dentally Test Practice");
+  await page.getByLabel("Admin email").fill("e2e-signup-dentally-test@elio.dev");
+  await page.getByLabel("Password", { exact: true }).fill("correct-horse-battery-staple");
+  await page.getByTestId("signup-next").click();
+
+  await expect(page.getByTestId("signup-step-dentally")).toBeVisible();
+  await page.getByLabel("Dentally API key").fill("bad");
+  await page.getByTestId("signup-dentally-test").click();
+  await expect(page.getByTestId("signup-dentally-test-error")).toContainText("too short");
+
+  await page.getByLabel("Dentally API key").fill("valid-dentally-key");
+  await page.getByTestId("signup-dentally-test").click();
+  await expect(page.getByTestId("signup-dentally-test-ok")).toBeVisible();
+});
+
 test("selecting zero modules is rejected with a clear error, no Practice row created", async ({ page }) => {
   const email = "e2e-signup-nomodule@elio.dev";
   await page.goto("/signup");

@@ -29,6 +29,9 @@ export default function SignupPage() {
   const [adminEmail, setAdminEmail] = React.useState("");
   const [adminPassword, setAdminPassword] = React.useState("");
   const [dentallyApiKey, setDentallyApiKey] = React.useState("");
+  const [dentallyTesting, setDentallyTesting] = React.useState(false);
+  const [dentallyTestOk, setDentallyTestOk] = React.useState<boolean | null>(null);
+  const [dentallyTestError, setDentallyTestError] = React.useState<string | null>(null);
   const [selectedModules, setSelectedModules] = React.useState<string[]>([]);
 
   function toggleModule(id: string) {
@@ -48,6 +51,37 @@ export default function SignupPage() {
   function goBack() {
     setError(null);
     setStepIndex((i) => Math.max(0, i - 1));
+  }
+
+  async function testDentallyConnection() {
+    setError(null);
+    setDentallyTestOk(null);
+    setDentallyTestError(null);
+    const key = dentallyApiKey.trim();
+    if (!key) {
+      setDentallyTestError("Enter an API key to test.");
+      return;
+    }
+    setDentallyTesting(true);
+    try {
+      const res = await fetch("/api/public/dentally/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: key }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setDentallyTestOk(true);
+      } else {
+        setDentallyTestOk(false);
+        setDentallyTestError(data.error ?? "Connection test failed.");
+      }
+    } catch {
+      setDentallyTestOk(false);
+      setDentallyTestError("Connection test failed.");
+    } finally {
+      setDentallyTesting(false);
+    }
   }
 
   async function submit() {
@@ -128,8 +162,41 @@ export default function SignupPage() {
               </p>
               <div>
                 <Label htmlFor="dentallyApiKey">Dentally API key</Label>
-                <Input id="dentallyApiKey" value={dentallyApiKey} onChange={(e) => setDentallyApiKey(e.target.value)} placeholder="Optional" />
+                <Input
+                  id="dentallyApiKey"
+                  value={dentallyApiKey}
+                  onChange={(e) => {
+                    setDentallyApiKey(e.target.value);
+                    setDentallyTestOk(null);
+                    setDentallyTestError(null);
+                  }}
+                  placeholder="Optional"
+                />
               </div>
+              {dentallyApiKey.trim().length > 0 && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={testDentallyConnection}
+                    loading={dentallyTesting}
+                    data-testid="signup-dentally-test"
+                  >
+                    Test connection
+                  </Button>
+                  {dentallyTestOk === true && (
+                    <p className="text-body-sm text-(--color-success)" data-testid="signup-dentally-test-ok">
+                      Connection successful — your key works with Dentally.
+                    </p>
+                  )}
+                  {dentallyTestError && (
+                    <p className="text-body-sm text-(--color-danger)" data-testid="signup-dentally-test-error">
+                      {dentallyTestError}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={goBack} className="flex-1">
                   Back
