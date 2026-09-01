@@ -61,6 +61,12 @@ export interface DentallyPatientRow {
 
 export type { DentallyAnalytics } from "./dentally-analytics";
 import { calculateDentistAnalytics } from "./dentally-analytics";
+import {
+  resolveDentallySiteId as resolveDentallySiteIdFromSettings,
+  resolveNhsAmountSet as resolveNhsAmountsFromSettings,
+  resolveTherapistIdSet as resolveTherapistIdsFromSettings,
+  resolveTherapyRatePerMinute as resolveTherapyRateFromSettings,
+} from "./pay-settings";
 
 export interface TherapyBreakdownItem {
   patientName: string;
@@ -105,31 +111,6 @@ export interface DentallyFetchResult {
   debug: DentallyFetchDebug;
   summary: Record<string, DentallyFetchSummaryEntry>;
   dentistsUpdated: number;
-}
-
-function resolveSiteId(): string {
-  return process.env.DENTALLY_SITE_ID?.trim() ?? "";
-}
-
-function resolveTherapistIds(): Set<string> {
-  const raw = process.env.DENTALLY_THERAPIST_IDS?.trim() ?? "";
-  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
-}
-
-function resolveTherapyRate(): number {
-  const raw = process.env.DENTALLY_THERAPY_RATE?.trim();
-  const n = raw ? parseFloat(raw) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_THERAPY_RATE_PER_MINUTE;
-}
-
-function resolveNhsAmounts(): Set<number> {
-  const raw = process.env.DENTALLY_NHS_AMOUNTS?.trim() ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((s) => parseFloat(s.trim()))
-      .filter((n) => Number.isFinite(n) && n > 0)
-  );
 }
 
 function isClinicianRole(role?: string): boolean {
@@ -406,16 +387,19 @@ export async function fetchDentallyForPayPeriod(
   practiceId: string,
   payPeriodId: string
 ): Promise<DentallyFetchResult> {
-  const siteId = resolveSiteId();
+  const { getPaySettings } = await import("./pay-settings-service");
+  const paySettings = await getPaySettings(practiceId);
+
+  const siteId = resolveDentallySiteIdFromSettings(paySettings);
   if (!siteId) {
     throw new DentallyFetchConfigError(
-      "DENTALLY_SITE_ID is not configured. Set it on the Pay Vercel project (see docs/deploy-checklist.md)."
+      "Dentally Site ID is not configured. Set it in Pay Settings or DENTALLY_SITE_ID env."
     );
   }
 
-  const therapistIds = resolveTherapistIds();
-  const therapyRate = resolveTherapyRate();
-  const nhsAmounts = resolveNhsAmounts();
+  const therapistIds = resolveTherapistIdsFromSettings(paySettings);
+  const therapyRate = resolveTherapyRateFromSettings(paySettings);
+  const nhsAmounts = resolveNhsAmountsFromSettings(paySettings);
 
   const db = scopedDb(practiceId);
   const payPeriod = await db.payPeriod.findUnique({ where: { id: payPeriodId } });

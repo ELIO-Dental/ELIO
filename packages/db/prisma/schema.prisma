@@ -207,6 +207,9 @@ model Practice {
   // case-insensitively against Treatment.dentallyTreatmentCategory when set.
   cosmeticConsultationTreatmentCode String?
 
+  /** Per-practice Pay settings (therapy rates, splits, Dentally IDs, SMTP) — legacy AuraPay `settings` KV (Y3.5). */
+  paySettingsJson Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

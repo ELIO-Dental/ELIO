@@ -13,7 +13,10 @@ const LINKS = [
   { href: "/pay/reporting", label: "Reporting" },
 ];
 
-const OWNER_LINKS = [{ href: "/pay/settings", label: "Settings" }];
+const OWNER_LINKS = [
+  { href: "/pay/setup", label: "Setup" },
+  { href: "/pay/settings", label: "Settings" },
+];
 
 /**
  * Module-local sub-nav — rendered inside the shared shell's own Sidebar/header chrome
