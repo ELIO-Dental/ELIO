@@ -165,6 +165,7 @@ async function main() {
         },
       });
       idMap[`savedLab:${l.id}`] = created.id;
+      idMap[`savedLabByName:${String(l.name)}`] = created.id;
     }
     summary.savedLabs.migrated++;
   }
@@ -194,12 +195,17 @@ async function main() {
   for (const lb of labBills.rows) {
     const dentistId = lb.dentist_id != null ? idMap[`dentist:${lb.dentist_id}`] : undefined;
     if (EXECUTE) {
+      const savedLabId = lb.lab_name ? idMap[`savedLabByName:${String(lb.lab_name)}`] : undefined;
       await newPrisma.labBillEntry.create({
         data: {
           practiceId: practice.id,
           dentistId: dentistId ?? null,
+          savedLabId: typeof savedLabId === "string" ? savedLabId : null,
+          labName: lb.lab_name ? String(lb.lab_name) : null,
           amountPence: centsToStructuredPence(Number(lb.amount))!,
-          description: lb.description ? String(lb.description) : (lb.lab_name ? String(lb.lab_name) : null),
+          description: lb.description ? String(lb.description) : null,
+          fileUrl: lb.file_url ? String(lb.file_url) : null,
+          billDate: lb.date ? new Date(String(lb.date)) : null,
           paid: lb.paid === 1 || lb.paid === true,
           paidAt: lb.paid_date ? new Date(String(lb.paid_date)) : null,
         },

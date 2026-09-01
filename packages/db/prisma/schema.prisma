@@ -848,8 +848,13 @@ model LabBillEntry {
   practiceId  String
   dentistId   String?
   dentist     Dentist? @relation(fields: [dentistId], references: [id])
+  savedLabId  String?
+  savedLab    SavedLab? @relation(fields: [savedLabId], references: [id])
+  labName     String?
   amountPence Int
   description String?
+  fileUrl     String?
+  billDate    DateTime?
   paid        Boolean   @default(false)
   paidAt      DateTime?
 
@@ -858,6 +863,8 @@ model LabBillEntry {
 
   @@index([practiceId])
   @@index([dentistId])
+  @@index([savedLabId])
+  @@index([billDate])
   @@map("pay_lab_bill_entries")
 }
 
@@ -892,6 +899,8 @@ model SavedLab {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  labBills LabBillEntry[]
 
   @@index([practiceId])
   @@map("pay_saved_labs")

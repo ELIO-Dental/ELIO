@@ -841,9 +841,9 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Step | Task | Details |
 |------|------|---------|
 | Y3.1 | **Schema: `paid` flag** on `LabBillEntry` + `SupplierInvoiceEntry` | Match legacy bill workflow | **Shipped** — schema + PATCH API + paid toggle UI + migration mapping |
-| Y3.2 | **Schema: bank details** on `SavedLab` / `SavedSupplier` | account name, sort code, account number | **Shipped** — `accountName` / `sortCode` / `accountNumber` + migration mapping |
-| Y3.3 | **Lab bills UI parity** | Summary cards, year/month/lab filters, paid toggle, file upload, matrix view |
-| Y3.4 | **Bulk payments tabs** | Bank Details + Unpaid Bills; mark paid; **Starling CSV** export |
+| Y3.2 | **Schema: bank details** on `SavedLab` / `SavedSupplier` | account name, sort code, account number | **Shipped** — schema + `/api/saved-entities` CRUD + migration mapping |
+| Y3.3 | **Lab bills UI parity** | Summary cards, year/month/lab filters, paid toggle, file upload, matrix view | **Shipped** — enhanced `lab-bills-client.tsx` + schema fields + upload API |
+| Y3.4 | **Bulk payments tabs** | Bank Details + Unpaid Bills; mark paid; **Starling CSV** export | **Shipped** — `/api/bulk-payment` + tabbed `bulk-payments-client.tsx` |
 | Y3.5 | **Pay settings page — full sections** | Therapy rates, lab/finance splits, Tabeo rates, Dentally site ID, therapist IDs, NHS amounts, SMTP |
 | Y3.6 | **Dentists: Check Dentally connection** | Debug route + UI button |
 | Y3.7 | **Practice-level Dentally token** | Owner can rotate key (encrypted on Practice) |
@@ -1487,9 +1487,9 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y2.9 Editable draft fields | `ElioPay/aurapay/src/app/payslips/[id]/page.tsx` | `payslip-editable-fields.tsx` + PUT entries | **Shipped** |
 | Y2.10 Legacy archive | Turso payslip JSON (migrated) | `legacy-payslips/` pages + API | **Shipped** (read-only) |
 | Y3.1 Paid flag schema | `ElioPay/aurapay/src/app/api/bills/lab/route.ts` | `bill-paid.ts` + PATCH routes | **Shipped** |
-| Y3.2 Bank details schema | `ElioPay/aurapay/src/app/api/bills/saved-entities/route.ts` | `saved-entity-bank.ts` + schema | **Shipped** |
-| Y3.3 Lab bills UI | `ElioPay/aurapay/src/app/lab-bills/page.tsx`, `api/lab-bills/upload/route.ts` | `elio/apps/pay/app/lab-bills/page.tsx` | |
-| Y3.4 Bulk payments | `ElioPay/aurapay/src/app/bulk-payments/page.tsx`, `api/bills/bulk-payment/route.ts` | `elio/apps/pay/app/bulk-payments/page.tsx` | Starling CSV |
+| Y3.2 Bank details schema | `ElioPay/aurapay/src/app/api/bills/saved-entities/route.ts` | `saved-entities.ts` + API | **Shipped** |
+| Y3.3 Lab bills UI | `ElioPay/aurapay/src/app/lab-bills/page.tsx`, `api/lab-bills/upload/route.ts` | `lab-bills-client.tsx` + `lab-bills-summary.ts` | **Shipped** |
+| Y3.4 Bulk payments | `ElioPay/aurapay/src/app/bulk-payments/page.tsx`, `api/bills/bulk-payment/route.ts` | `bulk-payments-client.tsx` + `bulk-payment.ts` | **Shipped** |
 | Y3.5 Pay settings | `ElioPay/aurapay/src/app/settings/page.tsx`, `api/settings/route.ts` | `elio/apps/pay/app/settings/page.tsx` | Full sections |
 | Y3.6 Dentally debug | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts`, `dentists/page.tsx` | `elio/apps/pay/app/dentists/` + debug route | |
 | Y3.7 Token rotation | `ElioPay/aurapay/src/app/api/admin/clinics/route.ts` | Portal integrations (Phase A) | Per-practice |

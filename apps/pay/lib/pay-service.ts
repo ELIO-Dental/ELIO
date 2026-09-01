@@ -70,35 +70,118 @@ export async function updateDentistRate(
 // Lab bills
 // ---------------------------------------------------------------------------
 
-export async function listLabBills(practiceId: string, dentistId?: string) {
+export async function listLabBills(
+  practiceId: string,
+  options?: { dentistId?: string; year?: number; month?: number }
+) {
   const db = scopedDb(practiceId);
+  const where: {
+    dentistId?: string;
+    OR?: Array<{ billDate?: { gte: Date; lt: Date } } | { billDate: null; createdAt: { gte: Date; lt: Date } }>;
+  } = {};
+
+  if (options?.dentistId) where.dentistId = options.dentistId;
+
+  if (options?.year) {
+    const startMonth = options.month ?? 1;
+    const endMonth = options.month ?? 12;
+    const rangeStart = new Date(Date.UTC(options.year, startMonth - 1, 1));
+    const rangeEnd = new Date(Date.UTC(options.year, endMonth, 1));
+    where.OR = [
+      { billDate: { gte: rangeStart, lt: rangeEnd } },
+      { billDate: null, createdAt: { gte: rangeStart, lt: rangeEnd } },
+    ];
+  }
+
   return db.labBillEntry.findMany({
-    where: dentistId ? { dentistId } : undefined,
-    include: { dentist: { select: { id: true, name: true } } },
-    orderBy: { createdAt: "desc" },
+    where,
+    include: {
+      dentist: { select: { id: true, name: true } },
+      savedLab: { select: { id: true, name: true } },
+    },
+    orderBy: [{ billDate: "desc" }, { createdAt: "desc" }],
   });
 }
 
 export interface CreateLabBillInput {
   dentistId?: string | null;
+  savedLabId?: string | null;
+  labName?: string | null;
   amountPence: number;
   description?: string | null;
+  fileUrl?: string | null;
+  billDate?: string | null;
   paid?: boolean;
   paidAt?: Date | null;
 }
 
 export async function createLabBill(practiceId: string, input: CreateLabBillInput) {
   const db = scopedDb(practiceId);
+  let labName = input.labName?.trim() || null;
+  let savedLabId = input.savedLabId ?? null;
+
+  if (savedLabId) {
+    const savedLab = await db.savedLab.findFirst({ where: { id: savedLabId, practiceId } });
+    if (!savedLab) throw new Error("Saved lab not found");
+    labName = savedLab.name;
+  }
+
   return db.labBillEntry.create({
     data: {
       practiceId,
       dentistId: input.dentistId ?? null,
+      savedLabId,
+      labName,
       amountPence: input.amountPence,
       description: input.description ?? null,
+      fileUrl: input.fileUrl ?? null,
+      billDate: input.billDate ? new Date(input.billDate) : null,
       paid: input.paid ?? false,
       paidAt: input.paid ? (input.paidAt ?? new Date()) : null,
     },
   });
+}
+
+export async function updateLabBill(
+  practiceId: string,
+  labBillId: string,
+  input: Partial<CreateLabBillInput>
+) {
+  const db = scopedDb(practiceId);
+  const existing = await db.labBillEntry.findFirst({ where: { id: labBillId, practiceId } });
+  if (!existing) throw new Error("Lab bill not found");
+
+  let labName = input.labName !== undefined ? input.labName?.trim() || null : existing.labName;
+  let savedLabId = input.savedLabId !== undefined ? input.savedLabId : existing.savedLabId;
+  if (input.savedLabId) {
+    const savedLab = await db.savedLab.findFirst({ where: { id: input.savedLabId, practiceId } });
+    if (!savedLab) throw new Error("Saved lab not found");
+    labName = savedLab.name;
+    savedLabId = savedLab.id;
+  }
+
+  return db.labBillEntry.update({
+    where: { id: labBillId },
+    data: {
+      dentistId: input.dentistId !== undefined ? input.dentistId : undefined,
+      savedLabId,
+      labName,
+      amountPence: input.amountPence,
+      description: input.description !== undefined ? input.description : undefined,
+      fileUrl: input.fileUrl !== undefined ? input.fileUrl : undefined,
+      billDate: input.billDate !== undefined ? (input.billDate ? new Date(input.billDate) : null) : undefined,
+      paid: input.paid,
+      paidAt: input.paid === false ? null : input.paid ? (input.paidAt ?? new Date()) : undefined,
+    },
+  });
+}
+
+export async function deleteLabBill(practiceId: string, labBillId: string) {
+  const db = scopedDb(practiceId);
+  const existing = await db.labBillEntry.findFirst({ where: { id: labBillId, practiceId } });
+  if (!existing) throw new Error("Lab bill not found");
+  await db.labBillEntry.delete({ where: { id: labBillId } });
+  return { ok: true };
 }
 
 export async function updateLabBillPaid(practiceId: string, labBillId: string, paid: boolean, paidAt?: Date | null) {
