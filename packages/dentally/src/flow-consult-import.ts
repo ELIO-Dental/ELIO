@@ -168,3 +168,33 @@ export async function importCosmeticConsultsFromDentally(
 
   return { scanned: latestByPatient.size, created, updated, skipped, errors };
 }
+
+export interface SyncAllConsultFinancialsResult {
+  total: number;
+  updated: number;
+  errors: number;
+}
+
+/** Payment-only sync — refresh financial fields on every existing consult (legacy manual-sync). */
+export async function syncAllConsultFinancialsFromSyncedCore(
+  practiceId: string
+): Promise<SyncAllConsultFinancialsResult> {
+  const db = scopedDb(practiceId);
+  const consults = await db.consult.findMany({
+    where: { practiceId },
+    select: { id: true },
+  });
+
+  let updated = 0;
+  let errors = 0;
+  for (const consult of consults) {
+    try {
+      await syncConsultFinancialsFromSyncedCore(practiceId, consult.id);
+      updated++;
+    } catch {
+      errors++;
+    }
+  }
+
+  return { total: consults.length, updated, errors };
+}

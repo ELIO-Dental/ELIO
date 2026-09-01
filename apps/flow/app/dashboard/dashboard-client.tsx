@@ -175,6 +175,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
+  const [syncingPayments, setSyncingPayments] = React.useState(false);
   const [view, setView] = React.useState<"table" | "charts">("table");
   const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
   const [detailRow, setDetailRow] = React.useState<FlowDashboardRow | null>(null);
@@ -215,6 +216,29 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       });
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function syncPaymentsFromDentally() {
+    setSyncingPayments(true);
+    try {
+      const res = await fetch("/flow/api/sync/dentally", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "payments" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Payment sync failed");
+      toast.success("Payment sync complete", {
+        description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s).`,
+      });
+      await loadDashboard();
+    } catch (err) {
+      toast.error("Payment sync failed", {
+        description: err instanceof Error ? err.message : "Run Portal sync first if data is stale.",
+      });
+    } finally {
+      setSyncingPayments(false);
     }
   }
 
@@ -288,8 +312,11 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         <Button variant="secondary" loading={loading} onClick={() => loadDashboard()}>
           Refresh
         </Button>
-        <Button loading={importing} onClick={importFromDentally}>
+        <Button loading={importing} onClick={importFromDentally} data-testid="flow-import-consults">
           Import from Dentally
+        </Button>
+        <Button variant="secondary" loading={syncingPayments} onClick={syncPaymentsFromDentally} data-testid="flow-sync-payments">
+          Sync payments
         </Button>
         <a
           href="/settings/integrations"

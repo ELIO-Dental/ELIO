@@ -31,8 +31,9 @@ export { runDentallySyncJob, setDentallyPostSyncHook } from "./src/sync-job";
 export {
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
+  syncAllConsultFinancialsFromSyncedCore,
 } from "./src/flow-consult-import";
-export type { CosmeticConsultImportResult } from "./src/flow-consult-import";
+export type { CosmeticConsultImportResult, SyncAllConsultFinancialsResult } from "./src/flow-consult-import";
 
 export { fetchLivePatientPanel } from "./src/live-patient";
 
