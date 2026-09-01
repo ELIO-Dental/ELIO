@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { normalizeInvoice, normalizePatient, normalizePayment, normalizeAccount, normalizeTreatmentsFromInvoice } from "./normalize";
+import {
+  normalizeInvoice,
+  normalizePatient,
+  normalizePayment,
+  normalizeAccount,
+  normalizePaymentPlan,
+  normalizeTreatmentsFromInvoice,
+} from "./normalize";
 
 describe("normalizePatient", () => {
   it("maps real-shaped Dentally patient fields", () => {
@@ -106,5 +113,32 @@ describe("normalizeAccount", () => {
       plannedPrivateTreatmentValuePence: 125050,
       plannedNhsTreatmentValuePence: 5000,
     });
+  });
+});
+
+describe("normalizePaymentPlan", () => {
+  it("maps Dentally payment plan fields for Plans mapping", () => {
+    const result = normalizePaymentPlan({
+      id: 3,
+      name: "AuraCare",
+      patient_friendly_name: "Aura Care Plan",
+      active: true,
+      site_id: "site-1",
+      colour: "#25B0E6",
+    });
+    expect(result).toEqual({
+      dentallyId: "3",
+      name: "AuraCare",
+      patientFriendlyName: "Aura Care Plan",
+      active: true,
+      siteId: "site-1",
+      colour: "#25B0E6",
+    });
+  });
+
+  it("defaults name when missing and treats absent active as true", () => {
+    const result = normalizePaymentPlan({ id: 9 });
+    expect(result.name).toBe("Plan 9");
+    expect(result.active).toBe(true);
   });
 });

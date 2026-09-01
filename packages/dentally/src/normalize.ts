@@ -8,6 +8,7 @@ import type {
   DentallyPatientRaw,
   DentallyPaymentRaw,
   DentallyAccountRaw,
+  DentallyPaymentPlanRaw,
 } from "./types";
 
 export function normalizePatient(raw: DentallyPatientRaw) {
@@ -101,6 +102,17 @@ export function normalizeAccount(raw: DentallyAccountRaw) {
       raw.planned_private_treatment_value != null ? toPence(raw.planned_private_treatment_value) : null,
     plannedNhsTreatmentValuePence:
       raw.planned_nhs_treatment_value != null ? toPence(raw.planned_nhs_treatment_value) : null,
+  };
+}
+
+export function normalizePaymentPlan(raw: DentallyPaymentPlanRaw) {
+  return {
+    dentallyId: String(raw.id),
+    name: raw.name?.trim() || `Plan ${raw.id}`,
+    patientFriendlyName: raw.patient_friendly_name?.trim() || null,
+    active: raw.active !== false,
+    siteId: raw.site_id ?? null,
+    colour: raw.colour ?? null,
   };
 }
 

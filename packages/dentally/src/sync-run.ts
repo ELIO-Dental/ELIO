@@ -27,7 +27,8 @@ export function resolveRunStatus(result: SyncResult): DentallySyncRunStatus {
     result.counts.invoices +
     result.counts.treatments +
     result.counts.payments +
-    result.counts.accounts;
+    result.counts.accounts +
+    result.counts.paymentPlans;
   if (result.errors.length === 0) return "SUCCESS";
   if (totalSynced > 0) return "PARTIAL";
   return "FAILED";

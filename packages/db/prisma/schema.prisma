@@ -224,6 +224,7 @@ model Practice {
   invoices     Invoice[]
   payments     DentallyPayment[]
   accounts     DentallyAccount[]
+  paymentPlans DentallyPaymentPlan[]
 
   // ElioPay (draft)
   dentists               Dentist[]
@@ -543,6 +544,27 @@ model DentallyAccount {
   @@index([practiceId])
   @@index([patientId])
   @@map("dentally_accounts")
+}
+
+// Dentally `/payment_plans` — Plans module maps plan names to ELIO PlanModel (B.3).
+model DentallyPaymentPlan {
+  id                  String   @id @default(cuid())
+  practiceId          String
+  practice            Practice @relation(fields: [practiceId], references: [id])
+  dentallyId          String
+  name                String
+  patientFriendlyName String?
+  active              Boolean  @default(true)
+  siteId              String?
+  colour              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@index([practiceId, name])
+  @@map("dentally_payment_plans")
 }
 
 // ============================================================================

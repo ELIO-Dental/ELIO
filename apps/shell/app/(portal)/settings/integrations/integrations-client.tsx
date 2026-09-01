@@ -229,6 +229,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
                     {counts.patients ?? 0} patients · {counts.appointments ?? 0} appts · {counts.invoices ?? 0} invoices
                     {(counts.payments ?? 0) > 0 ? ` · ${counts.payments} payments` : ""}
                     {(counts.accounts ?? 0) > 0 ? ` · ${counts.accounts} accounts` : ""}
+                    {(counts.paymentPlans ?? 0) > 0 ? ` · ${counts.paymentPlans} payment plans` : ""}
                   </dd>
                 </div>
               )}

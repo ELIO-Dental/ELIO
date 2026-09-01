@@ -99,6 +99,17 @@ export interface DentallyAccountRaw {
   updated_at?: string;
 }
 
+export interface DentallyPaymentPlanRaw {
+  id: number;
+  name?: string | null;
+  patient_friendly_name?: string | null;
+  active?: boolean;
+  site_id?: string | null;
+  colour?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DentallyTreatmentCatalogRaw {
   id: number;
   code?: string;

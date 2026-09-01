@@ -7,12 +7,12 @@ describe("resolveRunStatus", () => {
     practiceId: "p1",
     startedAt: new Date(),
     finishedAt: new Date(),
-    counts: { patients: 0, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0 },
+    counts: { patients: 0, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0, paymentPlans: 0 },
     errors: [],
   };
 
   it("returns SUCCESS when no errors", () => {
-    expect(resolveRunStatus({ ...base, counts: { patients: 5, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0 } })).toBe(
+    expect(resolveRunStatus({ ...base, counts: { patients: 5, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0, paymentPlans: 0 } })).toBe(
       "SUCCESS"
     );
   });
@@ -21,7 +21,7 @@ describe("resolveRunStatus", () => {
     expect(
       resolveRunStatus({
         ...base,
-        counts: { patients: 2, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0 },
+        counts: { patients: 2, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0, paymentPlans: 0 },
         errors: [{ resource: "patient", dentallyId: "1", message: "fail" }],
       })
     ).toBe("PARTIAL");

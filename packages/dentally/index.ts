@@ -22,7 +22,7 @@ export {
   resolveRunStatus,
 } from "./src/sync-run";
 
-export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAccounts } from "./src/queries";
+export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAccounts, getPaymentPlans } from "./src/queries";
 
 export { inngest, dentallySyncFunction, requestDentallySync, inngestConfigured } from "./src/inngest";
 

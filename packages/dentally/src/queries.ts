@@ -110,3 +110,19 @@ export async function getAccounts(
     orderBy: { id: "asc" },
   });
 }
+
+export async function getPaymentPlans(
+  practiceId: string,
+  opts: { active?: boolean; cursor?: string; take?: number } = {}
+) {
+  const take = Math.min(opts.take ?? 50, 200);
+  return prisma.dentallyPaymentPlan.findMany({
+    where: {
+      practiceId,
+      ...(opts.active !== undefined ? { active: opts.active } : {}),
+    },
+    take,
+    ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
+    orderBy: { name: "asc" },
+  });
+}

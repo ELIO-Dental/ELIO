@@ -182,7 +182,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 |------|------|---------------------|
 | B.1 | Add **payments** sync → new table or extend financial model | Flow deposit logic can use real payments |
 | B.2 | Add **accounts** sync (planned private treatment value) | Flow plan value matches legacy |
-| B.3 | Add **payment_plans** sync | Plans module can map Dentally plans |
+| B.3 | Add **payment_plans** sync | Plans module can map Dentally plans | **Shipped** |
 | B.4 | Add optional **site_id** filter on all Dentally calls (Pay parity) | Multi-site practices supported |
 
 ---
@@ -1363,7 +1363,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 |------|----------------------|----------------------|-------|
 | B.1 Payments sync | `ElioFlow/pages/api/manual-sync.ts`, `ElioFlow/lib/dentally.ts` | `elio/packages/dentally/src/sync.ts` + `DentallyPayment` model | **Shipped** |
 | B.2 Accounts sync | `ElioFlow/pages/api/sync.ts` (`planned_private_treatment_value`) | `elio/packages/dentally/src/sync.ts` + `DentallyAccount` | **Shipped** |
-| B.3 Payment plans sync | `ElioPlans/src/lib/dentally-sync.ts` | `elio/packages/dentally/plans-sync.ts` (to create) | For Plans mapping |
+| B.3 Payment plans sync | `ElioPlans/src/lib/dentally-sync.ts` | `elio/packages/dentally/src/sync.ts` + `DentallyPaymentPlan` | **Shipped** |
 | B.4 Site ID filter | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `elio/packages/dentally/src/client.ts` | `DENTALLY_SITE_ID` |
 
 ---

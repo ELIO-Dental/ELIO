@@ -22,6 +22,7 @@ import {
   normalizePatient,
   normalizePayment,
   normalizeAccount,
+  normalizePaymentPlan,
   normalizeTreatmentsFromInvoice,
 } from "./normalize";
 import type {
@@ -30,10 +31,11 @@ import type {
   DentallyPatientRaw,
   DentallyPaymentRaw,
   DentallyAccountRaw,
+  DentallyPaymentPlanRaw,
 } from "./types";
 
 export interface SyncError {
-  resource: "patient" | "appointment" | "invoice" | "treatment" | "payment" | "account";
+  resource: "patient" | "appointment" | "invoice" | "treatment" | "payment" | "account" | "payment_plan";
   dentallyId: string;
   message: string;
 }
@@ -49,6 +51,7 @@ export interface SyncResult {
     treatments: number;
     payments: number;
     accounts: number;
+    paymentPlans: number;
   };
   errors: SyncError[];
 }
@@ -97,7 +100,7 @@ export async function syncPracticeDentallyData(
   const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const startedAt = new Date();
   const errors: SyncError[] = [];
-  const counts = { patients: 0, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0 };
+  const counts = { patients: 0, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0, paymentPlans: 0 };
 
   // --- Patients ---------------------------------------------------------
   await dentallyClient.paginate<DentallyPatientRaw>(
@@ -228,6 +231,28 @@ export async function syncPracticeDentallyData(
           counts.accounts++;
         } catch (err) {
           errors.push({ resource: "account", dentallyId: String(raw.id), message: errMsg(err) });
+        }
+      }
+    }
+  );
+
+  // --- Payment plans (Plans mapping — B.3) --------------------------------
+  await dentallyClient.paginate<DentallyPaymentPlanRaw>(
+    "/payment_plans",
+    "payment_plans",
+    {},
+    async (plans) => {
+      for (const raw of plans) {
+        try {
+          const data = normalizePaymentPlan(raw);
+          await prisma.dentallyPaymentPlan.upsert({
+            where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+            create: { practiceId, ...data },
+            update: data,
+          });
+          counts.paymentPlans++;
+        } catch (err) {
+          errors.push({ resource: "payment_plan", dentallyId: String(raw.id), message: errMsg(err) });
         }
       }
     }
