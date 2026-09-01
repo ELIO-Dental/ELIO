@@ -68,6 +68,35 @@ export async function updateDentistRate(
   });
 }
 
+export interface UpdateDentistInput {
+  name?: string;
+  nhsPerformerNumber?: string | null;
+  dentallyPractitionerId?: string | null;
+  privateSplitPercent?: number | null;
+  udaRatePence?: number | null;
+  hourlyRatePence?: number | null;
+}
+
+export async function updateDentist(practiceId: string, dentistId: string, input: UpdateDentistInput) {
+  const db = scopedDb(practiceId);
+  const existing = await db.dentist.findFirst({ where: { id: dentistId, practiceId } });
+  if (!existing) throw new Error("Dentist not found");
+
+  return db.dentist.update({
+    where: { id: dentistId },
+    data: {
+      name: input.name ?? undefined,
+      nhsPerformerNumber: input.nhsPerformerNumber !== undefined ? input.nhsPerformerNumber : undefined,
+      dentallyPractitionerId:
+        input.dentallyPractitionerId !== undefined ? input.dentallyPractitionerId : undefined,
+      privateSplitPercent: input.privateSplitPercent !== undefined ? input.privateSplitPercent : undefined,
+      udaRatePence: input.udaRatePence !== undefined ? input.udaRatePence : undefined,
+      hourlyRatePence: input.hourlyRatePence !== undefined ? input.hourlyRatePence : undefined,
+      effectiveFrom: new Date(),
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Lab bills
 // ---------------------------------------------------------------------------

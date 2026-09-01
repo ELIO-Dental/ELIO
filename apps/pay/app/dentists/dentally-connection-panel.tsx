@@ -64,10 +64,19 @@ export function DentallyConnectionPanel() {
                 </p>
               )}
               {data.unmatched_invoice_ids.length > 0 && (
-                <p className="text-amber-800">
-                  {data.unmatched_invoice_ids.length} invoice practitioner ID(s) not mapped to a dentist — check Setup import
-                  or assign IDs manually.
-                </p>
+                <div className="space-y-1 text-amber-800">
+                  <p className="font-medium">
+                    {data.unmatched_invoice_ids.length} unmapped practitioner ID(s) in recent invoices:
+                  </p>
+                  <ul className="list-inside list-disc">
+                    {data.unmatched_invoice_ids.slice(0, 5).map((row) => (
+                      <li key={row.id}>
+                        <code className="rounded bg-white px-1">{row.id}</code>
+                        {row.name ? ` — ${row.name}` : ""} ({row.count} invoices)
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}

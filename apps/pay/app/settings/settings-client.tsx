@@ -14,6 +14,103 @@ import {
 import { Loader2, Save } from "lucide-react";
 import { type PaySettings, syncTherapyRates } from "@/lib/pay-settings";
 
+function DentallyApiKeyPanel() {
+  const [apiKey, setApiKey] = React.useState("");
+  const [status, setStatus] = React.useState<{
+    configured: boolean;
+    hasPracticeKey: boolean;
+    connectionStatus: string;
+    connectionOk: boolean | null;
+    connectionError: string | null;
+  } | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+
+  const loadStatus = React.useCallback(async (test = false) => {
+    const res = await fetch(`/pay/api/dentally/status${test ? "?test=1" : ""}`);
+    if (res.ok) setStatus(await res.json());
+  }, []);
+
+  React.useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  async function saveKey(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/pay/api/dentally/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to save API key");
+      setApiKey("");
+      setMessage("API key saved. Run a connection test to verify.");
+      await loadStatus();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save API key");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/pay/api/dentally/status?test=1");
+      const data = await res.json();
+      if (res.ok) {
+        setStatus(data);
+        setMessage(data.connectionOk ? "Connection successful." : data.connectionError ?? "Connection failed.");
+      } else {
+        setMessage(data.error ?? "Connection test failed");
+      }
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-body-sm text-(--color-text-secondary)">
+        {status?.hasPracticeKey
+          ? "A practice API key is configured (value never shown after save)."
+          : status?.configured
+            ? "Using environment fallback key — set a practice key for production."
+            : "No Dentally API key configured yet."}
+      </p>
+      <form onSubmit={(e) => void saveKey(e)} className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[240px] flex-1">
+          <Label htmlFor="dentally-api-key">New API key</Label>
+          <Input
+            id="dentally-api-key"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Paste Dentally API key"
+            className="mt-1"
+          />
+        </div>
+        <Button type="submit" loading={saving} disabled={!apiKey.trim()}>
+          Save key
+        </Button>
+        <Button type="button" variant="outline" onClick={() => void testConnection()} loading={testing}>
+          Test connection
+        </Button>
+      </form>
+      {status?.connectionOk === false && status.connectionError && (
+        <p className="text-body-sm text-(--color-danger)">{status.connectionError}</p>
+      )}
+      {message && <p className="text-body-sm text-(--color-text-secondary)">{message}</p>}
+    </div>
+  );
+}
+
 function SettingsField({
   label,
   value,
@@ -171,6 +268,13 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
             <SettingsField label="36 months" value={settings.finance_rate_36m} onChange={(v) => update("finance_rate_36m", v)} type="number" />
             <SettingsField label="60 months" value={settings.finance_rate_60m} onChange={(v) => update("finance_rate_60m", v)} type="number" />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Dentally API key</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <DentallyApiKeyPanel />
         </CardContent>
       </Card>
 

@@ -5,20 +5,15 @@ import { getDentallyClientForPractice } from "@elio/dentally";
 import { getPayPeriodBoundaries } from "@elio/pay-engine";
 import { getPaySettings } from "./pay-settings-service";
 import { resolveDentallySiteId } from "./pay-settings";
+import {
+  buildUnmatchedInvoiceIds,
+  mapDentallyDebugUser,
+  type DentallyDebugInvoiceUser,
+  type DentallyDebugUser,
+} from "./dentally-debug-helpers";
 
-export interface DentallyDebugUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  active: boolean;
-}
-
-export interface DentallyDebugInvoiceUser {
-  count: number;
-  totalAmount: number;
-  name?: string;
-}
+export type { DentallyDebugUser, DentallyDebugInvoiceUser } from "./dentally-debug-helpers";
+export { buildUnmatchedInvoiceIds, mapDentallyDebugUser } from "./dentally-debug-helpers";
 
 export interface DentallyDebugResult {
   site_id: string;
@@ -32,19 +27,6 @@ export interface DentallyDebugResult {
     name: string;
     dentally_practitioner_id: string | null;
   }>;
-}
-
-function mapUser(raw: Record<string, unknown>): DentallyDebugUser {
-  const first = String(raw.first_name ?? "");
-  const last = String(raw.last_name ?? "");
-  const name = `${first} ${last}`.trim() || String(raw.name ?? raw.email ?? "Unknown");
-  return {
-    id: String(raw.id),
-    name,
-    email: String(raw.email ?? ""),
-    role: String(raw.role ?? raw.user_type ?? raw.job_title ?? raw.practitioner_type ?? ""),
-    active: raw.active !== false && raw.status !== "inactive",
-  };
 }
 
 function parseAmount(value: unknown): number {
@@ -73,7 +55,7 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
   try {
     const usersData = await client.get<Record<string, unknown>>("/users", { site_id: siteId, per_page: 100 });
     const users = (usersData.users ?? usersData.data ?? []) as Record<string, unknown>[];
-    dentallyUsers = users.map(mapUser);
+    dentallyUsers = users.map(mapDentallyDebugUser);
   } catch {
     dentallyUsers = [];
   }
@@ -82,7 +64,7 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
   try {
     const pracData = await client.get<Record<string, unknown>>("/practitioners", { site_id: siteId, per_page: 100 });
     const pracs = (pracData.practitioners ?? pracData.data ?? []) as Record<string, unknown>[];
-    practitioners = pracs.map(mapUser);
+    practitioners = pracs.map(mapDentallyDebugUser);
   } catch {
     practitioners = [];
   }
@@ -129,10 +111,7 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
   }
 
   const storedIds = new Set(dentists.map((d) => d.dentallyPractitionerId).filter(Boolean) as string[]);
-  const unmatched = Object.entries(invoiceUserIds)
-    .filter(([uid]) => !storedIds.has(uid))
-    .map(([id, data]) => ({ id, name: data.name, count: data.count, totalAmount: data.totalAmount }))
-    .sort((a, b) => b.count - a.count);
+  const unmatched = buildUnmatchedInvoiceIds(invoiceUserIds, storedIds);
 
   return {
     site_id: siteId,
