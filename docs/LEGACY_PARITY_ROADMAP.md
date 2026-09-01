@@ -120,10 +120,10 @@ ElioPay:   On-demand POST /api/dentally per pay period (no cron)
 NEW ELIO (one central sync — incomplete)
 ────────────────────────────────────────
 Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
-  Syncs: patients, appointments, invoices, treatments (from invoice lines)
-  Does NOT sync: payments, accounts, payment plans, users
-  Uses: process.env.DENTALLY_API_KEY only (ignores Practice.dentallyApiKey)
-  Manual: POST /api/dentally/sync (no UI button)
+  Syncs: patients, appointments, invoices, treatments, payments, accounts, payment plans
+  Does NOT sync: users
+  Uses: Practice.dentallyApiKey (encrypted) with DENTALLY_API_KEY env fallback
+  Manual: Portal Integrations → Sync now
 ```
 
 ### 0.3 Cross-cutting gap matrix
@@ -138,7 +138,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 | Scheduled sync | Flow (frequent), Plans (daily), Pay (none) | Shell daily 03:00 only | 🟡 |
 | Module-specific sync jobs | Each app had own logic | One generic mirror | ❌ |
 | Payments from Dentally | Flow used `/payments` | Synced to `dentally_payments` (B.1) | ✅ |
-| Payment plans from Dentally | Plans required for import | Not synced | ❌ |
+| Payment plans from Dentally | Plans required for import | Synced to `dentally_payment_plans` (B.3) | ✅ |
 | Google Sheets (Flow pipeline, Pay logs) | Primary or secondary store | Not integrated | ❌ (Flow migrated to DB; Pay needs decision) |
 | Settings: Dentally config UI | Flow, Pay (site ID, therapists) | Signup step only | ❌ |
 | Branding per practice | Flow/Plans settings | Portal theme only | 🟡 |
@@ -586,7 +586,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Action Required page | Exists | ✅ |
 | Audit log | Exists | ✅ |
 | **Patient detail page** (`/patients/[id]`) | **Does not exist** — table rows not links | ❌ Critical |
-| **DentallyPlanMapping in DB** | **Not migrated, model missing** in new schema | ❌ Critical |
+| **DentallyPlanMapping in DB** | **Not migrated, model missing** in new schema | `DentallyPlanMapping` model (P1.2) | ✅ |
 | **`gc-sync` cron** (mandate reconciliation) | No equivalent cron | ❌ |
 | **`reassign-plans` utility** | None | ❌ |
 | **`setup-gc-links` admin** | None | ❌ |
@@ -620,7 +620,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Step | Task | Details |
 |------|------|---------|
 | P1.1 | **Port `runDentallySync()` logic** from `ElioPlans/src/lib/dentally-sync.ts` into `packages/plans-dentally` or `packages/dentally/plans-sync.ts` | Payment-plan filtered import |
-| P1.2 | **Create `DentallyPlanMapping` model + migration** (was deliberately NOT migrated in Step 1.9) | Map Dentally plan name → `PlanModel`; seed from legacy or manual setup |
+| P1.2 | **Create `DentallyPlanMapping` model + migration** (was deliberately NOT migrated in Step 1.9) | Map Dentally plan name → `PlanModel`; seed from legacy or manual setup | **Shipped** |
 | P1.3 | **`POST /plans/api/dentally/sync`** + **`GET /plans/api/cron/dentally-sync`** | Manual + cron entry points |
 | P1.4 | **`GET /plans/api/dentally/patients?q=`** | Search/import single patient |
 | P1.5 | **`GET/POST /plans/api/dentally/mappings`** | CRUD mappings |
@@ -996,7 +996,7 @@ Items that block parity and are **not** just missing UI:
 
 | Gap | Legacy | New ELIO | Action |
 |-----|--------|----------|--------|
-| `DentallyPlanMapping` | `ElioPlans` Prisma model | **Missing** — not migrated (Step 1.9 deliberate) | New migration + seed UI |
+| `DentallyPlanMapping` | `ElioPlans` Prisma model | `plans_dentally_plan_mappings` (P1.2) | **Shipped** — seed UI in P2.1 |
 | `PlanPatient.parentPatientId` | Child plan linked to paying parent | **Missing** on `PlanPatient` | Add optional FK + UI for free child plans |
 | `PatientNote` | ElioPlans patient notes tab | **Missing** | New model or audit-log substitute |
 | `EmailLog` | Sent email history per patient | **Not migrated** | New model or drop if correspondence not required |
@@ -1415,7 +1415,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Step | Legacy reference (📖) | New ELIO target (✏️) | Notes |
 |------|----------------------|----------------------|-------|
 | P1.1 Port sync logic | `ElioPlans/src/lib/dentally-sync.ts` | `elio/packages/dentally/plans-sync.ts` (to create) | Core import function |
-| P1.2 Mapping model | `ElioPlans/prisma/schema.prisma` → `DentallyPlanMapping` | `elio/packages/db/prisma/schema.prisma` | New migration |
+| P1.2 Mapping model | `ElioPlans/prisma/schema.prisma` → `DentallyPlanMapping` | `elio/packages/db/prisma/schema.prisma` | **Shipped** |
 | P1.3 Sync API + cron | `ElioPlans/src/app/api/dentally/sync/route.ts`, `api/cron/dentally-sync/route.ts` | `elio/apps/plans/app/api/dentally/sync/route.ts`, cron route | |
 | P1.4 Patient search | `ElioPlans/src/app/api/dentally/patients/route.ts` | `elio/apps/plans/app/api/dentally/patients/route.ts` (to create) | |
 | P1.5 Mappings CRUD | `ElioPlans/src/app/api/dentally/mappings/route.ts`, `mappings/[id]/route.ts` | `elio/apps/plans/app/api/dentally/mappings/` (to create) | |

@@ -21,6 +21,7 @@ interface SyncCounts {
   treatments?: number;
   payments?: number;
   accounts?: number;
+  paymentPlans?: number;
 }
 
 interface IntegrationStatus {
