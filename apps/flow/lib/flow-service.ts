@@ -4,7 +4,14 @@
 // user might need to trace, plain Error throws for the route layer to map.
 import { scopedDb } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
-import { getAppointments, getInvoices } from "@elio/dentally";
+import {
+  getAppointments,
+  importCosmeticConsultsFromDentally,
+  syncConsultFinancialsFromSyncedCore,
+} from "@elio/dentally";
+
+export { importCosmeticConsultsFromDentally };
+export type { CosmeticConsultImportResult } from "@elio/dentally";
 
 // ---------------------------------------------------------------------------
 // Capture
@@ -402,28 +409,183 @@ export async function linkConsultToAppointment(practiceId: string, consultId: st
   });
 }
 
-/**
- * Sync `Consult.totalPaidPence` from the patient's Dentally-synced invoices
- * — a read-only mirror (see the field's schema comment), never ElioFlow's
- * own source of truth. Sums every synced Invoice.totalPence for the
- * patient; this is an approximation (old ElioFlow summed real *payments*,
- * which packages/dentally's synced core does not currently store — only
- * Invoice totals are available today, see DATA_MODEL.md §5's 2026-08-19
- * entry for this as a known, documented limitation).
- */
+/** Sync consult financials from Dentally-synced core (delegates to @elio/dentally). */
 export async function syncConsultFinancials(practiceId: string, consultId: string) {
+  return syncConsultFinancialsFromSyncedCore(practiceId, consultId);
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard (F2.1–F2.5 — legacy ElioFlow home parity)
+// ---------------------------------------------------------------------------
+
+const PAID_CONVERSION_THRESHOLD_PENCE = 45_000; // £450 — legacy conversion rule
+
+export interface FlowDashboardStats {
+  totalConsultations: number;
+  attended: number;
+  converted: number;
+  stuck: number;
+  totalPlannedPence: number;
+  totalPaidPence: number;
+  planSignUps: number;
+  conversionRate: number;
+}
+
+export interface FlowDashboardRow {
+  id: string;
+  patientName: string;
+  patientEmail: string | null;
+  patientPhone: string | null;
+  dentistId: string | null;
+  dentistName: string;
+  consultationDate: string | null;
+  planValuePence: number;
+  totalPaidPence: number;
+  attended: boolean;
+  hasPlan: boolean;
+  hasDeposit: boolean;
+  treatmentBooked: boolean;
+  daysSinceConsult: number;
+  statusLabel: string;
+  statusKey: string;
+  planSignedUp: boolean;
+  touchPoints: number;
+}
+
+export interface FlowDashboardData {
+  stats: FlowDashboardStats;
+  rows: FlowDashboardRow[];
+  dentists: { id: string; name: string }[];
+}
+
+function planValuePence(c: { quotePenceOverride: number | null; quotePence: number | null }) {
+  return c.quotePenceOverride ?? c.quotePence ?? 0;
+}
+
+function consultDate(c: { appointment: { startsAt: Date | null } | null; createdAt: Date }) {
+  return c.appointment?.startsAt ?? c.createdAt;
+}
+
+/** Legacy ElioFlow conversion: ACCEPTED/planSignedUp OR (deposit/£450+ paid + treatment booked). */
+export function isLegacyConverted(c: {
+  outcome: string | null;
+  planSignedUp: boolean;
+  hasDeposit: boolean | null;
+  totalPaidPence: number | null;
+  treatmentBooked: boolean | null;
+}): boolean {
+  if (c.outcome === "ACCEPTED" || c.planSignedUp) return true;
+  const paidEnough = Boolean(c.hasDeposit) || (c.totalPaidPence ?? 0) >= PAID_CONVERSION_THRESHOLD_PENCE;
+  return paidEnough && Boolean(c.treatmentBooked);
+}
+
+function dashboardStatusLabel(c: {
+  outcome: string | null;
+  stuckReason: string | null;
+  attended: boolean | null;
+  planSignedUp: boolean;
+  hasDeposit: boolean | null;
+  totalPaidPence: number | null;
+  treatmentBooked: boolean | null;
+}): { label: string; key: string } {
+  if (isLegacyConverted(c)) {
+    return c.planSignedUp ? { label: "Completed", key: "completed" } : { label: "Converted", key: "converted" };
+  }
+  if (c.attended === true) {
+    if (c.stuckReason === "FAILED_FINANCE") return { label: "Failed Finance", key: "failed-finance" };
+    if (c.stuckReason === "PRICE_SHOPPING") return { label: "Price Shopping", key: "price-shopping" };
+    if (c.stuckReason === "BAD_EXPERIENCE") return { label: "Bad Experience", key: "bad-experience" };
+    if (c.stuckReason === "OUT_OF_BUDGET") return { label: "Out of Budget", key: "out-of-budget" };
+    if (c.outcome === "THINKING") return { label: "Thinking", key: "thinking" };
+    return { label: "Stuck", key: "stuck" };
+  }
+  if (c.outcome === "DECLINED") return { label: "Declined", key: "declined" };
+  return { label: "New", key: "new" };
+}
+
+export async function getFlowDashboard(
+  practiceId: string,
+  opts?: { from?: Date; to?: Date; dentistId?: string | null }
+): Promise<FlowDashboardData> {
   const db = scopedDb(practiceId);
-  const consult = await db.consult.findUnique({
-    where: { id: consultId },
-    include: { enquiry: true },
+
+  const consults = await db.consult.findMany({
+    where: {
+      ...(opts?.dentistId ? { practitionerDentistId: opts.dentistId } : {}),
+    },
+    include: {
+      enquiry: { include: { patient: true } },
+      practitionerDentist: true,
+      appointment: true,
+      reminders: true,
+    },
+    orderBy: { createdAt: "desc" },
   });
-  if (!consult) throw new Error("Consult not found");
-  if (!consult.enquiry.patientId) throw new Error("Consult's enquiry has no linked patient — link a patient first");
 
-  const invoices = await getInvoices(practiceId, { patientId: consult.enquiry.patientId, take: 200 });
-  const totalPaidPence = invoices.reduce((sum, inv) => sum + (inv.totalPence ?? 0), 0);
+  const filtered = consults.filter((c) => {
+    const d = consultDate(c);
+    if (opts?.from && d < opts.from) return false;
+    if (opts?.to && d > opts.to) return false;
+    return true;
+  });
 
-  return db.consult.update({ where: { id: consultId }, data: { totalPaidPence } });
+  const rows: FlowDashboardRow[] = filtered.map((c) => {
+    const patient = c.enquiry.patient;
+    const patientName = patient
+      ? [patient.firstName, patient.lastName].filter(Boolean).join(" ") || "Unnamed patient"
+      : "Unlinked lead";
+    const d = consultDate(c);
+    const planValue = planValuePence(c);
+    const { label, key } = dashboardStatusLabel(c);
+
+    return {
+      id: c.id,
+      patientName,
+      patientEmail: patient?.email ?? null,
+      patientPhone: patient?.phone ?? null,
+      dentistId: c.practitionerDentistId,
+      dentistName: c.practitionerDentist?.name ?? "Unassigned",
+      consultationDate: d.toISOString().slice(0, 10),
+      planValuePence: planValue,
+      totalPaidPence: c.totalPaidPence ?? 0,
+      attended: c.attended === true,
+      hasPlan: planValue > 0,
+      hasDeposit: c.hasDeposit === true,
+      treatmentBooked: c.treatmentBooked === true,
+      daysSinceConsult: Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000)),
+      statusLabel: label,
+      statusKey: key,
+      planSignedUp: c.planSignedUp,
+      touchPoints: c.reminders.filter((r) => r.sentAt != null).length,
+    };
+  });
+
+  const attended = filtered.filter((c) => c.attended === true).length;
+  const converted = filtered.filter((c) => isLegacyConverted(c)).length;
+  const stuck = filtered.filter((c) => c.attended === true && !isLegacyConverted(c)).length;
+
+  const stats: FlowDashboardStats = {
+    totalConsultations: filtered.length,
+    attended,
+    converted,
+    stuck,
+    totalPlannedPence: filtered.reduce((sum, c) => sum + planValuePence(c), 0),
+    totalPaidPence: filtered.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0),
+    planSignUps: filtered.filter((c) => c.planSignedUp).length,
+    conversionRate: attended > 0 ? Math.round((converted / attended) * 100) : 0,
+  };
+
+  const dentistMap = new Map<string, string>();
+  for (const c of consults) {
+    if (c.practitionerDentistId && c.practitionerDentist) {
+      dentistMap.set(c.practitionerDentistId, c.practitionerDentist.name);
+    }
+  }
+  const dentists = Array.from(dentistMap.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { stats, rows, dentists };
 }
 
 // ---------------------------------------------------------------------------

@@ -3,9 +3,10 @@
 // so Inngest can invoke them. See packages/dentally/src/inngest.ts for the
 // background-job tooling decision (Inngest over Trigger.dev) and why.
 import { serve } from "inngest/next";
-import { inngest, dentallySyncFunction } from "@elio/dentally";
+import { inngest } from "@elio/dentally";
+import { dentallyFullSyncFunction } from "@/lib/dentally-full-sync";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [dentallySyncFunction],
+  functions: [dentallyFullSyncFunction],
 });

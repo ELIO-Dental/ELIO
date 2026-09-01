@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
 // for a Server Component redirect, so "/flow/pipeline" here would become
 // "/flow/flow/pipeline" and 404 (confirmed live).
 export default function FlowRootPage() {
-  redirect("/pipeline");
+  redirect("/dashboard");
 }

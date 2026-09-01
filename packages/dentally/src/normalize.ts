@@ -6,6 +6,8 @@ import type {
   DentallyAppointmentRaw,
   DentallyInvoiceRaw,
   DentallyPatientRaw,
+  DentallyPaymentRaw,
+  DentallyAccountRaw,
 } from "./types";
 
 export function normalizePatient(raw: DentallyPatientRaw) {
@@ -76,6 +78,29 @@ export function normalizeInvoice(raw: DentallyInvoiceRaw) {
     dentallyId: String(raw.id),
     dentallyPatientId: raw.patient_id != null ? String(raw.patient_id) : null,
     totalPence: raw.amount != null ? toPence(raw.amount) : null,
+  };
+}
+
+export function normalizePayment(raw: DentallyPaymentRaw) {
+  const amount = raw.total ?? raw.amount;
+  const paidAtSource = raw.dated_on ?? raw.created_at;
+  return {
+    dentallyId: String(raw.id),
+    dentallyPatientId: raw.patient_id != null ? String(raw.patient_id) : null,
+    amountPence: amount != null ? toPence(amount) : null,
+    paidAt: paidAtSource ? new Date(paidAtSource) : null,
+  };
+}
+
+export function normalizeAccount(raw: DentallyAccountRaw) {
+  return {
+    dentallyId: String(raw.id),
+    dentallyPatientId: raw.patient_id != null ? String(raw.patient_id) : null,
+    currentBalancePence: raw.current_balance != null ? toPence(raw.current_balance) : null,
+    plannedPrivateTreatmentValuePence:
+      raw.planned_private_treatment_value != null ? toPence(raw.planned_private_treatment_value) : null,
+    plannedNhsTreatmentValuePence:
+      raw.planned_nhs_treatment_value != null ? toPence(raw.planned_nhs_treatment_value) : null,
   };
 }
 

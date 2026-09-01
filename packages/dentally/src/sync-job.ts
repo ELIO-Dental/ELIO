@@ -8,6 +8,14 @@ import {
 } from "./sync-run";
 import { DentallySyncConfigError } from "./resolve-api-key";
 
+type PostSyncHook = (practiceId: string) => Promise<unknown>;
+let postSyncHook: PostSyncHook | null = null;
+
+/** Optional hook after a successful Dentally sync (e.g. Flow cosmetic consult import). */
+export function setDentallyPostSyncHook(hook: PostSyncHook | null) {
+  postSyncHook = hook;
+}
+
 export async function runDentallySyncJob(
   practiceId: string,
   trigger: "manual" | "scheduled"
@@ -16,6 +24,13 @@ export async function runDentallySyncJob(
   try {
     const result = await syncPracticeDentallyData(practiceId);
     await finalizeDentallySyncRun(run.id, result);
+    if (postSyncHook) {
+      try {
+        await postSyncHook(practiceId);
+      } catch (err) {
+        console.error(`[dentally-sync] post-sync hook failed practice=${practiceId}`, err);
+      }
+    }
     return result;
   } catch (err) {
     const message =

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeInvoice, normalizePatient, normalizeTreatmentsFromInvoice } from "./normalize";
+import { normalizeInvoice, normalizePatient, normalizePayment, normalizeAccount, normalizeTreatmentsFromInvoice } from "./normalize";
 
 describe("normalizePatient", () => {
   it("maps real-shaped Dentally patient fields", () => {
@@ -58,5 +58,53 @@ describe("normalizeInvoice / normalizeTreatmentsFromInvoice", () => {
         dentallyTreatmentCategory: null,
       },
     ]);
+  });
+});
+
+describe("normalizePayment", () => {
+  it("prefers total over amount and maps dated_on to paidAt", () => {
+    const result = normalizePayment({
+      id: 99,
+      patient_id: 42,
+      amount: "10.00",
+      total: "50.00",
+      dated_on: "2026-03-15",
+    });
+    expect(result).toEqual({
+      dentallyId: "99",
+      dentallyPatientId: "42",
+      amountPence: 5000,
+      paidAt: new Date("2026-03-15"),
+    });
+  });
+
+  it("falls back to created_at when dated_on is missing", () => {
+    const result = normalizePayment({
+      id: 1,
+      patient_id: 2,
+      amount: "75.50",
+      created_at: "2026-01-10T12:00:00Z",
+    });
+    expect(result.amountPence).toBe(7550);
+    expect(result.paidAt).toEqual(new Date("2026-01-10T12:00:00Z"));
+  });
+});
+
+describe("normalizeAccount", () => {
+  it("maps planned_private_treatment_value to pence", () => {
+    const result = normalizeAccount({
+      id: 10,
+      patient_id: 16,
+      current_balance: "200.0",
+      planned_private_treatment_value: "1250.50",
+      planned_nhs_treatment_value: "50.0",
+    });
+    expect(result).toEqual({
+      dentallyId: "10",
+      dentallyPatientId: "16",
+      currentBalancePence: 20000,
+      plannedPrivateTreatmentValuePence: 125050,
+      plannedNhsTreatmentValuePence: 5000,
+    });
   });
 });

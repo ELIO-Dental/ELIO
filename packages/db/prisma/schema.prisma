@@ -222,6 +222,8 @@ model Practice {
   appointments Appointment[]
   treatments   Treatment[]
   invoices     Invoice[]
+  payments     DentallyPayment[]
+  accounts     DentallyAccount[]
 
   // ElioPay (draft)
   dentists               Dentist[]
@@ -409,6 +411,8 @@ model Patient {
   appointments Appointment[]
   treatments   Treatment[]
   invoices     Invoice[]
+  payments     DentallyPayment[]
+  accounts     DentallyAccount[]
   planPatients PlanPatient[]
   enquiries    Enquiry[]
 
@@ -497,6 +501,48 @@ model Invoice {
   @@unique([practiceId, dentallyId])
   @@index([practiceId])
   @@map("dentally_invoices")
+}
+
+// Dentally `/payments` records — Flow uses these (not invoices) for totalPaid
+// and deposit detection (legacy ElioFlow manual-sync.ts).
+model DentallyPayment {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id])
+  dentallyId String
+  patientId  String?
+  patient    Patient? @relation(fields: [patientId], references: [id])
+  amountPence Int?
+  paidAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@index([patientId])
+  @@map("dentally_payments")
+}
+
+// Dentally `/accounts` — Flow plan value (`planned_private_treatment_value`).
+model DentallyAccount {
+  id                              String   @id @default(cuid())
+  practiceId                      String
+  practice                        Practice @relation(fields: [practiceId], references: [id])
+  dentallyId                      String
+  patientId                       String?
+  patient                         Patient? @relation(fields: [patientId], references: [id])
+  currentBalancePence             Int?
+  plannedPrivateTreatmentValuePence Int?
+  plannedNhsTreatmentValuePence   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, dentallyId])
+  @@index([practiceId])
+  @@index([patientId])
+  @@map("dentally_accounts")
 }
 
 // ============================================================================

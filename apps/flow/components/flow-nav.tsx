@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { getModuleColor } from "@elio/ui";
 
 const LINKS = [
+  { href: "/flow/dashboard", label: "Dashboard" },
   { href: "/flow/pipeline", label: "Pipeline" },
   { href: "/flow/reporting", label: "Reporting" },
   { href: "/flow/enquiries", label: "Enquiries" },

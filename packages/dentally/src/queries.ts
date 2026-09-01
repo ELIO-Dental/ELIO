@@ -80,3 +80,33 @@ export async function getInvoices(
     orderBy: { id: "asc" },
   });
 }
+
+export async function getPayments(
+  practiceId: string,
+  opts: { patientId?: string; from?: Date; to?: Date; cursor?: string; take?: number } = {}
+) {
+  const take = Math.min(opts.take ?? 50, 200);
+  return prisma.dentallyPayment.findMany({
+    where: {
+      practiceId,
+      ...(opts.patientId ? { patientId: opts.patientId } : {}),
+      ...(opts.from || opts.to ? { paidAt: { gte: opts.from, lt: opts.to } } : {}),
+    },
+    take,
+    ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
+    orderBy: { paidAt: "asc" },
+  });
+}
+
+export async function getAccounts(
+  practiceId: string,
+  opts: { patientId?: string; cursor?: string; take?: number } = {}
+) {
+  const take = Math.min(opts.take ?? 50, 200);
+  return prisma.dentallyAccount.findMany({
+    where: { practiceId, ...(opts.patientId ? { patientId: opts.patientId } : {}) },
+    take,
+    ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
+    orderBy: { id: "asc" },
+  });
+}

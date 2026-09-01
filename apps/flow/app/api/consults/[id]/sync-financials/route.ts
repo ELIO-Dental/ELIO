@@ -3,9 +3,8 @@ import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { syncConsultFinancials } from "@/lib/flow-service";
 
-/** Sync `Consult.totalPaidPence` from the linked patient's Dentally-synced
- * invoices. Throws "no linked patient" if the enquiry has none — surfaced
- * to the caller as a normal error response, not a crash. */
+/** Sync `Consult.totalPaidPence` and `hasDeposit` from the linked patient's
+ * Dentally-synced payments (legacy manual-sync parity). */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("flow:capture-enquiry");

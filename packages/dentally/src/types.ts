@@ -77,6 +77,28 @@ export interface DentallyInvoiceRaw {
   updated_at?: string;
 }
 
+export interface DentallyPaymentRaw {
+  id: number;
+  patient_id?: number | null;
+  amount?: string | number | null;
+  total?: string | number | null;
+  dated_on?: string | null;
+  created_at?: string | null;
+  site_id?: string | null;
+  updated_at?: string;
+}
+
+export interface DentallyAccountRaw {
+  id: number;
+  patient_id?: number | null;
+  patient_name?: string | null;
+  current_balance?: string | number | null;
+  opening_balance?: string | number | null;
+  planned_nhs_treatment_value?: string | number | null;
+  planned_private_treatment_value?: string | number | null;
+  updated_at?: string;
+}
+
 export interface DentallyTreatmentCatalogRaw {
   id: number;
   code?: string;

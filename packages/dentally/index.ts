@@ -22,10 +22,16 @@ export {
   resolveRunStatus,
 } from "./src/sync-run";
 
-export { getPatient, getPatients, getAppointments, getTreatments, getInvoices } from "./src/queries";
+export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAccounts } from "./src/queries";
 
 export { inngest, dentallySyncFunction, requestDentallySync, inngestConfigured } from "./src/inngest";
 
-export { runDentallySyncJob } from "./src/sync-job";
+export { runDentallySyncJob, setDentallyPostSyncHook } from "./src/sync-job";
+
+export {
+  importCosmeticConsultsFromDentally,
+  syncConsultFinancialsFromSyncedCore,
+} from "./src/flow-consult-import";
+export type { CosmeticConsultImportResult } from "./src/flow-consult-import";
 
 export * from "./src/types";

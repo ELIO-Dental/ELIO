@@ -22,7 +22,12 @@ export async function createDentallySyncRun(
 
 export function resolveRunStatus(result: SyncResult): DentallySyncRunStatus {
   const totalSynced =
-    result.counts.patients + result.counts.appointments + result.counts.invoices + result.counts.treatments;
+    result.counts.patients +
+    result.counts.appointments +
+    result.counts.invoices +
+    result.counts.treatments +
+    result.counts.payments +
+    result.counts.accounts;
   if (result.errors.length === 0) return "SUCCESS";
   if (totalSynced > 0) return "PARTIAL";
   return "FAILED";

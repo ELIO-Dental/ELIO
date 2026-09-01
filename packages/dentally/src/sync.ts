@@ -20,16 +20,20 @@ import {
   normalizeAppointment,
   normalizeInvoice,
   normalizePatient,
+  normalizePayment,
+  normalizeAccount,
   normalizeTreatmentsFromInvoice,
 } from "./normalize";
 import type {
   DentallyAppointmentRaw,
   DentallyInvoiceRaw,
   DentallyPatientRaw,
+  DentallyPaymentRaw,
+  DentallyAccountRaw,
 } from "./types";
 
 export interface SyncError {
-  resource: "patient" | "appointment" | "invoice" | "treatment";
+  resource: "patient" | "appointment" | "invoice" | "treatment" | "payment" | "account";
   dentallyId: string;
   message: string;
 }
@@ -43,6 +47,8 @@ export interface SyncResult {
     appointments: number;
     invoices: number;
     treatments: number;
+    payments: number;
+    accounts: number;
   };
   errors: SyncError[];
 }
@@ -91,7 +97,7 @@ export async function syncPracticeDentallyData(
   const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const startedAt = new Date();
   const errors: SyncError[] = [];
-  const counts = { patients: 0, appointments: 0, invoices: 0, treatments: 0 };
+  const counts = { patients: 0, appointments: 0, invoices: 0, treatments: 0, payments: 0, accounts: 0 };
 
   // --- Patients ---------------------------------------------------------
   await dentallyClient.paginate<DentallyPatientRaw>(
@@ -176,6 +182,52 @@ export async function syncPracticeDentallyData(
           } catch (err) {
             errors.push({ resource: "treatment", dentallyId: t.dentallyId, message: errMsg(err) });
           }
+        }
+      }
+    }
+  );
+
+  // --- Payments (Flow deposit / totalPaid parity — B.1) -------------------
+  await dentallyClient.paginate<DentallyPaymentRaw>(
+    "/payments",
+    "payments",
+    {},
+    async (payments) => {
+      for (const raw of payments) {
+        try {
+          const { dentallyPatientId, ...data } = normalizePayment(raw);
+          const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+          await prisma.dentallyPayment.upsert({
+            where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+            create: { practiceId, patientId, ...data },
+            update: { patientId, ...data },
+          });
+          counts.payments++;
+        } catch (err) {
+          errors.push({ resource: "payment", dentallyId: String(raw.id), message: errMsg(err) });
+        }
+      }
+    }
+  );
+
+  // --- Accounts (Flow plan value — B.2) -----------------------------------
+  await dentallyClient.paginate<DentallyAccountRaw>(
+    "/accounts",
+    "accounts",
+    {},
+    async (accounts) => {
+      for (const raw of accounts) {
+        try {
+          const { dentallyPatientId, ...data } = normalizeAccount(raw);
+          const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+          await prisma.dentallyAccount.upsert({
+            where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+            create: { practiceId, patientId, ...data },
+            update: { patientId, ...data },
+          });
+          counts.accounts++;
+        } catch (err) {
+          errors.push({ resource: "account", dentallyId: String(raw.id), message: errMsg(err) });
         }
       }
     }

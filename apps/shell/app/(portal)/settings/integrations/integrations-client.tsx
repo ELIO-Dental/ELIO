@@ -19,6 +19,8 @@ interface SyncCounts {
   appointments?: number;
   invoices?: number;
   treatments?: number;
+  payments?: number;
+  accounts?: number;
 }
 
 interface IntegrationStatus {
@@ -225,6 +227,8 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
                   <dt className="text-(--color-text-tertiary)">Records synced (last run)</dt>
                   <dd className="font-medium text-(--color-text-primary)">
                     {counts.patients ?? 0} patients · {counts.appointments ?? 0} appts · {counts.invoices ?? 0} invoices
+                    {(counts.payments ?? 0) > 0 ? ` · ${counts.payments} payments` : ""}
+                    {(counts.accounts ?? 0) > 0 ? ` · ${counts.accounts} accounts` : ""}
                   </dd>
                 </div>
               )}

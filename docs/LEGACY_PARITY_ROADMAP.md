@@ -137,7 +137,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 | Connection test / debug | Pay dentists page, Plans implicit | No UI | ❌ |
 | Scheduled sync | Flow (frequent), Plans (daily), Pay (none) | Shell daily 03:00 only | 🟡 |
 | Module-specific sync jobs | Each app had own logic | One generic mirror | ❌ |
-| Payments from Dentally | Flow used `/payments` | Not synced | ❌ |
+| Payments from Dentally | Flow used `/payments` | Synced to `dentally_payments` (B.1) | ✅ |
 | Payment plans from Dentally | Plans required for import | Not synced | ❌ |
 | Google Sheets (Flow pipeline, Pay logs) | Primary or secondary store | Not integrated | ❌ (Flow migrated to DB; Pay needs decision) |
 | Settings: Dentally config UI | Flow, Pay (site ID, therapists) | Signup step only | ❌ |
@@ -1361,8 +1361,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 
 | Step | Legacy reference (📖) | New ELIO target (✏️) | Notes |
 |------|----------------------|----------------------|-------|
-| B.1 Payments sync | `ElioFlow/pages/api/manual-sync.ts`, `ElioFlow/lib/dentally.ts` | `elio/packages/dentally/src/sync.ts` | Flow deposit/conversion depends on this |
-| B.2 Accounts sync | `ElioFlow/pages/api/sync.ts` (`planned_private_treatment_value`) | `elio/packages/dentally/src/sync.ts` | Plan value on consult |
+| B.1 Payments sync | `ElioFlow/pages/api/manual-sync.ts`, `ElioFlow/lib/dentally.ts` | `elio/packages/dentally/src/sync.ts` + `DentallyPayment` model | **Shipped** |
+| B.2 Accounts sync | `ElioFlow/pages/api/sync.ts` (`planned_private_treatment_value`) | `elio/packages/dentally/src/sync.ts` + `DentallyAccount` | **Shipped** |
 | B.3 Payment plans sync | `ElioPlans/src/lib/dentally-sync.ts` | `elio/packages/dentally/plans-sync.ts` (to create) | For Plans mapping |
 | B.4 Site ID filter | `ElioPay/aurapay/src/app/api/dentally/route.ts` | `elio/packages/dentally/src/client.ts` | `DENTALLY_SITE_ID` |
 
@@ -1372,21 +1372,21 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 
 | Step | Legacy reference (📖) | New ELIO target (✏️) | Notes |
 |------|----------------------|----------------------|-------|
-| F1.1 Cosmetic consult import | `ElioFlow/pages/api/sync.ts` (reason filter, dedupe), `lib/sheets.ts` | `elio/apps/flow/lib/flow-service.ts`, new Inngest step | Filter: "Cosmetic Consultation" |
-| F1.2 Payment sync | `ElioFlow/pages/api/manual-sync.ts` | `elio/apps/flow/app/api/sync/payment/route.ts` (to create) | Updates `totalPaidPence`, `hasDeposit` |
-| F1.3 Plan value sync | `ElioFlow/pages/api/sync.ts` | `elio/apps/flow/lib/flow-service.ts` | `quotePence` from account |
-| F1.4 Treatment booked | `ElioFlow/pages/api/manual-sync.ts` | `elio/apps/flow/lib/flow-service.ts` | Future appointments |
-| F1.5 Preserve manual fields | `ElioFlow/pages/api/sync.ts`, `manual-sync.ts` | `elio/apps/flow/lib/flow-service.ts` | status, notes, practitioner, override |
+| F1.1 Cosmetic consult import | `ElioFlow/pages/api/sync.ts` (reason filter, dedupe), `lib/sheets.ts` | `importCosmeticConsultsFromDentally` + post-sync hook | **Shipped** |
+| F1.2 Payment sync | `ElioFlow/pages/api/manual-sync.ts` | `elio/apps/flow/lib/flow-service.ts` → `syncConsultFinancials` | **Shipped** — uses B.1 `dentally_payments` |
+| F1.3 Plan value sync | `ElioFlow/pages/api/sync.ts` | `syncConsultFinancials` (respects `quotePenceOverride`) | **Shipped** |
+| F1.4 Treatment booked | `ElioFlow/pages/api/manual-sync.ts` | `syncConsultFinancials` (future appts) | **Shipped** |
+| F1.5 Preserve manual fields | `ElioFlow/pages/api/sync.ts`, `manual-sync.ts` | `importCosmeticConsultsFromDentally` | **Shipped** |
 | F1.6 Flow cron | `ElioFlow/vercel.json` (`*/10 6-8 * * *`) | Inngest step after central sync OR `elio/apps/flow/vercel.json` | Optional morning batch |
 | F1.7 Manual sync API | `ElioFlow/pages/api/run-sync.ts`, `run-manual-sync.ts` | `elio/apps/flow/app/api/sync/route.ts` (to create) | Full + payment-only modes |
 | F1.8 `bookedBy` field | `ElioFlow/pages/api/sync.ts` (`user_name`), `lib/sheets.ts` col P | `elio/packages/db/prisma/schema.prisma` → `Consult.bookedBy` | Migration required |
 | F1.9 Touch points display | `ElioFlow/pages/index.tsx` (touchPoints column) | `elio/apps/flow/` — count `Reminder` where `sentAt != null` | Design change — see executive summary |
 | F1.10 `practitionerEdited` | `ElioFlow/pages/api/manual-sync.ts` (keep practitioner) | `Consult.practitionerEdited` + sync guard | Migration required |
-| F2.1 Dashboard route | `ElioFlow/pages/index.tsx` | `elio/apps/flow/app/dashboard/page.tsx` (to create) | Default landing |
-| F2.2 Header toolbar | `ElioFlow/pages/index.tsx` (date presets, dentist filter, Sync) | Same dashboard page | Use `@elio/ui` |
-| F2.3 Eight stat cards | `ElioFlow/pages/index.tsx`, `pages/api/pipeline.ts` | `elio/apps/flow/lib/flow-service.ts` | Exact metric formulas in §1.1 |
-| F2.4 Last synced banner | `ElioFlow/pages/index.tsx` | Dashboard component | From Phase A.3 |
-| F2.5 Table view | `ElioFlow/pages/index.tsx` (table + filters) | Dashboard tab "Table" | 12 columns — see §1.1 |
+| F2.1 Dashboard route | `ElioFlow/pages/index.tsx` | `elio/apps/flow/app/dashboard/page.tsx` | **Shipped** — default landing |
+| F2.2 Header toolbar | `ElioFlow/pages/index.tsx` | `dashboard-client.tsx` | **Shipped** — date presets, dentist filter, refresh, import |
+| F2.3 Eight stat cards | `ElioFlow/pages/index.tsx`, `pages/api/pipeline.ts` | `getFlowDashboard` | **Shipped** |
+| F2.4 Last synced banner | `ElioFlow/pages/index.tsx` | Portal sync banner (Phase A) | **Shipped** — link to Integrations |
+| F2.5 Table view | `ElioFlow/pages/index.tsx` (table + filters) | `dashboard-client.tsx` | **Shipped** — core columns + status chips |
 | F2.6 Charts view | `ElioFlow/pages/index.tsx` (charts section) | Dashboard tab "Charts" | 6 charts |
 | F2.7 Export CSV | `ElioFlow/pages/index.tsx` (`exportCSV`) | `elio/apps/flow/app/api/export/route.ts` or client CSV | |
 | F2.8 Edit modal | `ElioFlow/pages/index.tsx` (edit modal), `pages/api/status.ts` | Consult drawer + `PATCH /flow/api/consults/[id]` | Status mapping §1.3 |
