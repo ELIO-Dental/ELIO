@@ -154,6 +154,10 @@ test("full pay-period flow: create dentist, run period, review, calculate, lock,
   const payslip = await prisma.payslipEntry.findFirstOrThrow({ where: { payPeriodId, dentistId } });
   expect(payslip.finalPayPence).not.toBeNull();
 
+  // 7b. Per-dentist accordion expands to show figures (Y2.3).
+  await page.getByTestId(`payslip-accordion-toggle-${payslip.id}`).click();
+  await expect(page.getByRole("cell", { name: "Final pay" })).toBeVisible();
+
   // 8. Finalize the pay period from the header (Y2.1).
   await page.getByTestId("finalize-period").click();
   await expect(page.getByText("This period is locked")).toBeVisible({ timeout: 15_000 });

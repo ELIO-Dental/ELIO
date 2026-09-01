@@ -10,15 +10,7 @@ import {
   EmptyState,
   PageContent,
   PageHeader,
-  Table,
-  TableBody,
-  TableCell,
-  TableCellMoney,
-  TableHead,
-  TableHeader,
   TablePanel,
-  TableRow,
-  formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { redirectToLogin } from "@/lib/session";
 import { CompassUploadForm } from "./compass-upload-form";
@@ -28,26 +20,8 @@ import { PeriodActionAlerts } from "./period-action-alerts";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
 import { FetchResultsBanner } from "./fetch-results-banner";
-import { DentistFetchDetails } from "./dentist-fetch-details";
-
-function asAnalytics(value: unknown): {
-  totalChairMins?: number;
-  totalPatients?: number;
-  grossPerHour?: number;
-  netPerHour?: number;
-  avgAppointmentMins?: number;
-  utilizationPercent?: number;
-} | null {
-  if (!value || typeof value !== "object") return null;
-  return value as {
-    totalChairMins?: number;
-    totalPatients?: number;
-    grossPerHour?: number;
-    netPerHour?: number;
-    avgAppointmentMins?: number;
-    utilizationPercent?: number;
-  };
-}
+import { PayslipAccordion, PayslipAccordionItem } from "./payslip-accordion";
+import { PayslipEntryBody } from "./payslip-entry-body";
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -160,120 +134,42 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
               <EmptyState title="No payslips calculated yet" description="Run the calculation above once Compass data is loaded." className="py-12" />
             </TablePanel>
           ) : (
-            <div className="mt-4 flex flex-col gap-6">
-              {payPeriod.payslipEntries.map((p) => (
-                <Card key={p.id}>
-                  <CardHeader>
-                    <CardTitle>{p.dentist.name}</CardTitle>
-                    <div className="flex items-center gap-4">
-                      <span className="text-money font-semibold tabular-nums">{formatMoneyGBPOrDash(p.finalPayPence)}</span>
-                      <a
-                        href={`/pay/api/payslips/${p.id}/pdf`}
-                        className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
-                      >
-                        Download PDF
-                      </a>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <TablePanel>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Figure</TableHead>
-                            <TableHead className="text-right">Value</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {p.payType === "PERCENTAGE_SPLIT" ? (
-                            <>
-                              <TableRow>
-                                <TableCell>UDAs</TableCell>
-                                <TableCellMoney>{p.udas?.toString() ?? "—"}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>UDA rate</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.udaRatePence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>NHS earnings</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.nhsEarningsPence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Gross private revenue</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.grossPrivateRevenuePence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Private split %</TableCell>
-                                <TableCellMoney>{p.privateSplitPercent?.toString() ?? "—"}%</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Private earnings</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.privateEarningsPence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Consultation exclusions</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.consultationExclusionsPence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Lab deduction</TableCell>
-                                <TableCellMoney>-{formatMoneyGBPOrDash(p.labDeductionPence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Superannuation</TableCell>
-                                <TableCellMoney>-{formatMoneyGBPOrDash(p.superannuationPence)}</TableCellMoney>
-                              </TableRow>
-                              {p.therapyMinutes != null && Number(p.therapyMinutes) > 0 ? (
-                                <TableRow>
-                                  <TableCell>
-                                    Therapy ({Number(p.therapyMinutes)} mins
-                                    {p.therapyRatePerMinute != null
-                                      ? ` @ £${Number(p.therapyRatePerMinute).toFixed(4)}/min`
-                                      : ""}
-                                    )
-                                  </TableCell>
-                                  <TableCellMoney>
-                                    -
-                                    {formatMoneyGBPOrDash(
-                                      Math.round(
-                                        Number(p.therapyMinutes) * Number(p.therapyRatePerMinute ?? 0) * 100
-                                      )
-                                    )}
-                                  </TableCellMoney>
-                                </TableRow>
-                              ) : null}
-                            </>
-                          ) : (
-                            <>
-                              <TableRow>
-                                <TableCell>Hours worked</TableCell>
-                                <TableCellMoney>{p.hoursWorked?.toString() ?? "—"}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Hourly rate</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.hourlyRatePence)}</TableCellMoney>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Hourly earnings</TableCell>
-                                <TableCellMoney>{formatMoneyGBPOrDash(p.hourlyEarningsPence)}</TableCellMoney>
-                              </TableRow>
-                            </>
-                          )}
-                          <TableRow>
-                            <TableCell>Adjustments</TableCell>
-                            <TableCellMoney>{formatMoneyGBPOrDash(p.manualAdjustmentsPence)}</TableCellMoney>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-semibold">Final pay</TableCell>
-                            <TableCellMoney className="font-semibold">{formatMoneyGBPOrDash(p.finalPayPence)}</TableCellMoney>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </TablePanel>
-                    <DentistFetchDetails
-                      analytics={asAnalytics(p.dentallyAnalyticsJson)}
+            <PayslipAccordion className="mt-4">
+              {payPeriod.payslipEntries.map((p) => {
+                const isNhs = Boolean(p.dentist.nhsPerformerNumber) || (p.nhsEarningsPence ?? 0) > 0;
+                return (
+                  <PayslipAccordionItem
+                    key={p.id}
+                    header={{
+                      id: p.id,
+                      dentistName: p.dentist.name,
+                      privateSplitPercent: p.privateSplitPercent?.toString() ?? null,
+                      isNhs,
+                      patientCount: p.privateRevenueLineItems.length,
+                      finalPayPence: p.finalPayPence,
+                      pdfHref: `/pay/api/payslips/${p.id}/pdf`,
+                    }}
+                  >
+                    <PayslipEntryBody
+                      payType={p.payType}
+                      udas={p.udas}
+                      udaRatePence={p.udaRatePence}
+                      nhsEarningsPence={p.nhsEarningsPence}
+                      grossPrivateRevenuePence={p.grossPrivateRevenuePence}
+                      privateSplitPercent={p.privateSplitPercent}
+                      privateEarningsPence={p.privateEarningsPence}
+                      consultationExclusionsPence={p.consultationExclusionsPence}
+                      labDeductionPence={p.labDeductionPence}
+                      superannuationPence={p.superannuationPence}
                       therapyMinutes={p.therapyMinutes != null ? Number(p.therapyMinutes) : null}
-                      lines={p.privateRevenueLineItems.map((line) => ({
+                      therapyRatePerMinute={p.therapyRatePerMinute != null ? Number(p.therapyRatePerMinute) : null}
+                      hoursWorked={p.hoursWorked}
+                      hourlyRatePence={p.hourlyRatePence}
+                      hourlyEarningsPence={p.hourlyEarningsPence}
+                      manualAdjustmentsPence={p.manualAdjustmentsPence}
+                      finalPayPence={p.finalPayPence}
+                      dentallyAnalyticsJson={p.dentallyAnalyticsJson}
+                      privateRevenueLineItems={p.privateRevenueLineItems.map((line) => ({
                         id: line.id,
                         patientName: line.patientName,
                         invoiceDate: line.invoiceDate,
@@ -288,10 +184,10 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         treatmentDescription: line.treatmentDescription,
                       }))}
                     />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </PayslipAccordionItem>
+                );
+              })}
+            </PayslipAccordion>
           )}
         </section>
       </div>
