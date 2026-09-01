@@ -394,8 +394,8 @@ Quote, deposit, treatment booked, practitioner, notes, outcome, link Dentally ap
 | F1.4 | **Treatment booked detection** | Future non-consultation appointments → `treatmentBooked` |
 | F1.5 | **Preserve manual fields on re-import** | Same rules as legacy: don’t overwrite status, notes, practitioner if edited, touchPoints, elioCare, quote override |
 | F1.6 | **Flow-specific cron or Inngest step** | Optional: morning batch like legacy (`*/10 6-8`) OR run after central sync |
-| F1.7 | **Manual sync API** | `POST /flow/api/sync/dentally` — full + payment-only modes; auth + audit log | **Shipped** — route + dashboard Sync payments + audit log |
-| F1.8 | **Add `bookedBy` to Consult** (optional string) + populate from Dentally appointment `user_name` | Table column parity |
+| F1.7 | **Manual sync API** | `POST /flow/api/sync/dentally` — full + payment-only modes; auth + audit log | **Shipped** — API + dashboard Full sync / Sync payments + E2E |
+| F1.8 | **Add `bookedBy` to Consult** (optional string) + populate from Dentally appointment `user_name` | Table column parity | **Shipped** — schema + sync + dashboard column |
 | F1.9 | **Touch points** — add `touchPointCount` on Consult OR surface `LegacyFlowTouchPointArchive` with edit UI | Legacy counter restored |
 | F1.10 | **`practitionerEdited` flag** — skip practitioner overwrite on sync when true | Match legacy Sheets column L behaviour |
 
@@ -1378,8 +1378,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F1.4 Treatment booked | `ElioFlow/pages/api/manual-sync.ts` | `syncConsultFinancials` (future appts) | **Shipped** |
 | F1.5 Preserve manual fields | `ElioFlow/pages/api/sync.ts`, `manual-sync.ts` | `importCosmeticConsultsFromDentally` | **Shipped** |
 | F1.6 Flow cron | `ElioFlow/vercel.json` (`*/10 6-8 * * *`) | Inngest step after central sync OR `elio/apps/flow/vercel.json` | Optional morning batch |
-| F1.7 Manual sync API | `ElioFlow/pages/api/run-sync.ts`, `run-manual-sync.ts` | `elio/apps/flow/app/api/sync/dentally/route.ts` | **Shipped** — full (202) + payments modes |
-| F1.8 `bookedBy` field | `ElioFlow/pages/api/sync.ts` (`user_name`), `lib/sheets.ts` col P | `elio/packages/db/prisma/schema.prisma` → `Consult.bookedBy` | Migration required |
+| F1.7 Manual sync API | `ElioFlow/pages/api/run-sync.ts`, `run-manual-sync.ts` | `elio/apps/flow/app/api/sync/dentally/route.ts` | **Shipped** — full (202) + payments + dashboard buttons + E2E |
+| F1.8 `bookedBy` field | `ElioFlow/pages/api/sync.ts` (`user_name`), `lib/sheets.ts` col P | `Consult.bookedBy` + `Appointment.bookedByName` + dashboard column | **Shipped** |
 | F1.9 Touch points display | `ElioFlow/pages/index.tsx` (touchPoints column) | `elio/apps/flow/` — count `Reminder` where `sentAt != null` | Design change — see executive summary |
 | F1.10 `practitionerEdited` | `ElioFlow/pages/api/manual-sync.ts` (keep practitioner) | `Consult.practitionerEdited` + sync guard | Migration required |
 | F2.1 Dashboard route | `ElioFlow/pages/index.tsx` | `elio/apps/flow/app/dashboard/page.tsx` | **Shipped** — default landing |

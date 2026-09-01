@@ -134,6 +134,7 @@ function exportRowsCsv(rows: FlowDashboardRow[]) {
     "Phone",
     "Email",
     "Dentist",
+    "Booked by",
     "Consultation Date",
     "Plan Value",
     "Paid",
@@ -147,6 +148,7 @@ function exportRowsCsv(rows: FlowDashboardRow[]) {
     r.patientPhone ?? "",
     r.patientEmail ?? "",
     r.dentistName,
+    r.bookedBy ?? "",
     r.consultationDate ?? "",
     (r.planValuePence / 100).toFixed(2),
     (r.totalPaidPence / 100).toFixed(2),
@@ -176,6 +178,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const [syncingPayments, setSyncingPayments] = React.useState(false);
+  const [syncingFull, setSyncingFull] = React.useState(false);
   const [view, setView] = React.useState<"table" | "charts">("table");
   const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
   const [detailRow, setDetailRow] = React.useState<FlowDashboardRow | null>(null);
@@ -239,6 +242,32 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       });
     } finally {
       setSyncingPayments(false);
+    }
+  }
+
+  async function syncFullFromDentally() {
+    setSyncingFull(true);
+    try {
+      const res = await fetch("/flow/api/sync/dentally", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "full" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 202) {
+        toast.success("Full sync started", {
+          description: body.message ?? "Check Portal Integrations for progress.",
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(body.error ?? "Full sync failed");
+      toast.success("Full sync started");
+    } catch (err) {
+      toast.error("Full sync failed", {
+        description: err instanceof Error ? err.message : "Check Portal Integrations settings.",
+      });
+    } finally {
+      setSyncingFull(false);
     }
   }
 
@@ -318,11 +347,14 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         <Button variant="secondary" loading={syncingPayments} onClick={syncPaymentsFromDentally} data-testid="flow-sync-payments">
           Sync payments
         </Button>
+        <Button variant="secondary" loading={syncingFull} onClick={syncFullFromDentally} data-testid="flow-sync-full">
+          Full sync
+        </Button>
         <a
           href="/settings/integrations"
           className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
         >
-          Full sync (Portal)
+          Sync status (Portal)
         </a>
       </div>
 
@@ -418,6 +450,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                   <TableRow>
                     <TableHead>Patient</TableHead>
                     <TableHead>Dentist</TableHead>
+                    <TableHead>Booked by</TableHead>
                     <TableHead>Touchpoints</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Consult date</TableHead>
@@ -445,6 +478,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                         ) : null}
                       </TableCell>
                       <TableCell>{row.dentistName}</TableCell>
+                      <TableCell>{row.bookedBy ?? "—"}</TableCell>
                       <TableCell>{row.touchPoints}</TableCell>
                       <TableCell>{row.planSignedUp ? <Badge variant="success">Signed up</Badge> : "—"}</TableCell>
                       <TableCell>{row.consultationDate ?? "—"}</TableCell>
