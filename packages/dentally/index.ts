@@ -34,7 +34,7 @@ export {
   parseFlowSettingsJson,
   type FlowSettings,
 } from "./src/flow-settings";
-export { getFlowSettings, saveFlowSettings } from "./src/flow-settings-service";
+export { getFlowSettings, getFlowBranding, saveFlowSettings } from "./src/flow-settings-service";
 export {
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,

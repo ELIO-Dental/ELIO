@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { isModuleLicensed } from "@elio/auth";
+import { getFlowBranding } from "@elio/dentally";
 import { requireSession, redirectToLauncher } from "@/lib/session";
 import { ShellLayout } from "@/components/shell-layout";
 
@@ -50,6 +51,8 @@ export default async function RootLayout({
     );
   }
 
+  const branding = await getFlowBranding(session.practiceId);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
@@ -57,7 +60,11 @@ export default async function RootLayout({
         <ThemeProvider>
           <PwaProvider config={pwa}>
           <NavigationProgress />
-          <ShellLayout userEmail={session.user?.email ?? undefined}>
+          <ShellLayout
+            userEmail={session.user?.email ?? undefined}
+            brandTitle={branding.brandTitle}
+            brandLogoUrl={branding.logoUrl}
+          >
             <PageTransition>{children}</PageTransition>
           </ShellLayout>
           <Toaster />

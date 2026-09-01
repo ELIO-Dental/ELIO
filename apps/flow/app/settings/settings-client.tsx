@@ -38,6 +38,8 @@ export function FlowSettingsClient({
           cosmeticConsultReason: settings.cosmeticConsultReason,
           depositThresholdPence: Number(settings.depositThresholdPence),
           paidConversionThresholdPence: Number(settings.paidConversionThresholdPence),
+          appDisplayName: settings.appDisplayName,
+          logoUrl: settings.logoUrl,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -57,10 +59,44 @@ export function FlowSettingsClient({
     <PageContent width="md">
       <PageHeader
         title="Settings"
-        description="Configure Flow pipeline rules — plan name, cosmetic consult import filter, and conversion thresholds."
+        description="Configure Flow pipeline rules — branding, plan name, cosmetic consult import filter, and conversion thresholds."
       />
 
       <form className="mt-8 space-y-6" onSubmit={save} data-testid="flow-settings-form">
+        <Card>
+          <CardHeader>
+            <CardTitle>Branding</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="appDisplayName">App display name</Label>
+              <Input
+                id="appDisplayName"
+                value={settings.appDisplayName}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, appDisplayName: e.target.value }))}
+                placeholder="Leave blank to use practice name"
+              />
+              <p className="mt-1 text-caption text-(--color-text-tertiary)">
+                Shown in the Flow sidebar header (legacy ElioFlow app name).
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="logoUrl">Logo URL</Label>
+              <Input
+                id="logoUrl"
+                value={settings.logoUrl}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, logoUrl: e.target.value }))}
+                placeholder="https://example.com/logo.png"
+              />
+              <p className="mt-1 text-caption text-(--color-text-tertiary)">
+                Optional image URL for the sidebar logo. Reload the page after saving to see it.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Plan & import</CardTitle>

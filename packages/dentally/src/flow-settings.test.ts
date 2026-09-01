@@ -8,6 +8,8 @@ describe("parseFlowSettingsJson", () => {
       cosmeticConsultReason: "cosmetic consultation",
       depositThresholdPence: 5000,
       paidConversionThresholdPence: 45000,
+      appDisplayName: "",
+      logoUrl: "",
     });
   });
 
@@ -16,11 +18,15 @@ describe("parseFlowSettingsJson", () => {
       parseFlowSettingsJson({
         planDisplayName: "ElioCare",
         depositThresholdPence: 7500,
+        appDisplayName: "Aura Flow",
+        logoUrl: "https://cdn.example/logo.png",
       })
     ).toMatchObject({
       planDisplayName: "ElioCare",
       depositThresholdPence: 7500,
       paidConversionThresholdPence: 45000,
+      appDisplayName: "Aura Flow",
+      logoUrl: "https://cdn.example/logo.png",
     });
   });
 });

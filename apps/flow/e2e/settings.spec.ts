@@ -14,6 +14,7 @@ test("flow settings page loads and shows defaults", async ({ page }) => {
   await expect(page.getByTestId("flow-settings-form")).toBeVisible();
   await expect(page.getByLabel("Plan display name")).toHaveValue("AuraCare");
   await expect(page.getByLabel("Cosmetic consult reason filter")).toHaveValue("cosmetic consultation");
+  await expect(page.getByLabel("App display name")).toBeVisible();
 });
 
 test("flow settings save roundtrip", async ({ page }) => {

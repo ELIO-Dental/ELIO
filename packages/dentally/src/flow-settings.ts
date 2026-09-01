@@ -5,6 +5,10 @@ export interface FlowSettings {
   cosmeticConsultReason: string;
   depositThresholdPence: number;
   paidConversionThresholdPence: number;
+  /** F3.3 — sidebar/header title (legacy appName). Falls back to practice name. */
+  appDisplayName: string;
+  /** F3.3 — optional logo URL shown in Flow sidebar (legacy logoUrl). */
+  logoUrl: string;
 }
 
 export const DEFAULT_FLOW_SETTINGS: FlowSettings = {
@@ -12,6 +16,8 @@ export const DEFAULT_FLOW_SETTINGS: FlowSettings = {
   cosmeticConsultReason: "cosmetic consultation",
   depositThresholdPence: 5000,
   paidConversionThresholdPence: 45_000,
+  appDisplayName: "",
+  logoUrl: "",
 };
 
 export function parseFlowSettingsJson(raw: unknown): FlowSettings {
@@ -31,6 +37,8 @@ export function parseFlowSettingsJson(raw: unknown): FlowSettings {
       row.paidConversionThresholdPence,
       DEFAULT_FLOW_SETTINGS.paidConversionThresholdPence
     ),
+    appDisplayName: typeof row.appDisplayName === "string" ? row.appDisplayName.trim() : "",
+    logoUrl: typeof row.logoUrl === "string" ? row.logoUrl.trim() : "",
   };
 }
 
@@ -58,6 +66,8 @@ export function mergeFlowSettingsInput(
       current.paidConversionThresholdPence
     );
   }
+  if (typeof input.appDisplayName === "string") next.appDisplayName = input.appDisplayName.trim();
+  if (typeof input.logoUrl === "string") next.logoUrl = input.logoUrl.trim();
   return next;
 }
 

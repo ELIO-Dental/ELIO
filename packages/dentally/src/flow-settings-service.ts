@@ -14,6 +14,20 @@ export async function getFlowSettings(practiceId: string): Promise<FlowSettings>
   return parseFlowSettingsJson(practice.flowSettingsJson);
 }
 
+/** F3.3 — header branding for Flow shell (legacy appName + logoUrl, practice name fallback). */
+export async function getFlowBranding(practiceId: string): Promise<{ brandTitle: string; logoUrl?: string }> {
+  const practice = await prisma.practice.findUniqueOrThrow({
+    where: { id: practiceId },
+    select: { name: true, flowSettingsJson: true },
+  });
+  const settings = parseFlowSettingsJson(practice.flowSettingsJson);
+  const brandTitle = settings.appDisplayName || practice.name.trim() || "ELIO FLOW";
+  return {
+    brandTitle,
+    logoUrl: settings.logoUrl || undefined,
+  };
+}
+
 export async function saveFlowSettings(
   practiceId: string,
   input: Record<string, unknown>
