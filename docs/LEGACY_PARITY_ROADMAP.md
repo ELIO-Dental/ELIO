@@ -659,7 +659,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Step | Task | Details |
 |------|------|---------|
 | P4.1 | **Plans: full edit** | Inclusions, discounts, eligibility rules, GC link, active toggle, delete guard | **Shipped** |
-| P4.2 | **Plan price increase flow** | Uses `parentPlanId` versioning + email members |
+| P4.2 | **Plan price increase flow** | Uses `parentPlanId` versioning + email members | **Shipped** |
 | P4.3 | **Documents: create/edit/seed T&C** | |
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys |
 | P4.5 | **Guide section** | Help articles (optional if content in migrated DB) |
@@ -1439,7 +1439,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P3.4 Reports tabs | `ElioPlans/.../reports/page.tsx`, `api/reports/route.ts` | `reports-service.ts` + tabbed UI + CSV export | **Shipped** |
 | P3.5 Payment schedule card | `ElioPlans/.../dashboard/page.tsx` | `payment-schedule-card.tsx` | **Shipped** |
 | P4.1 Plan edit | `ElioPlans/.../plans/page.tsx`, `api/plans/[id]/route.ts` | `plans-manager.tsx` + `api/plans/[id]` | **Shipped** |
-| P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `elio/apps/plans/app/api/plans/[id]/price-increase/route.ts` | Uses `parentPlanId` |
+| P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `api/plans/[id]/price-increase` + versioned plan | **Shipped** |
 | P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `elio/apps/plans/app/documents/` (extend) | |
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `elio/apps/plans/app/settings/page.tsx` | Part 15 keys |
 | P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `elio/apps/plans/app/guide/` (to create) | Optional |

@@ -260,6 +260,123 @@ export async function deletePlan(practiceId: string, planId: string) {
   await db.planModel.delete({ where: { id: planId } });
 }
 
+/** Price increase: create a new plan version, migrate active enrolments, notify patients (P4.2). */
+export async function increasePlanPrice(
+  practiceId: string,
+  planId: string,
+  input: { newMonthlyPricePence: number; effectiveDate?: string },
+) {
+  const db = scopedDb(practiceId);
+  const plan = await db.planModel.findFirst({
+    where: { id: planId, isCurrentVersion: true },
+    include: PLAN_DETAIL_INCLUDE,
+  });
+  if (!plan) throw new Error("Plan not found");
+
+  if (input.newMonthlyPricePence <= 0) throw new Error("Valid new price is required");
+  if (input.newMonthlyPricePence === plan.monthlyPricePence) {
+    throw new Error("New price is the same as the current price");
+  }
+
+  const activeEnrolments = await db.patientPlanEnrolment.findMany({
+    where: { planId, status: "ACTIVE" },
+    include: {
+      planPatient: { include: { patient: true, mandates: { where: { status: "ACTIVE" }, take: 1 } } },
+    },
+  });
+
+  const newVersion = plan.version + 1;
+  const newPlan = await db.$transaction(async (tx) => {
+    await tx.planModel.update({
+      where: { id: planId },
+      data: { isCurrentVersion: false, active: false },
+    });
+
+    const created = await tx.planModel.create({
+      data: {
+        practiceId,
+        name: plan.name,
+        monthlyPricePence: input.newMonthlyPricePence,
+        description: plan.description,
+        publicDescription: plan.publicDescription,
+        requiresAdultMembership: plan.requiresAdultMembership,
+        dentistPayoutPerExamPence: plan.dentistPayoutPerExamPence,
+        eligibilityDentalFit: plan.eligibilityDentalFit,
+        gocardlessLink: plan.gocardlessLink,
+        active: true,
+        sortOrder: plan.sortOrder,
+        version: newVersion,
+        parentPlanId: plan.parentPlanId ?? planId,
+        isCurrentVersion: true,
+        inclusions: {
+          create: plan.inclusions.map((inc) => ({
+            practiceId,
+            name: inc.name,
+            itemType: inc.itemType,
+            quantity: inc.quantity,
+            period: inc.period,
+            description: inc.description,
+            sortOrder: inc.sortOrder,
+          })),
+        },
+        discounts: {
+          create: plan.discounts.map((disc) => ({
+            practiceId,
+            name: disc.name,
+            percentage: disc.percentage,
+            applicableTo: disc.applicableTo,
+            excludes: disc.excludes,
+            description: disc.description,
+            sortOrder: disc.sortOrder,
+          })),
+        },
+        eligibilityRules: {
+          create: plan.eligibilityRules.map((rule) => ({
+            practiceId,
+            ruleType: rule.ruleType,
+            ruleValue: rule.ruleValue,
+            description: rule.description,
+            active: rule.active,
+            sortOrder: rule.sortOrder,
+          })),
+        },
+      },
+    });
+
+    if (activeEnrolments.length > 0) {
+      await tx.patientPlanEnrolment.updateMany({
+        where: { id: { in: activeEnrolments.map((e) => e.id) } },
+        data: { planId: created.id },
+      });
+      await tx.planPatient.updateMany({
+        where: { id: { in: activeEnrolments.map((e) => e.planPatientId) } },
+        data: { planModelId: created.id },
+      });
+    }
+
+    await tx.dentallyPlanMapping.updateMany({
+      where: { planModelId: planId },
+      data: { planModelId: created.id },
+    });
+
+    return created;
+  });
+
+  return {
+    oldPlanId: planId,
+    newPlanId: newPlan.id,
+    oldMonthlyPricePence: plan.monthlyPricePence,
+    newMonthlyPricePence: input.newMonthlyPricePence,
+    totalPatients: activeEnrolments.length,
+    effectiveDate: input.effectiveDate ?? new Date().toLocaleDateString("en-GB"),
+    patients: activeEnrolments.map((e) => ({
+      email: e.planPatient.patient.email,
+      firstName: e.planPatient.patient.firstName,
+      lastName: e.planPatient.patient.lastName,
+    })),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Patient enrolment
 // ---------------------------------------------------------------------------

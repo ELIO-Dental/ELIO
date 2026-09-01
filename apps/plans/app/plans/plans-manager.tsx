@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, TrendingUp, X } from "lucide-react";
 import {
   Badge,
   Button,
@@ -67,6 +67,7 @@ export type PlanRow = {
   discounts: PlanDiscount[];
   eligibilityRules: PlanEligibilityRule[];
   memberCount: number;
+  activeMemberCount: number;
 };
 
 const EMPTY_FORM = {
@@ -113,12 +114,31 @@ function planToForm(plan: PlanRow) {
 }
 
 /** Plans list with create/edit dialog (P4.1). */
-export function PlansManager({ plans, canEdit }: { plans: PlanRow[]; canEdit: boolean }) {
+export function PlansManager({
+  plans,
+  canEdit,
+  canPriceIncrease,
+}: {
+  plans: PlanRow[];
+  canEdit: boolean;
+  canPriceIncrease: boolean;
+}) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState<PlanRow | null>(null);
   const [form, setForm] = React.useState(EMPTY_FORM);
   const [saving, setSaving] = React.useState(false);
+  const [priceDialogOpen, setPriceDialogOpen] = React.useState(false);
+  const [pricePlan, setPricePlan] = React.useState<PlanRow | null>(null);
+  const [newPrice, setNewPrice] = React.useState("");
+  const [effectiveDate, setEffectiveDate] = React.useState("");
+  const [priceProcessing, setPriceProcessing] = React.useState(false);
+  const [priceResult, setPriceResult] = React.useState<{
+    message: string;
+    totalPatients: number;
+    emailsSent: number;
+    errors: string[];
+  } | null>(null);
 
   function openCreate() {
     setEditingPlan(null);
@@ -189,6 +209,55 @@ export function PlansManager({ plans, canEdit }: { plans: PlanRow[]; canEdit: bo
     router.refresh();
   }
 
+  function openPriceIncrease(plan: PlanRow) {
+    setPricePlan(plan);
+    setNewPrice((plan.monthlyPricePence / 100).toFixed(2));
+    setEffectiveDate("");
+    setPriceResult(null);
+    setPriceDialogOpen(true);
+  }
+
+  async function handlePriceIncrease() {
+    if (!pricePlan || !newPrice) return;
+    const priceNum = parseFloat(newPrice);
+    if (Number.isNaN(priceNum) || priceNum <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+    if (
+      !confirm(
+        `Update ${pricePlan.name} to ${formatMoneyGBP(Math.round(priceNum * 100))}/month and email all active members?`,
+      )
+    ) {
+      return;
+    }
+    setPriceProcessing(true);
+    try {
+      const res = await fetch(`/plans/api/plans/${pricePlan.id}/price-increase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newMonthlyPricePence: Math.round(priceNum * 100),
+          effectiveDate: effectiveDate || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to process price increase");
+        return;
+      }
+      setPriceResult({
+        message: data.message,
+        totalPatients: data.totalPatients,
+        emailsSent: data.emailsSent,
+        errors: data.errors ?? [],
+      });
+      router.refresh();
+    } finally {
+      setPriceProcessing(false);
+    }
+  }
+
   return (
     <>
       {canEdit && (
@@ -222,7 +291,7 @@ export function PlansManager({ plans, canEdit }: { plans: PlanRow[]; canEdit: bo
               <TableHead>Discounts</TableHead>
               <TableHead>Members</TableHead>
               <TableHead>Status</TableHead>
-              {canEdit && <TableHead className="text-right">Actions</TableHead>}
+              {(canEdit || canPriceIncrease) && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -246,21 +315,35 @@ export function PlansManager({ plans, canEdit }: { plans: PlanRow[]; canEdit: bo
                 <TableCell>
                   <Badge variant={plan.active ? "success" : "neutral"}>{plan.active ? "Active" : "Inactive"}</Badge>
                 </TableCell>
-                {canEdit && (
+                {(canEdit || canPriceIncrease) && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(plan)} aria-label={`Edit ${plan.name}`}>
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleDelete(plan)}
-                        disabled={plan.memberCount > 0}
-                        aria-label={`Delete ${plan.name}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(plan)} aria-label={`Edit ${plan.name}`}>
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
+                      {canPriceIncrease && plan.active && plan.activeMemberCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openPriceIncrease(plan)}
+                          aria-label={`Price change ${plan.name}`}
+                        >
+                          <TrendingUp className="size-4" />
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDelete(plan)}
+                          disabled={plan.memberCount > 0}
+                          aria-label={`Delete ${plan.name}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 )}
@@ -593,6 +676,70 @@ export function PlansManager({ plans, canEdit }: { plans: PlanRow[]; canEdit: bo
               {editingPlan ? "Update plan" : "Create plan"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust plan price</DialogTitle>
+            <DialogDescription>
+              Change the monthly fee for {pricePlan?.name}. Active members will be emailed and future charges will use
+              the new price.
+            </DialogDescription>
+          </DialogHeader>
+          {priceResult ? (
+            <div className="space-y-4">
+              <p className="text-body-sm text-(--color-text-primary)">{priceResult.message}</p>
+              <ul className="text-body-sm text-(--color-text-secondary)">
+                <li>Patients affected: {priceResult.totalPatients}</li>
+                <li>Emails sent: {priceResult.emailsSent}</li>
+              </ul>
+              {priceResult.errors.length > 0 && (
+                <ul className="text-caption text-(--color-danger)">
+                  {priceResult.errors.map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                </ul>
+              )}
+              <DialogFooter>
+                <Button onClick={() => setPriceDialogOpen(false)}>Done</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="new-price">New monthly price (£)</Label>
+                  <Input
+                    id="new-price"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="effective-date">Effective date (optional)</Label>
+                  <Input
+                    id="effective-date"
+                    type="date"
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setPriceDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => void handlePriceIncrease()} loading={priceProcessing}>
+                  Apply price change
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>

@@ -74,3 +74,38 @@ export async function sendPatientInviteEmail(input: {
     console.log(`[plans] invite email sent to ${input.to}, id=${result.data?.id}`);
   }
 }
+
+export async function sendPriceIncreaseEmail(input: {
+  to: string;
+  patientName: string;
+  planName: string;
+  practiceName: string;
+  oldPriceFormatted: string;
+  newPriceFormatted: string;
+  effectiveDate: string;
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
+  if (!input.to) return false;
+
+  if (!apiKey) {
+    console.warn(`[plans] RESEND_API_KEY not set — price increase email for ${input.to} not sent`);
+    return false;
+  }
+
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `Changes to your ${input.planName} membership — ${input.practiceName}`,
+    html: `<p>Hi ${input.patientName},</p>
+<p>We're writing to let you know that the monthly fee for your <strong>${input.planName}</strong> membership at ${input.practiceName} will change from <strong>${input.oldPriceFormatted}</strong> to <strong>${input.newPriceFormatted}</strong>, effective from <strong>${input.effectiveDate}</strong>.</p>
+<p>Your Direct Debit will be updated automatically — no action is required from you.</p>
+<p>If you have any questions, please contact the practice.</p>`,
+  });
+  if (result.error) {
+    console.error(`[plans] price increase email to ${input.to} failed:`, result.error);
+    return false;
+  }
+  return true;
+}

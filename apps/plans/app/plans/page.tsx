@@ -1,5 +1,6 @@
 import { can, requireLicensedSession } from "@/lib/session";
 import type { Role } from "@elio/db";
+import { prisma } from "@elio/db";
 import { listPlans } from "@/lib/plans-service";
 import {
   PageContent,
@@ -18,9 +19,16 @@ export default async function PlansPage({
 }) {
   const session = await requireLicensedSession();
   const canEdit = can({ role: session.role as Role }, "plans:edit");
+  const canPriceIncrease = can({ role: session.role as Role }, "plans:edit-settings");
   const { page, skip, pageSize } = parseTablePage(await searchParams);
 
   const allPlans = await listPlans(session.practiceId);
+  const activeByPlan = await prisma.patientPlanEnrolment.groupBy({
+    by: ["planId"],
+    where: { practiceId: session.practiceId, status: "ACTIVE" },
+    _count: { _all: true },
+  });
+  const activeMemberMap = new Map(activeByPlan.map((row) => [row.planId, row._count._all]));
   const totalCount = allPlans.length;
   const pagePlans = allPlans.slice(skip, skip + pageSize);
 
@@ -57,6 +65,7 @@ export default async function PlansPage({
       sortOrder: rule.sortOrder,
     })),
     memberCount: p._count.patientPlanEnrolments,
+    activeMemberCount: activeMemberMap.get(p.id) ?? 0,
   }));
 
   return (
@@ -68,7 +77,7 @@ export default async function PlansPage({
           toolbar={<TableToolbar title="Plan models" />}
           footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
         >
-          <PlansManager plans={plans} canEdit={canEdit} />
+          <PlansManager plans={plans} canEdit={canEdit} canPriceIncrease={canPriceIncrease} />
         </TablePanel>
       </div>
     </PageContent>
