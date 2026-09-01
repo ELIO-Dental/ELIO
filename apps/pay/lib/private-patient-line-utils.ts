@@ -72,6 +72,9 @@ export function applyPrivatePatientLineUpdates(line: PrivatePatientLineDraft, up
       line.amountOutstandingPence = line.amountPence;
       line.flagged = true;
       line.flagReason = "Invoice not paid";
+    } else if (updates.paymentStatus === "partial") {
+      line.flagged = true;
+      line.flagReason = "Partial payment";
     }
   }
 

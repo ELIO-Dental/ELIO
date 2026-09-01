@@ -66,6 +66,13 @@ describe("private patient line utils (Y2.1b)", () => {
     expect(line.amountOutstandingPence).toBe(10000);
   });
 
+  it("marks partial rows flagged with reason", () => {
+    const line = baseLine();
+    applyPrivatePatientLineUpdates(line, { paymentStatus: "partial" });
+    expect(line.flagged).toBe(true);
+    expect(line.flagReason).toBe("Partial payment");
+  });
+
   it("clears flag when resolved", () => {
     const line = { ...baseLine(), flagged: true, flagReason: "check" };
     applyPrivatePatientLineUpdates(line, { flagged: false });
