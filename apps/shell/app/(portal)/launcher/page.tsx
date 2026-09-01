@@ -52,7 +52,11 @@ export default async function LauncherPage() {
         errorMessage={dentally.latestRun?.errorMessage ?? null}
         finishedAt={dentally.latestRun?.finishedAt ?? null}
       />
-      <LauncherDashboard displayName={displayName} modules={modules} />
+      <LauncherDashboard
+        displayName={displayName}
+        modules={modules}
+        dentallyConnected={dentally.configured && dentally.connectionStatus === "CONNECTED"}
+      />
     </>
   );
 }

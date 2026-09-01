@@ -18,9 +18,17 @@ test.beforeAll(async () => {
     update: { hashedPassword, practiceId: TEST_PRACTICE_ID, active: true, role: "OWNER" },
     create: { email: TEST_EMAIL, hashedPassword, role: "OWNER", practiceId: TEST_PRACTICE_ID },
   });
+  for (const moduleId of ["PAY", "PLANS", "FLOW"] as const) {
+    await prisma.licence.upsert({
+      where: { practiceId_moduleId: { practiceId: TEST_PRACTICE_ID, moduleId } },
+      update: { active: true },
+      create: { practiceId: TEST_PRACTICE_ID, moduleId, active: true },
+    });
+  }
 });
 
 test.afterAll(async () => {
+  await prisma.licence.deleteMany({ where: { practiceId: TEST_PRACTICE_ID } });
   await prisma.user.deleteMany({ where: { email: TEST_EMAIL } });
   await prisma.practice.deleteMany({ where: { id: TEST_PRACTICE_ID } });
   await prisma.$disconnect();
@@ -62,4 +70,21 @@ test("portal sidebar navigates between settings routes", async ({ page }) => {
   await page.getByRole("link", { name: "Dashboard" }).click();
   await expect(page).toHaveURL(/\/launcher$/);
   await expect(page.getByTestId("launcher-grid")).toBeVisible();
+});
+
+test("launcher shows Dentally connected badge when practice is connected", async ({ page }) => {
+  await prisma.practice.update({
+    where: { id: TEST_PRACTICE_ID },
+    data: { dentallyApiKey: "e2e-test-key", dentallyConnectionStatus: "CONNECTED" },
+  });
+
+  await login(page);
+  await expect(page.getByTestId("dentally-connected-pay")).toBeVisible();
+  await expect(page.getByTestId("dentally-connected-flow")).toBeVisible();
+  await expect(page.getByTestId("dentally-connected-plans")).toBeVisible();
+
+  await prisma.practice.update({
+    where: { id: TEST_PRACTICE_ID },
+    data: { dentallyApiKey: null, dentallyConnectionStatus: "NOT_CONNECTED" },
+  });
 });

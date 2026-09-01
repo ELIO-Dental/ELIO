@@ -74,7 +74,7 @@ function WelcomeBanner({ displayName }: { displayName: string }) {
   );
 }
 
-function ModuleCard({ mod }: { mod: LauncherModule }) {
+function ModuleCard({ mod, dentallyConnected }: { mod: LauncherModule; dentallyConnected: boolean }) {
   const color = getModuleColor(mod.moduleId);
   const letter = mod.name.replace("Elio", "").slice(0, 1);
 
@@ -105,6 +105,11 @@ function ModuleCard({ mod }: { mod: LauncherModule }) {
       </div>
       <h3 className="relative mt-5 text-h3 text-(--color-text-primary)">{mod.name}</h3>
       <p className="relative mt-2 flex-1 text-body-sm leading-relaxed text-(--color-text-secondary)">{mod.description}</p>
+      {mod.licensed && dentallyConnected && (
+        <Badge variant="success" className="relative mt-3 w-fit" data-testid={`dentally-connected-${mod.moduleId}`}>
+          Dentally connected
+        </Badge>
+      )}
       {mod.licensed && mod.trialEndsAt && (
         <Badge variant="warning" className="relative mt-4 w-fit" data-testid={`trial-badge-${mod.moduleId}`}>
           Trial — {daysLeft(mod.trialEndsAt)} day{daysLeft(mod.trialEndsAt) === 1 ? "" : "s"} left
@@ -145,9 +150,11 @@ function ModuleCard({ mod }: { mod: LauncherModule }) {
 export function LauncherDashboard({
   displayName,
   modules,
+  dentallyConnected = false,
 }: {
   displayName: string;
   modules: LauncherModule[];
+  dentallyConnected?: boolean;
 }) {
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8 pb-10 lg:px-10 lg:py-10">
@@ -172,7 +179,7 @@ export function LauncherDashboard({
         <TooltipProvider>
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="launcher-grid">
             {modules.map((mod) => (
-              <ModuleCard key={mod.moduleId} mod={mod} />
+              <ModuleCard key={mod.moduleId} mod={mod} dentallyConnected={dentallyConnected} />
             ))}
           </div>
         </TooltipProvider>
