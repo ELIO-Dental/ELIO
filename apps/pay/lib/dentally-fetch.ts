@@ -98,6 +98,7 @@ export interface DentallyFetchSummaryEntry {
   outstandingPence: number;
   invoiceCount: number;
   financeCount: number;
+  flaggedCount: number;
   chairMins: number;
   grossPerHour: number;
   netPerHour: number;
@@ -730,6 +731,7 @@ export async function fetchDentallyForPayPeriod(
       outstandingPence: parsePence(data.outstanding),
       invoiceCount: data.patients.length,
       financeCount: data.financeCount,
+      flaggedCount: data.patients.filter((p) => p.flagged).length,
       chairMins: analytics.totalChairMins,
       grossPerHour: analytics.grossPerHour,
       netPerHour: analytics.netPerHour,

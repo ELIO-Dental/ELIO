@@ -1,6 +1,7 @@
 "use client";
 
 import { usePayPeriodActions } from "./pay-period-actions-provider";
+import { formatFetchSkippedLine } from "@/lib/fetch-results-format";
 
 function gbp(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`;
@@ -8,9 +9,11 @@ function gbp(pence: number): string {
 
 /** Dismissible Dentally fetch summary at top of period page (legacy Y2.2). */
 export function FetchResultsBanner() {
-  const { locked, fetchResult, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
+  const { fetchResult, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
 
-  if (locked || !fetchResult?.ok || fetchDismissed) return null;
+  if (!fetchResult?.ok || fetchDismissed) return null;
+
+  const skippedLine = fetchResult.debug ? formatFetchSkippedLine(fetchResult.debug) : null;
 
   return (
     <section
@@ -34,6 +37,8 @@ export function FetchResultsBanner() {
       {fetchResult.debug && (
         <div className="mt-3 space-y-1 text-caption text-(--color-text-secondary)">
           <p>
+            Total from API: {fetchResult.debug.totalInvoicesFromApi ?? fetchResult.debug.processedInvoices}
+            {" · "}
             In date range: <span className="font-semibold">{fetchResult.debug.invoicesInDateRange}</span>
             {" · "}
             Processed: {fetchResult.debug.processedInvoices}
@@ -43,6 +48,7 @@ export function FetchResultsBanner() {
             Flagged for review: <span className="font-medium text-(--color-warning)">{fetchResult.debug.flaggedForReview ?? 0}</span>
             {fetchResult.debug.financePayments != null ? ` · Finance: ${fetchResult.debug.financePayments}` : ""}
           </p>
+          {skippedLine ? <p>{skippedLine}</p> : null}
         </div>
       )}
 
@@ -63,6 +69,9 @@ export function FetchResultsBanner() {
                     <span className="text-(--color-danger)">Outstanding: {gbp(stats.outstandingPence)}</span>
                   ) : null}
                   <span>{stats.invoiceCount} patients</span>
+                  {(stats.flaggedCount ?? 0) > 0 ? (
+                    <span className="text-(--color-warning)">{stats.flaggedCount} flagged</span>
+                  ) : null}
                   {(stats.financeCount ?? 0) > 0 ? <span>{stats.financeCount} finance</span> : null}
                   {stats.chairMins != null ? <span>{stats.chairMins} chair mins</span> : null}
                   {stats.grossPerHour != null ? <span>£{stats.grossPerHour}/hr gross</span> : null}
@@ -75,8 +84,8 @@ export function FetchResultsBanner() {
 
       {fetchResult.debug && fetchResult.debug.unmatchedClinicianIds.length > 0 && (
         <p className="mt-3 text-caption text-(--color-warning)">
-          {fetchResult.debug.unmatchedClinicianIds.length} Dentally clinician ID(s) did not match a dentist — set
-          dentallyPractitionerId on dentist records.
+          Unmatched clinician IDs: {fetchResult.debug.unmatchedClinicianIds.join(", ")} — set dentallyPractitionerId on
+          dentist records.
         </p>
       )}
     </section>

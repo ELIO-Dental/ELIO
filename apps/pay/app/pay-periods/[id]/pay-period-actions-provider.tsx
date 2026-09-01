@@ -10,6 +10,7 @@ export interface FetchSummaryEntry {
   outstandingPence?: number;
   invoiceCount: number;
   financeCount?: number;
+  flaggedCount?: number;
   chairMins?: number;
   grossPerHour?: number;
   netPerHour?: number;
@@ -21,11 +22,14 @@ export interface FetchResult {
   message: string;
   summary?: Record<string, FetchSummaryEntry>;
   debug?: {
+    totalInvoicesFromApi?: number;
     invoicesInDateRange: number;
     processedInvoices: number;
     appointmentsFetched?: number;
     financePayments?: number;
     flaggedForReview?: number;
+    skippedNonClinician?: number;
+    skippedNhs?: number;
     unmatchedClinicianIds: string[];
   };
 }
