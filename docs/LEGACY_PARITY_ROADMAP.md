@@ -670,9 +670,9 @@ GoCardless status, redeem approval toggles, reconciliation info, branding upload
 
 | Step | Task |
 |------|------|
-| P5.1 | Configure mappings on staging → Sync → patient count matches legacy |
-| P5.2 | Active Members dashboard = legacy formula |
-| P5.3 | New Dentally plan member appears after sync without manual enrol |
+| P5.1 | Configure mappings on staging → Sync → patient count matches legacy | **Shipped** — `npm run verify:plans-parity` + staging checklist |
+| P5.2 | Active Members dashboard = legacy formula | **Shipped** — `dashboard-stats-formulas` + unit tests |
+| P5.3 | New Dentally plan member appears after sync without manual enrol | **Shipped** — `plans-sync.integration.test.ts` |
 
 ---
 
@@ -1118,7 +1118,7 @@ Items that block parity and are **not** just missing UI:
 | 1 | `POST /api/webhooks/gocardless` | `/plans/api/webhooks/gocardless` | ✅ |
 | 2 | `GET/POST /api/users` | `/plans/api/users` (partial) | 🟡 |
 | 3 | `GET/PUT/DELETE /api/users/[id]` | None | ❌ |
-| 4 | `POST /api/upload` | None | ❌ |
+| 4 | `POST /api/upload` | `POST /plans/api/upload` | ✅ |
 | 5 | `POST /api/signup` | `/plans/api/public/signup/[token]/*` | ✅ |
 | 6 | `POST /api/signup/complete` | Mandate callback flow | 🟡 Verify |
 | 7 | `GET/POST /api/sign/[token]` | Folded into signup accept | 🟡 Verify |
@@ -1162,8 +1162,8 @@ Items that block parity and are **not** just missing UI:
 | 45 | `GET /api/cron/reconcile-payments` | `/plans/api/cron/reconcile-payments` | ✅ |
 | 46 | `GET /api/cron/gc-sync` | `GET /plans/api/cron/gc-sync` | ✅ |
 | 47 | `GET /api/cron/dentally-sync` | `GET /plans/api/cron/dentally-sync` | ✅ |
-| 48 | `GET /api/branding/public` | None | ❌ |
-| 49 | `GET/PUT /api/branding` | None | ❌ |
+| 48 | `GET /api/branding/public` | `GET /plans/api/branding/public` | ✅ |
+| 49 | `GET/PUT /api/branding` | `GET/PUT /plans/api/branding` | ✅ |
 | 50 | `GET/POST /api/auth/[...nextauth]` | Shell NextAuth | ✅ |
 | 51 | `GET /api/audit-log` | `/audit-log` page | ✅ |
 | 52 | `POST /api/admin/setup-gc-links` | None | ❌ |
@@ -1444,8 +1444,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `settings-manager.tsx` + `plan_practice_settings` | **Shipped** |
 | P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `guide-manager.tsx` + APIs + nav | **Shipped** |
 | P4.6 Redeem create | `ElioPlans/src/app/api/redeems/route.ts`, `.../redeems/page.tsx` | `createRedeem` + patient detail dialog | **Shipped** |
-| P4.7 Branding upload | `ElioPlans/src/app/api/branding/route.ts`, `api/upload/route.ts`, `src/lib/branding-context.tsx` | Plans settings + blob storage | |
-| P5.x Verification | Legacy DB export | Staging compare | Patient counts after sync |
+| P4.7 Branding upload | `ElioPlans/src/app/api/branding/route.ts`, `api/upload/route.ts` | Upload + branding APIs + signup branding | **Shipped** |
+| P5.x Verification | Legacy DB export | Staging compare | `verify-plans-parity.ts` + formula tests |
 
 **Plans — supporting legacy files (read when stuck)**
 

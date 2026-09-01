@@ -1,4 +1,9 @@
 import { scopedDb } from "@elio/db";
+import {
+  activeMemberEnrolmentWhere,
+  newSignupsPatientWhere,
+  startOfCurrentMonth,
+} from "@elio/plans-engine";
 
 export type DashboardStats = {
   activeMembers: number;
@@ -17,25 +22,16 @@ export type DashboardActivityEntry = {
   createdAt: string;
 };
 
-function startOfCurrentMonth(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+function startOfCurrentMonthLocal(): Date {
+  return startOfCurrentMonth();
 }
 
-const ACTIVE_MEMBER_ENROLMENT_WHERE = (practiceId: string) => ({
-  practiceId,
-  status: "ACTIVE" as const,
-  planPatient: {
-    practiceId,
-    status: "ACTIVE" as const,
-    mandates: { some: { status: "ACTIVE" as const } },
-  },
-});
+const ACTIVE_MEMBER_ENROLMENT_WHERE = activeMemberEnrolmentWhere;
 
 /** Legacy-parity dashboard metrics (P3.1). */
 export async function getDashboardStats(practiceId: string): Promise<DashboardStats> {
   const db = scopedDb(practiceId);
-  const startOfMonth = startOfCurrentMonth();
+  const startOfMonth = startOfCurrentMonthLocal();
   const activeEnrolmentWhere = ACTIVE_MEMBER_ENROLMENT_WHERE(practiceId);
 
   const [activeMembers, activeEnrolments, failedPaymentsThisMonth, newSignupsThisMonth] = await Promise.all([
@@ -50,17 +46,7 @@ export async function getDashboardStats(practiceId: string): Promise<DashboardSt
     }),
     // Legacy uses signupCompletedAt — proxy: mandate linked this month, or free child enrolled.
     db.planPatient.count({
-      where: {
-        practiceId,
-        status: "ACTIVE",
-        OR: [
-          { mandates: { some: { status: "ACTIVE", createdAt: { gte: startOfMonth } } } },
-          {
-            planModel: { monthlyPricePence: 0 },
-            createdAt: { gte: startOfMonth },
-          },
-        ],
-      },
+      where: newSignupsPatientWhere(practiceId, startOfMonth),
     }),
   ]);
 
