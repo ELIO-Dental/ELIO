@@ -531,9 +531,9 @@ Dashboard, Patients, Plans, Payments, Reconciliation, Redeems, Reports, Document
 
 #### Dashboard stats
 
-Active plan patients, MRR, Collected this period, Overdue/failed, recent payments list.
+Active plan patients (mandate-aware), MRR, failed payments this month, new signups, activity feed, quick actions, payment schedule card, recent payments list.
 
-**Different from legacy:** No “New Signups” card; no recent activity feed; no quick actions row.
+**Parity:** P3.1–P3.5 shipped — matches legacy dashboard layout and reports tabs.
 
 #### Dentally
 
@@ -561,7 +561,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 
 | Legacy feature | New ELIO | Status |
 |----------------|----------|--------|
-| Dashboard 4 stat cards + activity | 4 different stats, no activity feed | 🟡 |
+| Dashboard 4 stat cards + activity | Mandate-aware stats, activity feed, quick actions | ✅ |
 | Sync from Dentally button | None | ❌ |
 | Dentally plan mappings page | None | ❌ |
 | Nightly Dentally cron (Plans logic) | Central generic sync | ❌ |
@@ -649,10 +649,10 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Step | Task | Details |
 |------|------|---------|
 | P3.1 | **Dashboard: match legacy 4 cards** | Active Members (mandate-aware), Monthly Revenue (owner only), Failed Payments, New Signups | **Shipped** |
-| P3.2 | **Recent activity feed** | Last 10 audit entries |
-| P3.3 | **Quick actions row** | Add Patient, Send Invite, Failed Payments, Reports |
-| P3.4 | **Reports tabs** | Overview, Revenue, Redeems, Breakage; CSV export for owner |
-| P3.5 | **Payment schedule reminder** | Static info card (1st collection, 11th retry) |
+| P3.2 | **Recent activity feed** | Last 10 audit entries | **Shipped** |
+| P3.3 | **Quick actions row** | Add Patient, Send Invite, Failed Payments, Reports | **Shipped** |
+| P3.4 | **Reports tabs** | Overview, Revenue, Redeems, Breakage; CSV export for owner | **Shipped** |
+| P3.5 | **Payment schedule reminder** | Static info card (1st collection, 11th retry) | **Shipped** |
 
 #### Phase P4 — Plans, documents, settings
 
@@ -1434,10 +1434,10 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P2.8 Family plans | `ElioPlans/prisma/schema.prisma` (`parentPatientId`), patients page form | `PlanPatient.parentPatientId` migration + UI | **Shipped** |
 | P2.9 Nav item | `ElioPlans/src/components/` (sidebar nav) | `elio/packages/ui/lib/module-nav-items.ts` | **Shipped** |
 | P3.1 Dashboard cards | `ElioPlans/.../dashboard/page.tsx`, `api/dashboard/stats/route.ts` | `dashboard-stats.ts` + `app/dashboard/page.tsx` | **Shipped** |
-| P3.2 Activity feed | `ElioPlans/.../dashboard/page.tsx` | Dashboard component | Last 10 audit entries |
-| P3.3 Quick actions | `ElioPlans/.../dashboard/page.tsx` | Dashboard row | |
-| P3.4 Reports tabs | `ElioPlans/.../reports/page.tsx`, `api/reports/route.ts` | `elio/apps/plans/app/reports/page.tsx` | Revenue, Breakage |
-| P3.5 Payment schedule card | `ElioPlans/.../dashboard/page.tsx` | Static info card | 1st / 11th |
+| P3.2 Activity feed | `ElioPlans/.../dashboard/page.tsx` | `dashboard-activity-feed.tsx` | **Shipped** |
+| P3.3 Quick actions | `ElioPlans/.../dashboard/page.tsx` | `dashboard-quick-actions.tsx` | **Shipped** |
+| P3.4 Reports tabs | `ElioPlans/.../reports/page.tsx`, `api/reports/route.ts` | `reports-service.ts` + tabbed UI + CSV export | **Shipped** |
+| P3.5 Payment schedule card | `ElioPlans/.../dashboard/page.tsx` | `payment-schedule-card.tsx` | **Shipped** |
 | P4.1 Plan edit | `ElioPlans/.../plans/page.tsx`, `api/plans/[id]/route.ts` | `elio/apps/plans/app/plans/[id]/` (to create) | Inclusions, discounts, eligibility |
 | P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `elio/apps/plans/app/api/plans/[id]/price-increase/route.ts` | Uses `parentPlanId` |
 | P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `elio/apps/plans/app/documents/` (extend) | |

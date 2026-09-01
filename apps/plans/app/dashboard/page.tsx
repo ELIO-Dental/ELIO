@@ -15,7 +15,10 @@ import {
   formatMoneyGBP,
 } from "@elio/ui";
 import { MoneyStatCard } from "@/components/money-stat-card";
-import { getDashboardStats } from "@/lib/dashboard-stats";
+import { getDashboardRecentActivity, getDashboardStats } from "@/lib/dashboard-stats";
+import { DashboardActivityFeed } from "./dashboard-activity-feed";
+import { DashboardQuickActions } from "./dashboard-quick-actions";
+import { PaymentScheduleCard } from "./payment-schedule-card";
 
 function currentBillingPeriod() {
   const now = new Date();
@@ -30,8 +33,9 @@ export default async function DashboardPage() {
   const practiceId = session.practiceId;
   const period = currentBillingPeriod();
 
-  const [stats, recentPayments] = await Promise.all([
+  const [stats, recentActivity, recentPayments] = await Promise.all([
     getDashboardStats(practiceId),
+    getDashboardRecentActivity(practiceId),
     prisma.planPayment.findMany({
       where: { practiceId },
       orderBy: { createdAt: "desc" },
@@ -85,11 +89,16 @@ export default async function DashboardPage() {
                 Review patients and check their mandate status.
               </p>
             </div>
-            <Link href="/patients">
-              <Button variant="secondary">Review patients</Button>
+            <Link href="/payments?status=FAILED">
+              <Button variant="secondary">Review failed payments</Button>
             </Link>
           </Card>
         )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DashboardQuickActions />
+          <DashboardActivityFeed entries={recentActivity} />
+        </div>
 
         <Card>
           <CardHeader>
@@ -125,6 +134,8 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        <PaymentScheduleCard />
       </div>
     </PageContent>
   );
