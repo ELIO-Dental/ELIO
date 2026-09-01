@@ -1,44 +1,27 @@
-import { requireLicensedSession } from "@/lib/session";
-import { prisma } from "@elio/db";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  Badge,
-  PageContent,
-  PageHeader,
-  TablePanel,
-  TableToolbar,
-  TablePagination,
-  parseTablePage,
-} from "@elio/ui";
-import { DocumentsEmptyState } from "@/components/documents-empty-state";
+import { can, requireLicensedSession } from "@/lib/session";
+import type { Role } from "@elio/db";
+import { listDocuments } from "@/lib/documents-service";
+import { PageContent, PageHeader, TablePanel, TableToolbar } from "@elio/ui";
+import { DocumentsManager } from "./documents-manager";
 
-export default async function DocumentsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export default async function DocumentsPage() {
   const session = await requireLicensedSession();
-  const practiceId = session.practiceId;
-  const { page, skip, pageSize } = parseTablePage(await searchParams);
+  const canEdit = can({ role: session.role as Role }, "plans:edit-settings");
 
-  const [documents, totalCount] = await Promise.all([
-    prisma.planDocument.findMany({
-      where: { practiceId },
-      include: {
-        _count: { select: { acceptances: true, signingRequests: true } },
-        signingRequests: { select: { signedAt: true } },
-      },
-      orderBy: { effectiveDate: "desc" },
-      skip,
-      take: pageSize,
-    }),
-    prisma.planDocument.count({ where: { practiceId } }),
-  ]);
+  const documents = await listDocuments(session.practiceId);
+
+  const rows = documents.map((doc) => ({
+    id: doc.id,
+    type: doc.type,
+    title: doc.title,
+    content: doc.content,
+    version: doc.version,
+    effectiveDate: doc.effectiveDate.toISOString(),
+    isActive: doc.isActive,
+    acceptanceCount: doc._count.acceptances,
+    signingCount: doc._count.signingRequests,
+    signedCount: doc.signingRequests.filter((r) => r.signedAt).length,
+  }));
 
   return (
     <PageContent>
@@ -48,56 +31,9 @@ export default async function DocumentsPage({
       />
 
       <div className="mt-8">
-        {totalCount === 0 ? (
-          <TablePanel toolbar={<TableToolbar title="Documents" />}>
-            <DocumentsEmptyState
-              title="No documents yet"
-              description="Terms & conditions and plan agreements will appear here once created."
-              className="py-12"
-            />
-          </TablePanel>
-        ) : (
-          <TablePanel
-            toolbar={<TableToolbar title="Documents" />}
-            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Effective</TableHead>
-                  <TableHead>Accepted</TableHead>
-                  <TableHead>Signing requests</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((doc) => {
-                  const signedCount = doc.signingRequests.filter((r) => r.signedAt).length;
-                  return (
-                    <TableRow key={doc.id}>
-                      <TableCell>{doc.title}</TableCell>
-                      <TableCell>
-                        <Badge variant="neutral">{doc.type.replace(/_/g, " ")}</Badge>
-                      </TableCell>
-                      <TableCell className="text-(--color-text-secondary)">{doc.version}</TableCell>
-                      <TableCell>
-                        <Badge variant={doc.isActive ? "success" : "neutral"}>{doc.isActive ? "Active" : "Inactive"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-(--color-text-tertiary)">{doc.effectiveDate.toISOString().slice(0, 10)}</TableCell>
-                      <TableCell className="font-(--font-mono) tabular-nums">{doc._count.acceptances}</TableCell>
-                      <TableCell className="font-(--font-mono) tabular-nums">
-                        {signedCount} / {doc._count.signingRequests} signed
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TablePanel>
-        )}
+        <TablePanel toolbar={<TableToolbar title="Documents" />}>
+          <DocumentsManager documents={rows} canEdit={canEdit} />
+        </TablePanel>
       </div>
     </PageContent>
   );

@@ -660,7 +660,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 |------|------|---------|
 | P4.1 | **Plans: full edit** | Inclusions, discounts, eligibility rules, GC link, active toggle, delete guard | **Shipped** |
 | P4.2 | **Plan price increase flow** | Uses `parentPlanId` versioning + email members | **Shipped** |
-| P4.3 | **Documents: create/edit/seed T&C** | |
+| P4.3 | **Documents: create/edit/seed T&C** | | **Shipped** |
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys |
 | P4.5 | **Guide section** | Help articles (optional if content in migrated DB) |
 | P4.6 | **Redeem create flow** | From completed Dentally appointment |
@@ -1132,7 +1132,7 @@ Items that block parity and are **not** just missing UI:
 | 15 | `GET/POST /api/redeems` | List page only; no POST create | ❌ |
 | 16 | `GET/POST /api/plans` | `/plans/api/plans` (POST create) | 🟡 |
 | 17 | `GET/PUT/DELETE /api/plans/[id]` | None | ❌ |
-| 18 | `POST /api/plans/[id]/price-increase` | None | ❌ |
+| 18 | `POST /api/plans/[id]/price-increase` | `POST /plans/api/plans/[id]/price-increase` | ✅ |
 | 19 | `GET /api/payments` | `/payments` page (DB query) | 🟡 |
 | 20 | `POST /api/patients/[id]/setup-dd` | `POST /plans/api/patients/[id]/setup-dd` | ✅ |
 | 21 | `GET/POST /api/patients` | `/plans/api/enrolments` + list page | 🟡 |
@@ -1440,7 +1440,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P3.5 Payment schedule card | `ElioPlans/.../dashboard/page.tsx` | `payment-schedule-card.tsx` | **Shipped** |
 | P4.1 Plan edit | `ElioPlans/.../plans/page.tsx`, `api/plans/[id]/route.ts` | `plans-manager.tsx` + `api/plans/[id]` | **Shipped** |
 | P4.2 Price increase | `ElioPlans/src/app/api/plans/[id]/price-increase/route.ts` | `api/plans/[id]/price-increase` + versioned plan | **Shipped** |
-| P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `elio/apps/plans/app/documents/` (extend) | |
+| P4.3 Documents CRUD | `ElioPlans/.../documents/page.tsx`, `api/documents/route.ts`, `api/seed-terms/route.ts` | `documents-manager.tsx` + APIs | **Shipped** |
 | P4.4 Settings tabs | `ElioPlans/.../settings/page.tsx`, `src/lib/settings.ts` | `elio/apps/plans/app/settings/page.tsx` | Part 15 keys |
 | P4.5 Guide | `ElioPlans/.../guide/page.tsx`, `api/guides/route.ts` | `elio/apps/plans/app/guide/` (to create) | Optional |
 | P4.6 Redeem create | `ElioPlans/src/app/api/redeems/route.ts`, `.../redeems/page.tsx` | `elio/apps/plans/app/redeems/` + API POST | From Dentally appt |
