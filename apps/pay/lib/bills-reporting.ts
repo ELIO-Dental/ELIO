@@ -76,6 +76,10 @@ export interface BillsReportingPayload {
   supplierUnpaidByEntity: UnpaidByEntityRow[];
   dentistPayTable: DentistPayTableRow[];
   dentistNames: string[];
+  dentistPayGrandTotals: {
+    byDentistPence: Record<string, number>;
+    totalPence: number;
+  };
 }
 
 export interface LabBillReportingInput {
@@ -319,6 +323,18 @@ export function buildDentistPayTable(dentistPay: DentistPayRow[]): {
   return { dentistNames, rows };
 }
 
+export function computeDentistPayGrandTotals(rows: DentistPayTableRow[], dentistNames: string[]): {
+  byDentistPence: Record<string, number>;
+  totalPence: number;
+} {
+  const byDentistPence: Record<string, number> = {};
+  for (const name of dentistNames) {
+    byDentistPence[name] = rows.reduce((sum, row) => sum + (row.values[name] ?? 0), 0);
+  }
+  const totalPence = rows.reduce((sum, row) => sum + row.totalPence, 0);
+  return { byDentistPence, totalPence };
+}
+
 export function buildBillsReportingPayload(input: {
   labBills: LabBillReportingInput[];
   supplierInvoices: SupplierInvoiceReportingInput[];
@@ -344,5 +360,6 @@ export function buildBillsReportingPayload(input: {
     supplierUnpaidByEntity: unpaidByEntity(supplierByMonth),
     dentistPayTable,
     dentistNames,
+    dentistPayGrandTotals: computeDentistPayGrandTotals(dentistPayTable, dentistNames),
   };
 }

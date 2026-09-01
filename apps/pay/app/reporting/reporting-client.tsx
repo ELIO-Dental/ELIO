@@ -160,7 +160,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
     .map(([name, totalPence]) => ({ name, totalPence }));
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" data-testid="reporting-page">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
           label="Total lab bills"
@@ -292,6 +292,21 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
                       <TableCellMoney>{formatMoneyGBP(row.totalPence)}</TableCellMoney>
                     </TableRow>
                   ))}
+                  {bills.dentistPayTable.length > 1 ? (
+                    <TableRow className="border-t-2 border-(--color-border-subtle) bg-(--color-surface-dim)">
+                      <TableCell colSpan={2} className="font-semibold">
+                        Grand total
+                      </TableCell>
+                      {bills.dentistNames.map((name) => (
+                        <TableCellMoney key={name} className="font-semibold">
+                          {formatMoneyGBP(bills.dentistPayGrandTotals.byDentistPence[name] ?? 0)}
+                        </TableCellMoney>
+                      ))}
+                      <TableCellMoney className="font-bold">
+                        {formatMoneyGBP(bills.dentistPayGrandTotals.totalPence)}
+                      </TableCellMoney>
+                    </TableRow>
+                  ) : null}
                 </TableBody>
               </Table>
             </TablePanel>

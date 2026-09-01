@@ -3,6 +3,7 @@ import {
   aggregateLabByMonth,
   buildBillsReportingPayload,
   buildDentistPayTable,
+  computeDentistPayGrandTotals,
   detectLabAnomalies,
   summarizeBills,
 } from "./bills-reporting";
@@ -88,6 +89,18 @@ describe("bills-reporting", () => {
     expect(rows[1]?.totalPence).toBe(300000);
   });
 
+  it("computes dentist pay grand totals", () => {
+    const { rows } = buildDentistPayTable([
+      { year: 2026, month: 3, periodStatus: "LOCKED", dentistName: "Dr A", finalPayPence: 100000 },
+      { year: 2026, month: 4, periodStatus: "LOCKED", dentistName: "Dr A", finalPayPence: 150000 },
+      { year: 2026, month: 3, periodStatus: "LOCKED", dentistName: "Dr B", finalPayPence: 80000 },
+    ]);
+    const totals = computeDentistPayGrandTotals(rows, ["Dr A", "Dr B"]);
+    expect(totals.byDentistPence["Dr A"]).toBe(250000);
+    expect(totals.byDentistPence["Dr B"]).toBe(80000);
+    expect(totals.totalPence).toBe(330000);
+  });
+
   it("builds full reporting payload", () => {
     const payload = buildBillsReportingPayload({
       labBills,
@@ -112,5 +125,6 @@ describe("bills-reporting", () => {
     expect(payload.supplierSummary.unpaidPence).toBe(8000);
     expect(payload.dentistPayTable).toHaveLength(1);
     expect(payload.dentistNames).toEqual(["Dr A"]);
+    expect(payload.dentistPayGrandTotals.totalPence).toBe(100000);
   });
 });
