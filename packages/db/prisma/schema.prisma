@@ -248,6 +248,7 @@ model Practice {
   planSigningRequests  PlanSigningRequest[]
   planGuideArticles    PlanGuideArticle[]
   dentallyPlanMappings DentallyPlanMapping[]
+  planPracticeSettings PlanPracticeSetting[]
 
   // ElioFlow (draft)
   enquiries                    Enquiry[]
@@ -1149,6 +1150,22 @@ model PlanDocument {
 
   @@index([practiceId])
   @@map("plans_documents")
+}
+
+/** Per-practice Plans module settings (legacy Setting KV, P4.4). */
+model PlanPracticeSetting {
+  id         String   @id @default(cuid())
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  key        String
+  value      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([practiceId, key])
+  @@index([practiceId])
+  @@map("plan_practice_settings")
 }
 
 // ElioPlans parity — RedeemRule (per-plan redemption rules engine)
