@@ -49,7 +49,8 @@ export const PLANS_MODULE_NAV: ModuleNavLink[] = [
 ];
 
 export const FLOW_MODULE_NAV: ModuleNavLink[] = [
-  { id: "pipeline", label: "Pipeline", href: "/pipeline", icon: Kanban },
+  { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { id: "pipeline", label: "Board", href: "/pipeline", icon: Kanban },
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
   { id: "enquiries", label: "Enquiries", href: "/enquiries", icon: MessageSquare },
   { id: "reminders", label: "Reminders", href: "/reminders", icon: Bell },

@@ -15,7 +15,9 @@ export function ShellLayout({ userEmail, children }: ShellLayoutProps) {
       moduleId="flow"
       navItems={FLOW_MODULE_NAV}
       userEmail={userEmail}
-      resolveActiveId={(pathname, defaultId) => (pathname.startsWith("/consults") ? "pipeline" : defaultId)}
+      resolveActiveId={(pathname, defaultId) =>
+        pathname.startsWith("/consults") ? "pipeline" : pathname.startsWith("/dashboard") ? "dashboard" : defaultId
+      }
       pwaAppId="flow"
     >
       {children}
