@@ -17,6 +17,7 @@ export function NewDentistForm() {
     const form = new FormData(e.currentTarget);
     const body: Record<string, unknown> = {
       name: form.get("name"),
+      email: form.get("email"),
       nhsPerformerNumber: form.get("nhsPerformerNumber"),
       payType,
     };
@@ -52,6 +53,10 @@ export function NewDentistForm() {
           <div>
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" required />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" placeholder="For payslip delivery" />
           </div>
           <div>
             <Label htmlFor="nhsPerformerNumber">NHS performer number</Label>

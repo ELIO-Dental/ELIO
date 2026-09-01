@@ -5,6 +5,7 @@ import type { ImportMode, ImportRowError } from "./validate-entities";
 
 export interface DentistImportRow {
   name: string;
+  email: string | null;
   payType: PayType;
   privateSplitPercent: number | null;
   udaRatePence: number | null;
@@ -26,6 +27,7 @@ export interface DentistImportResult extends DentistImportPreview {
 
 const DENTIST_HEADERS = [
   "name",
+  "email",
   "pay_type",
   "private_split_percent",
   "uda_rate",
@@ -37,8 +39,8 @@ const DENTIST_HEADERS = [
 export function dentistTemplateCsv(): string {
   return [
     DENTIST_HEADERS.join(","),
-    '"Dr Sarah Jones","PERCENTAGE_SPLIT","50","25.00",,"123456","189342"',
-    '"Jane Hygienist","HOURLY",,,"35.00",,"189343"',
+    '"Dr Sarah Jones","sarah@clinic.com","PERCENTAGE_SPLIT","50","25.00",,"123456","189342"',
+    '"Jane Hygienist","jane@clinic.com","HOURLY",,,"35.00",,"189343"',
   ].join("\n");
 }
 
@@ -84,6 +86,7 @@ export function validateDentistImportRow(
   return {
     row: {
       name,
+      email: record.email?.trim() || null,
       payType,
       privateSplitPercent: privateSplitPercent ?? null,
       udaRatePence,
@@ -138,6 +141,7 @@ export async function importDentists(
 
     const data = {
       name: row.name,
+      email: row.email,
       payType: row.payType,
       privateSplitPercent: row.privateSplitPercent,
       udaRatePence: row.udaRatePence,
@@ -171,6 +175,7 @@ export async function exportDentists(practiceId: string): Promise<string> {
     lines.push(
       [
         `"${d.name.replace(/"/g, '""')}"`,
+        `"${d.email ?? ""}"`,
         `"${d.payType}"`,
         `"${d.privateSplitPercent ?? ""}"`,
         `"${d.udaRatePence != null ? (d.udaRatePence / 100).toFixed(2) : ""}"`,

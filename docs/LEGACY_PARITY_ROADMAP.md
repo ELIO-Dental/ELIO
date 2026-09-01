@@ -823,7 +823,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 
 | Step | Task | Details |
 |------|------|---------|
-| Y2.1 | **Period header actions** | Fetch from Dentally, Download All PDFs, Email All, Finalize/**Reopen** | **Shipped** — header actions + unlock + download-all; Email All stubbed (Y3.8) |
+| Y2.1 | **Period header actions** | Fetch from Dentally, Download All PDFs, Email All, Finalize/**Reopen** | **Shipped** — header actions + unlock + download-all + email-all (Y3.8) |
 | Y2.1a | **`PUT /pay-periods/[id]/entries`** | Save single dentist without full recalculate | **Shipped** |
 | Y2.1b | **Private patient row edit API** | Port `periods/patients` PUT semantics onto `PrivateRevenueLineItem` | **Shipped** |
 | Y2.2 | **Fetch results banner** | Summary stats after fetch (dismissible) | **Shipped** |
@@ -847,7 +847,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 | Y3.5 | **Pay settings page — full sections** | Therapy rates, lab/finance splits, Tabeo rates, Dentally site ID, therapist IDs, NHS amounts, SMTP | **Shipped** — `paySettingsJson` + full settings UI + `/pay/setup` bulk import |
 | Y3.6 | **Dentists: Check Dentally connection** | Debug route + UI button | **Shipped** — `/api/dentally/debug` + dentists page panel |
 | Y3.7 | **Practice-level Dentally token** | Owner can rotate key (encrypted on Practice) | **Shipped** — `/pay/api/dentally/config` + Settings API key panel |
-| Y3.8 | **Email payslips** | SMTP from settings; single + send-all |
+| Y3.8 | **Email payslips** | SMTP from settings; single + send-all | **Shipped** — `/pay/api/payslips/[id]/send-email`, `/pay/api/pay-periods/[id]/send-all-emails`, dentist email field |
 | Y3.9 | **Download all PDFs** | ZIP generation |
 
 #### Phase Y4 — Reporting & verification
@@ -947,7 +947,7 @@ Client sign-off when **every row** passes on production-like staging:
 - [ ] Settings: therapy and finance rates configurable
 - [ ] Lab bill: mark paid, upload invoice file
 - [ ] Bulk payments: bank details saved, Starling CSV exports
-- [ ] Email payslip to dentist
+- [x] Email payslip to dentist
 - [x] View legacy archived payslip (read-only)
 
 ### Portal
@@ -1493,7 +1493,7 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | Y3.5 Pay settings | `ElioPay/aurapay/src/app/settings/page.tsx`, `api/settings/route.ts` | `settings-client.tsx` + `pay-settings.ts` + `/pay/setup` | **Shipped** |
 | Y3.6 Dentally debug | `ElioPay/aurapay/src/app/api/dentally/debug/route.ts`, `dentists/page.tsx` | `dentally-debug.ts` + `dentally-connection-panel.tsx` | **Shipped** |
 | Y3.7 Token rotation | `ElioPay/aurapay/src/app/api/admin/clinics/route.ts` | `pay/api/dentally/config` + settings panel | **Shipped** |
-| Y3.8 Email payslips | `ElioPay/aurapay/src/app/api/payslips/send-email/route.ts`, `send-all-emails/route.ts` | Pay API routes (to create) | SMTP from settings |
+| Y3.8 Email payslips | `ElioPay/aurapay/src/app/api/payslips/send-email/route.ts`, `send-all-emails/route.ts` | `pay/api/payslips/[id]/send-email`, `pay/api/pay-periods/[id]/send-all-emails` | **Shipped** |
 | Y3.9 Download all PDFs | `ElioPay/aurapay/src/app/api/payslips/download-all/route.ts`, `src/lib/pdf-generator.ts` | ZIP route (to create) | Compare `elio/apps/pay/app/api/payslips/[id]/pdf/route.ts` |
 | Y4.1 Reporting | `ElioPay/aurapay/src/app/reporting/page.tsx`, `api/bills/reporting/route.ts` | `elio/apps/pay/app/reporting/page.tsx` | |
 | Y4.2–Y4.3 Verification | Legacy AuraPay period export | Staging tolerance ±£1 | |

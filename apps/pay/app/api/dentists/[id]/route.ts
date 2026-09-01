@@ -11,6 +11,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const dentist = await updateDentist(session.practiceId, id, {
       name: typeof body.name === "string" ? body.name : undefined,
+      email:
+        body.email === null
+          ? null
+          : typeof body.email === "string"
+            ? body.email
+            : undefined,
       nhsPerformerNumber:
         body.nhsPerformerNumber === null
           ? null

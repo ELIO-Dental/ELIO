@@ -1,5 +1,6 @@
 import { scopedDb } from "@elio/db";
 import { getDentallyClientForPractice, getLatestDentallySyncRun } from "@elio/dentally";
+import { isDentallyKeyConfigured } from "./dentally-integration-helpers";
 
 export interface PayDentallyIntegrationStatus {
   configured: boolean;
@@ -21,9 +22,11 @@ export async function getPayDentallyIntegrationStatus(
   if (!practice) throw new Error("Practice not found");
 
   const hasPracticeKey = Boolean(practice.dentallyApiKey?.trim());
-  const configured = Boolean(
-    hasPracticeKey || process.env.DENTALLY_API_KEY?.trim() || process.env.DENTALLY_API_TOKEN?.trim()
-  );
+  const configured = isDentallyKeyConfigured({
+    hasPracticeKey,
+    envApiKey: process.env.DENTALLY_API_KEY,
+    envApiToken: process.env.DENTALLY_API_TOKEN,
+  });
 
   let connectionOk: boolean | null = null;
   let connectionError: string | null = null;

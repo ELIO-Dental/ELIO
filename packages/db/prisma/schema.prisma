@@ -583,6 +583,7 @@ model Dentist {
   practice               Practice @relation(fields: [practiceId], references: [id])
   userId                 String? // nullable — a clinician may not have their own ELIO login
   name                   String
+  email                  String?
   nhsPerformerNumber     String?
   // Dentally's own numeric practitioner id (invoice_item.practitioner_id) —
   // real, structured attribution of a treatment to the dentist who performed

@@ -12,6 +12,7 @@ import {
 import { DentistFetchDetails } from "./dentist-fetch-details";
 import { NhsPeriodBanner } from "./nhs-period-banner";
 import { PayslipEditableFields } from "./payslip-editable-fields";
+import { PayslipEmailActions } from "./payslip-email-actions";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
@@ -41,6 +42,7 @@ export interface PayslipEntryBodyProps {
   payPeriodId: string;
   payslipEntryId: string;
   dentistName: string;
+  dentistEmail: string | null;
   locked: boolean;
   isNhs?: boolean;
   nhsPeriodStart?: string | null;
@@ -231,6 +233,11 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           dentallyDentistLogJson={p.dentallyDentistLogJson}
         />
       </div>
+      <PayslipEmailActions
+        payslipEntryId={p.payslipEntryId}
+        dentistEmail={p.dentistEmail}
+        pdfHref={`/pay/api/payslips/${p.payslipEntryId}/pdf`}
+      />
     </div>
   );
 }

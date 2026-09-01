@@ -12,10 +12,12 @@ export function PeriodHeaderActions() {
     locking,
     unlocking,
     downloading,
+    emailing,
     fetchFromDentally,
     lockPeriod,
     unlockPeriod,
     downloadAllPdfs,
+    emailAllPayslips,
   } = usePayPeriodActions();
 
   return (
@@ -29,7 +31,13 @@ export function PeriodHeaderActions() {
       >
         Download All PDFs
       </Button>
-      <Button variant="secondary" disabled title="Configure SMTP in Pay Settings (Y3.8)" data-testid="email-all-pdfs">
+      <Button
+        variant="secondary"
+        onClick={emailAllPayslips}
+        loading={emailing}
+        disabled={payslipCount === 0 || emailing}
+        data-testid="email-all-pdfs"
+      >
         Email All
       </Button>
       {!locked ? (

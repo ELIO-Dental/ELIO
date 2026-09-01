@@ -19,6 +19,7 @@ import { Pencil } from "lucide-react";
 interface DentistRow {
   id: string;
   name: string;
+  email: string | null;
   nhsPerformerNumber: string | null;
   dentallyPractitionerId: string | null;
   payType: string;
@@ -31,10 +32,11 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
   const router = useRouter();
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [practitionerId, setPractitionerId] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  async function savePractitionerId(dentistId: string) {
+  async function saveDentist(dentistId: string) {
     setSaving(true);
     setError(null);
     try {
@@ -43,6 +45,7 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dentallyPractitionerId: practitionerId.trim() || null,
+          email: email.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -65,6 +68,7 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Dentally ID</TableHead>
             <TableHead>NHS performer #</TableHead>
             <TableHead>Pay type</TableHead>
@@ -77,6 +81,19 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
           {dentists.map((d) => (
             <TableRow key={d.id}>
               <TableCell>{d.name}</TableCell>
+              <TableCell>
+                {editingId === d.id ? (
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@clinic.com"
+                    className="text-sm"
+                  />
+                ) : (
+                  <span className="text-sm break-all">{d.email ?? "—"}</span>
+                )}
+              </TableCell>
               <TableCell>
                 {editingId === d.id ? (
                   <Input
@@ -102,7 +119,7 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
               <TableCell>
                 {editingId === d.id ? (
                   <div className="flex gap-1">
-                    <Button size="sm" onClick={() => void savePractitionerId(d.id)} loading={saving}>
+                    <Button size="sm" onClick={() => void saveDentist(d.id)} loading={saving}>
                       Save
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
@@ -117,6 +134,7 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
                     onClick={() => {
                       setEditingId(d.id);
                       setPractitionerId(d.dentallyPractitionerId ?? "");
+                      setEmail(d.email ?? "");
                       setError(null);
                     }}
                   >

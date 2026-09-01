@@ -26,6 +26,7 @@ export async function listDentists(practiceId: string) {
 
 export interface CreateDentistInput {
   name: string;
+  email?: string | null;
   nhsPerformerNumber?: string | null;
   payType: "PERCENTAGE_SPLIT" | "HOURLY";
   privateSplitPercent?: number | null;
@@ -39,6 +40,7 @@ export async function createDentist(practiceId: string, input: CreateDentistInpu
     data: {
       practiceId,
       name: input.name,
+      email: input.email?.trim() || null,
       nhsPerformerNumber: input.nhsPerformerNumber ?? null,
       payType: input.payType,
       privateSplitPercent: input.privateSplitPercent ?? null,
@@ -70,6 +72,7 @@ export async function updateDentistRate(
 
 export interface UpdateDentistInput {
   name?: string;
+  email?: string | null;
   nhsPerformerNumber?: string | null;
   dentallyPractitionerId?: string | null;
   privateSplitPercent?: number | null;
@@ -86,6 +89,7 @@ export async function updateDentist(practiceId: string, dentistId: string, input
     where: { id: dentistId },
     data: {
       name: input.name ?? undefined,
+      email: input.email !== undefined ? (input.email?.trim() || null) : undefined,
       nhsPerformerNumber: input.nhsPerformerNumber !== undefined ? input.nhsPerformerNumber : undefined,
       dentallyPractitionerId:
         input.dentallyPractitionerId !== undefined ? input.dentallyPractitionerId : undefined,

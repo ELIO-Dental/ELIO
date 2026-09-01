@@ -42,6 +42,7 @@ interface PayPeriodActionsContextValue {
   locking: boolean;
   unlocking: boolean;
   downloading: boolean;
+  emailing: boolean;
   fetchResult: FetchResult | null;
   actionError: string | null;
   fetchDismissed: boolean;
@@ -50,6 +51,7 @@ interface PayPeriodActionsContextValue {
   lockPeriod: () => Promise<void>;
   unlockPeriod: () => Promise<void>;
   downloadAllPdfs: () => Promise<void>;
+  emailAllPayslips: () => Promise<void>;
 }
 
 const PayPeriodActionsContext = createContext<PayPeriodActionsContextValue | null>(null);
@@ -78,6 +80,7 @@ export function PayPeriodActionsProvider({
   const [locking, setLocking] = React.useState(false);
   const [unlocking, setUnlocking] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
+  const [emailing, setEmailing] = React.useState(false);
   const [fetchResult, setFetchResult] = React.useState<FetchResult | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [fetchDismissed, setFetchDismissed] = React.useState(false);
@@ -171,6 +174,25 @@ export function PayPeriodActionsProvider({
     }
   }, [payPeriodId]);
 
+  const emailAllPayslips = React.useCallback(async () => {
+    setEmailing(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/send-all-emails`, { method: "POST" });
+      const data = (await res.json()) as { message?: string; error?: string };
+      if (!res.ok) {
+        setActionError(data.error ?? "Failed to send emails");
+        return;
+      }
+      setFetchResult({ ok: true, message: data.message ?? "Emails sent" });
+      setFetchDismissed(false);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to send emails");
+    } finally {
+      setEmailing(false);
+    }
+  }, [payPeriodId]);
+
   const value: PayPeriodActionsContextValue = {
     payPeriodId,
     locked,
@@ -179,6 +201,7 @@ export function PayPeriodActionsProvider({
     locking,
     unlocking,
     downloading,
+    emailing,
     fetchResult,
     actionError,
     fetchDismissed,
@@ -187,6 +210,7 @@ export function PayPeriodActionsProvider({
     lockPeriod,
     unlockPeriod,
     downloadAllPdfs,
+    emailAllPayslips,
   };
 
   return <PayPeriodActionsContext.Provider value={value}>{children}</PayPeriodActionsContext.Provider>;

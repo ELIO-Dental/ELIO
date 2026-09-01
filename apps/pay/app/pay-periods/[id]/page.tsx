@@ -174,6 +174,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       payPeriodId={payPeriod.id}
                       payslipEntryId={p.id}
                       dentistName={p.dentist.name}
+                      dentistEmail={p.dentist.email}
                       locked={payPeriod.status === "LOCKED"}
                       isNhs={isNhs}
                       nhsPeriodStart={nhsPeriodStart}
