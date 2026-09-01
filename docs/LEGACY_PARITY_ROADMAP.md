@@ -549,7 +549,7 @@ Enrolment + signup invite; Flow handoff prefill. **Missing:** payment trail tab,
 
 #### Settings
 
-GoCardless status, redeem approval toggles, reconciliation info. **Missing:** branding upload (P4.7).
+GoCardless status, redeem approval toggles, reconciliation info, branding upload.
 
 #### Cron
 
@@ -577,7 +577,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | Documents CRUD + seed T&C | Create + view + seed; edit added | ✅ |
 | Settings 6 tabs | 6 tabs + redeem/reconciliation | ✅ |
 | Guide / help articles | Guide page + seed | ✅ |
-| Branding settings | None in Plans | ❌ |
+| Branding settings | Upload + public endpoint on signup | ✅ |
 | Export CSV patients | None | ❌ |
 | Bulk Check GoCardless | None | ❌ |
 | Mandate-aware active member logic | Implemented in dashboard counts | ✅ |
@@ -601,12 +601,12 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | **Plan eligibility rules UI** | Legacy `PlanEligibilityRule` per plan; schema exists in new DB, **no UI** | ❌ |
 | **Plan edit / delete / deactivate** | Legacy full CRUD on `/dashboard/plans`; new create + list only | ❌ |
 | **Per-user permission overrides** | Legacy `UserPermission` beyond role; new uses `@elio/auth` roles only | ❌ |
-| **Legacy `Setting` KV store** (~25 keys: branding, GC days, payout, payment rules) | Not migrated; only redeem toggles in new settings | ❌ |
+| **Legacy `Setting` KV store** (~25 keys: branding, GC days, payout, payment rules) | `plan_practice_settings` + settings tabs (P4.4) | ✅ |
 | **`payoutPerExam` setting** | Legacy Settings → Payouts tab | Not in new schema/UI | ❌ |
 | **Redeem create from Dentally appointment** | `POST /plans/api/redeems` + patient New Redeem dialog | ✅ |
 | **Email log / correspondence tab** | Legacy `EmailLog` model + patient tab | Not migrated | ❌ |
 | **Users `[id]` edit/delete API** | Legacy CRUD | New list/create only | 🟡 |
-| **Upload / branding APIs** | `/api/upload`, `/api/branding`, `/api/branding/public` | None in Plans app | ❌ |
+| **Upload / branding APIs** | `/api/upload`, `/api/branding`, `/api/branding/public` | `/plans/api/upload`, `/plans/api/branding`, `/plans/api/branding/public` | ✅ |
 | **Seed routes** (`/api/seed`, `/api/seed-terms`, `/api/guides/seed`) | Dev/bootstrap helpers | None | 🟡 Dev only |
 | **Nav: Dentally** | Missing from `PLANS_MODULE_NAV` | ❌ |
 | **Mobile nav** (legacy truncated to 5) | N/A — responsive sidebar | ✅ |
@@ -664,7 +664,7 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P4.4 | **Settings tabs** | Port Part 15 Setting keys | **Shipped** |
 | P4.5 | **Guide section** | Help articles (optional if content in migrated DB) | **Shipped** |
 | P4.6 | **Redeem create flow** | From completed Dentally appointment | **Shipped** |
-| P4.7 | **Branding upload** | Logo/favicon + public branding endpoint |
+| P4.7 | **Branding upload** | Logo/favicon + public branding endpoint | **Shipped** |
 
 #### Phase P5 — Verification
 

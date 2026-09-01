@@ -36,6 +36,15 @@ interface SignupData {
   alreadySigned: boolean;
   hasMandate: boolean;
   enrolmentStatus: string | null;
+  branding?: {
+    brandName: string;
+    tagline: string;
+    logoUrl: string;
+    faviconUrl: string;
+    primaryColor: string;
+    secondaryColor: string;
+    accentColor: string;
+  };
 }
 
 const STEPS = [
@@ -150,10 +159,19 @@ function PublicSignupContent() {
     <div className="min-h-screen bg-(--color-bg) px-4 py-10">
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-8 text-center">
-          <h1 className="text-h2 text-(--color-text-primary)">
-            ELIO <span className="text-(--color-primary-600)">Plans</span>
+          {data?.branding?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.branding.logoUrl} alt={data.branding.brandName} className="mx-auto mb-3 h-12 object-contain" />
+          ) : null}
+          <h1
+            className="text-h2 text-(--color-text-primary)"
+            style={data?.branding?.primaryColor ? { color: data.branding.primaryColor } : undefined}
+          >
+            {data?.branding?.brandName ?? "ELIO Plans"}
           </h1>
-          <p className="mt-1 text-body-sm text-(--color-text-secondary)">Complete your membership signup</p>
+          <p className="mt-1 text-body-sm text-(--color-text-secondary)">
+            {data?.branding?.tagline ?? "Complete your membership signup"}
+          </p>
         </div>
 
         {stepIndex < STEPS.length - 1 && (

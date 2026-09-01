@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api-error";
 import { getSignupByToken } from "@/lib/plans-service";
+import { getBrandingSettings } from "@/lib/plans-settings";
 
 /**
  * PUBLIC, UNAUTHENTICATED route — the patient signup flow's data fetch.
@@ -22,6 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     const { signingRequest } = result;
     const { planPatient, document } = signingRequest;
     const { patient, planModel, patientPlans, mandates } = planPatient;
+    const branding = await getBrandingSettings(signingRequest.practiceId);
 
     return NextResponse.json({
       patient: {
@@ -46,6 +48,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       alreadySigned: !!signingRequest.signedAt,
       hasMandate: mandates.length > 0,
       enrolmentStatus: patientPlans[0]?.status ?? null,
+      branding,
     });
   } catch (e) {
     return errorResponse(e);

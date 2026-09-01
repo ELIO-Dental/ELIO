@@ -79,6 +79,9 @@ export function SettingsManager({
   const [saving, setSaving] = React.useState(false);
   const [testingGc, setTestingGc] = React.useState(false);
   const [gcStatus, setGcStatus] = React.useState<Record<string, unknown> | null>(null);
+  const [uploading, setUploading] = React.useState<"logoUrl" | "faviconUrl" | null>(null);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+  const faviconInputRef = React.useRef<HTMLInputElement>(null);
 
   function updateSetting(key: string, value: string) {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -128,6 +131,24 @@ export function SettingsManager({
       router.refresh();
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFileUpload(file: File, field: "logoUrl" | "faviconUrl") {
+    setUploading(field);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/plans/api/upload", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Upload failed");
+        return;
+      }
+      updateBrandingField(field, data.url as string);
+      toast.success("Image uploaded — save branding to persist");
+    } finally {
+      setUploading(null);
     }
   }
 
@@ -204,27 +225,71 @@ export function SettingsManager({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="logoUrl">Logo URL</Label>
-                <Input
-                  id="logoUrl"
-                  value={branding.logoUrl}
-                  onChange={(e) => updateBrandingField("logoUrl", e.target.value)}
-                  placeholder="https://..."
-                  disabled={!canEdit}
-                />
-                <p className="mt-1 text-caption text-(--color-text-tertiary)">File upload arrives in P4.7</p>
-              </div>
-              <div>
-                <Label htmlFor="faviconUrl">Favicon URL</Label>
-                <Input
-                  id="faviconUrl"
-                  value={branding.faviconUrl}
-                  onChange={(e) => updateBrandingField("faviconUrl", e.target.value)}
-                  placeholder="https://..."
-                  disabled={!canEdit}
-                />
-              </div>
+              {(
+                [
+                  ["logoUrl", "Logo", logoInputRef, "image/png,image/jpeg,image/svg+xml,image/webp"],
+                  ["faviconUrl", "Favicon", faviconInputRef, "image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,image/webp"],
+                ] as const
+              ).map(([field, label, inputRef, accept]) => (
+                <div key={field}>
+                  <Label>{label}</Label>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept={accept}
+                    className="hidden"
+                    disabled={!canEdit}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload(file, field);
+                      e.target.value = "";
+                    }}
+                  />
+                  {branding[field] ? (
+                    <div className="mt-1 rounded-(--radius-lg) border border-(--color-border) p-3">
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={!canEdit || uploading === field}
+                          loading={uploading === field}
+                          onClick={() => inputRef.current?.click()}
+                        >
+                          Replace
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={!canEdit}
+                          onClick={() => updateBrandingField(field, "")}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-center rounded border border-(--color-border-subtle) bg-(--color-surface) p-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={branding[field]}
+                          alt={`${label} preview`}
+                          className={field === "logoUrl" ? "h-12 max-w-full object-contain" : "size-8 object-contain"}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canEdit || uploading === field}
+                      onClick={() => inputRef.current?.click()}
+                      className="mt-1 flex w-full flex-col items-center gap-2 rounded-(--radius-lg) border-2 border-dashed border-(--color-border) p-6 text-body-sm text-(--color-text-tertiary) hover:border-(--color-border-subtle) disabled:opacity-50"
+                    >
+                      {uploading === field ? "Uploading…" : `Upload ${label.toLowerCase()}`}
+                      <span className="text-caption">Max 512KB</span>
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
