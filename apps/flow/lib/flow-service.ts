@@ -450,6 +450,7 @@ export interface FlowDashboardRow {
   statusKey: string;
   planSignedUp: boolean;
   touchPoints: number;
+  notes: string | null;
 }
 
 export interface FlowDashboardData {
@@ -557,6 +558,7 @@ export async function getFlowDashboard(
       statusKey: key,
       planSignedUp: c.planSignedUp,
       touchPoints: c.reminders.filter((r) => r.sentAt != null).length,
+      notes: c.notes,
     };
   });
 

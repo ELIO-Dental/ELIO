@@ -1387,8 +1387,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | F2.3 Eight stat cards | `ElioFlow/pages/index.tsx`, `pages/api/pipeline.ts` | `getFlowDashboard` | **Shipped** |
 | F2.4 Last synced banner | `ElioFlow/pages/index.tsx` | Portal sync banner (Phase A) | **Shipped** — link to Integrations |
 | F2.5 Table view | `ElioFlow/pages/index.tsx` (table + filters) | `dashboard-client.tsx` | **Shipped** — core columns + status chips |
-| F2.6 Charts view | `ElioFlow/pages/index.tsx` (charts section) | Dashboard tab "Charts" | 6 charts |
-| F2.7 Export CSV | `ElioFlow/pages/index.tsx` (`exportCSV`) | `elio/apps/flow/app/api/export/route.ts` or client CSV | |
+| F2.6 Charts view | `ElioFlow/pages/index.tsx` (charts section) | `dashboard-charts.tsx` | **Shipped** |
+| F2.7 Export CSV | `ElioFlow/pages/index.tsx` (`exportCSV`) | `dashboard-client.tsx` client export | **Shipped** |
 | F2.8 Edit modal | `ElioFlow/pages/index.tsx` (edit modal), `pages/api/status.ts` | Consult drawer + `PATCH /flow/api/consults/[id]` | Status mapping §1.3 |
 | F2.9 Progress dots | `ElioFlow/pages/index.tsx` | Shared component in dashboard | 4-step indicator |
 | F2.10 Patient detail panel | `ElioFlow/pages/api/patient/[id].ts` | Slide-over on dashboard | Live Dentally fetch |

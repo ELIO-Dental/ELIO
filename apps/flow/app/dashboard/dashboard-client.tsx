@@ -20,7 +20,8 @@ import {
   toast,
 } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
-import type { FlowDashboardData } from "@/lib/flow-service";
+import type { FlowDashboardData, FlowDashboardRow } from "@/lib/flow-service";
+import { DashboardCharts } from "./dashboard-charts";
 
 const DATE_PRESETS = [
   { id: "all", label: "All time" },
@@ -126,6 +127,45 @@ function ProgressDots({
   );
 }
 
+function exportRowsCsv(rows: FlowDashboardRow[]) {
+  const headers = [
+    "Name",
+    "Phone",
+    "Email",
+    "Dentist",
+    "Consultation Date",
+    "Plan Value",
+    "Paid",
+    "Status",
+    "Touchpoints",
+    "Plan Signed Up",
+    "Notes",
+  ];
+  const lines = rows.map((r) => [
+    r.patientName,
+    r.patientPhone ?? "",
+    r.patientEmail ?? "",
+    r.dentistName,
+    r.consultationDate ?? "",
+    (r.planValuePence / 100).toFixed(2),
+    (r.totalPaidPence / 100).toFixed(2),
+    r.statusLabel,
+    String(r.touchPoints),
+    r.planSignedUp ? "Yes" : "No",
+    r.notes ?? "",
+  ]);
+  const csv = [headers, ...lines]
+    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `flow-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [data, setData] = React.useState(initial);
   const [preset, setPreset] = React.useState("all");
@@ -134,6 +174,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
+  const [view, setView] = React.useState<"table" | "charts">("table");
 
   async function loadDashboard(nextPreset = preset, nextDentist = dentistId) {
     setLoading(true);
@@ -267,6 +308,42 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       </div>
 
       <div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
+                view === "table"
+                  ? "bg-(--color-primary) text-(--color-primary-fg)"
+                  : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
+              }`}
+            >
+              Table
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("charts")}
+              className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
+                view === "charts"
+                  ? "bg-(--color-primary) text-(--color-primary-fg)"
+                  : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
+              }`}
+            >
+              Charts
+            </button>
+          </div>
+          {view === "table" ? (
+            <Button variant="secondary" onClick={() => exportRowsCsv(filteredRows)}>
+              Export CSV
+            </Button>
+          ) : null}
+        </div>
+
+        {view === "charts" ? (
+          <DashboardCharts rows={data.rows} stats={data.stats} />
+        ) : (
+          <>
         <div className="mb-3 flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
             <button
@@ -366,6 +443,8 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </div>
           )}
         </TablePanel>
+          </>
+        )}
       </div>
     </div>
   );
