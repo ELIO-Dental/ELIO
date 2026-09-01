@@ -850,6 +850,8 @@ model LabBillEntry {
   dentist     Dentist? @relation(fields: [dentistId], references: [id])
   amountPence Int
   description String?
+  paid        Boolean   @default(false)
+  paidAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -868,6 +870,8 @@ model SupplierInvoiceEntry {
   amountPence Int
   description String?
   invoiceDate DateTime?
+  paid        Boolean   @default(false)
+  paidAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -840,7 +840,7 @@ Old Turso payslips in `LegacyPayslipArchive` — not shown in UI.
 
 | Step | Task | Details |
 |------|------|---------|
-| Y3.1 | **Schema: `paid` flag** on `LabBillEntry` + `SupplierInvoiceEntry` | Match legacy bill workflow |
+| Y3.1 | **Schema: `paid` flag** on `LabBillEntry` + `SupplierInvoiceEntry` | Match legacy bill workflow | **Shipped** — `paid` + `paidAt` columns |
 | Y3.2 | **Schema: bank details** on `SavedLab` / `SavedSupplier` | account name, sort code, account number |
 | Y3.3 | **Lab bills UI parity** | Summary cards, year/month/lab filters, paid toggle, file upload, matrix view |
 | Y3.4 | **Bulk payments tabs** | Bank Details + Unpaid Bills; mark paid; **Starling CSV** export |
