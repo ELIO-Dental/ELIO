@@ -155,7 +155,7 @@ Shell cron 03:00 UTC → Inngest → syncPracticeDentallyData()
 | Job | Legacy | Schedule | New ELIO | Schedule | Status |
 |-----|--------|----------|----------|----------|--------|
 | Flow full sync | ElioFlow `vercel.json` | `*/10 6-8 * * *` | Shell generic sync | `0 3 * * *` | ❌ Different scope + frequency |
-| Plans Dentally sync | ElioPlans | `0 6 * * *` | Shell generic (no plan filter) | `0 3 * * *` | ❌ |
+| Plans Dentally sync | ElioPlans | `0 6 * * *` | Shell generic (no plan filter) | `0 5 * * *` on plans app | ✅ |
 | Plans gc-sync | ElioPlans | `0 8 * * *` | None | — | ❌ |
 | Plans reconcile | ElioPlans | `0 9 * * *` | `/plans/api/cron/reconcile-payments` | `0 7 * * *` | ✅ (1h earlier) |
 | Plans create charges | N/A | — | `/plans/api/cron/create-charges` | `0 6 * * *` | ✅ New (keep) |
@@ -622,8 +622,8 @@ GoCardless status, redeem approval toggles, reconciliation info. **Missing:** br
 | P1.1 | **Port `runDentallySync()` logic** from `ElioPlans/src/lib/dentally-sync.ts` into `packages/dentally/plans-sync.ts` | Payment-plan filtered import | **Shipped** |
 | P1.2 | **Create `DentallyPlanMapping` model + migration** (was deliberately NOT migrated in Step 1.9) | Map Dentally plan name → `PlanModel`; seed from legacy or manual setup | **Shipped** |
 | P1.3 | **`POST /plans/api/dentally/sync`** + **`GET /plans/api/cron/dentally-sync`** | Manual + cron entry points | **Shipped** |
-| P1.4 | **`GET /plans/api/dentally/patients?q=`** | Search/import single patient |
-| P1.5 | **`GET/POST /plans/api/dentally/mappings`** | CRUD mappings |
+| P1.4 | **`GET /plans/api/dentally/patients?q=`** | Search/import single patient | **Shipped** |
+| P1.5 | **`GET/POST /plans/api/dentally/mappings`** | CRUD mappings | **Shipped** |
 | P1.6 | Use per-practice API key from Phase A | Same as shell sync |
 | P1.7 | Audit log on every sync run | Match legacy `AuditLog` actions |
 | P1.8 | **Port `gc-sync` cron** — reconcile mandates/payments from GoCardless | `GET /plans/api/cron/gc-sync` |
@@ -1152,16 +1152,16 @@ Items that block parity and are **not** just missing UI:
 | 35 | `GET/PUT/DELETE /api/guides/[id]` | None | ❌ |
 | 36 | `GET/POST /api/guides` | None | ❌ |
 | 37 | `GET/POST /api/documents` | `/documents` page (read) | 🟡 |
-| 38 | `POST /api/dentally/sync` | **Missing** | ❌ Critical |
+| 38 | `POST /api/dentally/sync` | `POST /plans/api/dentally/sync` | ✅ |
 | 39 | `POST /api/dentally/reassign-plans` | None | ❌ |
 | 40 | `GET /api/dentally/plans` | None | ❌ |
-| 41 | `GET /api/dentally/patients` | None | ❌ |
+| 41 | `GET /api/dentally/patients` | `GET /plans/api/dentally/patients` | ✅ |
 | 42 | `PUT/DELETE /api/dentally/mappings/[id]` | None | ❌ |
 | 43 | `GET/POST /api/dentally/mappings` | None | ❌ Critical |
 | 44 | `GET /api/dashboard/stats` | Inline dashboard queries | 🟡 |
 | 45 | `GET /api/cron/reconcile-payments` | `/plans/api/cron/reconcile-payments` | ✅ |
 | 46 | `GET /api/cron/gc-sync` | **Missing** | ❌ |
-| 47 | `GET /api/cron/dentally-sync` | Shell generic only | ❌ |
+| 47 | `GET /api/cron/dentally-sync` | `GET /plans/api/cron/dentally-sync` | ✅ |
 | 48 | `GET /api/branding/public` | None | ❌ |
 | 49 | `GET/PUT /api/branding` | None | ❌ |
 | 50 | `GET/POST /api/auth/[...nextauth]` | Shell NextAuth | ✅ |
@@ -1417,8 +1417,8 @@ Store on `Practice` columns, encrypted secrets, or a `PracticeSetting` KV table 
 | P1.1 Port sync logic | `ElioPlans/src/lib/dentally-sync.ts` | `elio/packages/dentally/src/plans-sync.ts` | **Shipped** |
 | P1.2 Mapping model | `ElioPlans/prisma/schema.prisma` → `DentallyPlanMapping` | `elio/packages/db/prisma/schema.prisma` | **Shipped** |
 | P1.3 Sync API + cron | `ElioPlans/src/app/api/dentally/sync/route.ts`, `api/cron/dentally-sync/route.ts` | `elio/apps/plans/app/api/dentally/sync/route.ts`, cron route | **Shipped** |
-| P1.4 Patient search | `ElioPlans/src/app/api/dentally/patients/route.ts` | `elio/apps/plans/app/api/dentally/patients/route.ts` (to create) | |
-| P1.5 Mappings CRUD | `ElioPlans/src/app/api/dentally/mappings/route.ts`, `mappings/[id]/route.ts` | `elio/apps/plans/app/api/dentally/mappings/` (to create) | |
+| P1.4 Patient search | `ElioPlans/src/app/api/dentally/patients/route.ts` | `elio/apps/plans/app/api/dentally/patients/route.ts` | **Shipped** |
+| P1.5 Mappings CRUD | `ElioPlans/src/app/api/dentally/mappings/route.ts`, `mappings/[id]/route.ts` | `elio/apps/plans/app/api/dentally/mappings/` | **Shipped** |
 | P1.6 Per-practice key | `ElioPlans/src/lib/dentally-sync.ts`, `src/lib/settings.ts` | Phase A.1 | |
 | P1.7 Audit on sync | `ElioPlans/src/lib/audit.ts` | `elio/apps/plans/lib/plans-service.ts` | |
 | P1.8 gc-sync cron | `ElioPlans/src/app/api/cron/gc-sync/route.ts`, `src/lib/gocardless.ts` | `elio/apps/plans/app/api/cron/gc-sync/route.ts` (to create) | |

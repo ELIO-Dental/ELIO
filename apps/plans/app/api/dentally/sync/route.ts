@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveAuditActor, writeAuditLog } from "@elio/auth";
-import { runPlansDentallySync, PlansDentallySyncConfigError } from "@elio/dentally";
+import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
@@ -40,6 +40,12 @@ export async function POST() {
   } catch (e) {
     if (e instanceof PlansDentallySyncConfigError) {
       return NextResponse.json({ error: e.message, ...e.details }, { status: 400 });
+    }
+    if (e instanceof DentallySyncConfigError) {
+      return NextResponse.json(
+        { error: e.message, configured: false },
+        { status: 400 },
+      );
     }
     return errorResponse(e);
   }

@@ -91,6 +91,10 @@ async function syncEnrolmentForPatient(
   const db = scopedDb(practiceId);
 
   let planPatient = await db.planPatient.findFirst({ where: { patientId } });
+  if (planPatient?.status === "CANCELLED") {
+    return false;
+  }
+
   const mandateCount = planPatient
     ? await db.planMandate.count({ where: { planPatientId: planPatient.id, status: "ACTIVE" } })
     : 0;
@@ -218,6 +222,7 @@ export async function runPlansDentallySync(practiceId: string): Promise<PlansDen
       phone: true,
       firstName: true,
       lastName: true,
+      dateOfBirth: true,
     },
   });
 
@@ -282,7 +287,7 @@ export async function runPlansDentallySync(practiceId: string): Promise<PlansDen
         if (dp.lastName && dp.lastName !== existing.lastName) {
           contactUpdates.lastName = dp.lastName;
         }
-        if (dp.dateOfBirth) {
+        if (dp.dateOfBirth && dp.dateOfBirth.getTime() !== existing.dateOfBirth?.getTime()) {
           contactUpdates.dateOfBirth = dp.dateOfBirth;
         }
 
@@ -352,6 +357,7 @@ export async function runPlansDentallySync(practiceId: string): Promise<PlansDen
         phone: dp.mobile || dp.phone || null,
         firstName: dp.firstName || null,
         lastName: dp.lastName || null,
+        dateOfBirth: dp.dateOfBirth,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";

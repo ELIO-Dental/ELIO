@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@elio/auth";
 import { prisma } from "@elio/db";
-import { runPlansDentallySync, PlansDentallySyncConfigError } from "@elio/dentally";
+import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
   }
 
   const practices = await prisma.practice.findMany({
-    where: { suspendedAt: null },
+    where: {
+      suspendedAt: null,
+      licences: { some: { moduleId: "PLANS", active: true } },
+    },
     select: { id: true },
   });
 
@@ -42,6 +45,14 @@ export async function GET(request: NextRequest) {
             skipped: true,
             reason: error.message,
             details: error.details,
+          };
+        }
+        if (error instanceof DentallySyncConfigError) {
+          return {
+            practiceId: practice.id,
+            skipped: true,
+            reason: error.message,
+            configured: false,
           };
         }
         throw error;

@@ -46,6 +46,13 @@ export type { PlansDentallySyncResult } from "./src/plans-sync";
 
 export { normalizeEmail, emailsMatch, findExistingPatient } from "./src/patient-matching";
 export type { MatchableExisting, MatchCandidate, MatchResult } from "./src/patient-matching";
+
+export {
+  searchDentallyPatients,
+  fetchDentallyPatient,
+  mapDentallySearchPatient,
+} from "./src/plans-patient-search";
+export type { DentallySearchPatient } from "./src/plans-patient-search";
 export type {
   LivePatientPanel,
   LivePatientAppointment,
