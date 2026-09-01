@@ -1,4 +1,6 @@
 import { formatMoneyGBPOrDash } from "@elio/ui";
+import { DiscrepanciesPanel } from "./discrepancies-panel";
+import { DentistLogImportPanel } from "./dentist-log-import-panel";
 import { PrivatePatientsTable, type PrivatePatientRow } from "./private-patients-table";
 
 interface Analytics {
@@ -15,20 +17,24 @@ interface Analytics {
 export function DentistFetchDetails({
   payPeriodId,
   payslipEntryId,
+  dentistName,
   locked,
   privateSplitPercent,
   analytics,
   lines,
+  dentallyDiscrepanciesJson,
+  dentallyDentistLogJson,
 }: {
   payPeriodId: string;
   payslipEntryId: string;
+  dentistName: string;
   locked: boolean;
   privateSplitPercent: string | null;
   analytics: Analytics | null;
   lines: PrivatePatientRow[];
+  dentallyDiscrepanciesJson: unknown;
+  dentallyDentistLogJson: unknown;
 }) {
-  if (!analytics?.totalChairMins && lines.length === 0) return null;
-
   const patientsWithDuration = lines.filter((l) => l.durationMins && l.durationMins > 0).length;
   const topPatients = analytics?.topPatientsByHourlyRate ?? [];
   const topTreatments = analytics?.topTreatmentsByHourlyRate ?? [];
@@ -94,6 +100,21 @@ export function DentistFetchDetails({
         payslipEntryId={payslipEntryId}
         locked={locked}
         initialLines={lines}
+      />
+
+      <DentistLogImportPanel
+        payPeriodId={payPeriodId}
+        payslipEntryId={payslipEntryId}
+        dentistName={dentistName}
+        locked={locked}
+        initialLog={dentallyDentistLogJson}
+      />
+
+      <DiscrepanciesPanel
+        payPeriodId={payPeriodId}
+        payslipEntryId={payslipEntryId}
+        locked={locked}
+        initialDiscrepancies={dentallyDiscrepanciesJson}
       />
     </div>
   );

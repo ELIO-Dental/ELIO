@@ -42,6 +42,24 @@ export function discrepancyTypeLabel(type: PayDiscrepancyType): string {
   }
 }
 
+/** Legacy AuraPay badge colours per discrepancy type (Y2.6). */
+export function discrepancyTypeBadgeClass(type: PayDiscrepancyType): string {
+  switch (type) {
+    case "invoiced_not_paid":
+      return "bg-(--color-danger)/10 text-(--color-danger)";
+    case "partial_payment":
+      return "bg-(--color-warning)/10 text-(--color-warning)";
+    case "in_log_not_system":
+      return "bg-purple-100 text-purple-700";
+    case "in_system_not_log":
+      return "bg-(--color-brand)/10 text-(--color-brand)";
+    case "log_mismatch":
+      return "bg-(--color-surface-dim) text-(--color-text-secondary)";
+    default:
+      return "bg-(--color-surface-dim) text-(--color-text-secondary)";
+  }
+}
+
 export function discrepancyAmountForBreakdown(d: PayDiscrepancy): number {
   if (d.type === "in_log_not_system" && d.logAmount && d.logAmount > 0) return d.logAmount;
   return d.invoicedAmount > 0 ? d.invoicedAmount : d.paidAmount;

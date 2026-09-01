@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   discrepancyAmountForBreakdown,
+  discrepancyTypeBadgeClass,
   discrepancyTypeLabel,
   parsePayDiscrepancies,
   resolveAllDiscrepancies,
@@ -37,6 +38,11 @@ describe("pay discrepancies (Y2.6)", () => {
   it("labels legacy discrepancy types", () => {
     expect(discrepancyTypeLabel("in_log_not_system")).toBe("IN LOG ONLY");
     expect(discrepancyTypeLabel("partial_payment")).toBe("PARTIAL");
+  });
+
+  it("maps type badge colour classes", () => {
+    expect(discrepancyTypeBadgeClass("invoiced_not_paid")).toContain("danger");
+    expect(discrepancyTypeBadgeClass("in_log_not_system")).toContain("purple");
   });
 
   it("resolves one or all discrepancies", () => {

@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatMoneyGBPOrDash } from "@elio/ui";
 import {
   discrepancyAmountForBreakdown,
+  discrepancyTypeBadgeClass,
   discrepancyTypeLabel,
   parsePayDiscrepancies,
   resolveAllDiscrepancies,
@@ -149,7 +150,9 @@ export function DiscrepanciesPanel({
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-(--color-text-primary)">{d.patientName}</span>
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-(--color-surface-dim) px-1.5 py-0.5 text-[10px] font-medium text-(--color-text-secondary)">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${discrepancyTypeBadgeClass(d.type)}`}
+                  >
                     {discrepancyTypeLabel(d.type)}
                   </span>
                   {!locked && d.type === "in_log_not_system" && addAmount > 0 ? (

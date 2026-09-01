@@ -10,7 +10,6 @@ import {
   formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { DentistFetchDetails } from "./dentist-fetch-details";
-import { DiscrepanciesPanel } from "./discrepancies-panel";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
@@ -39,6 +38,7 @@ function asAnalytics(value: unknown): {
 export interface PayslipEntryBodyProps {
   payPeriodId: string;
   payslipEntryId: string;
+  dentistName: string;
   locked: boolean;
   payType: string;
   udas: { toString(): string } | null;
@@ -59,6 +59,7 @@ export interface PayslipEntryBodyProps {
   finalPayPence: number | null;
   dentallyAnalyticsJson: unknown;
   dentallyDiscrepanciesJson: unknown;
+  dentallyDentistLogJson: unknown;
   privateRevenueLineItems: Array<{
     id: string;
     patientName: string | null;
@@ -181,20 +182,17 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           </TableBody>
         </Table>
       </TablePanel>
-      <div className="mt-6 space-y-6">
-        <DiscrepanciesPanel
-          payPeriodId={p.payPeriodId}
-          payslipEntryId={p.payslipEntryId}
-          locked={p.locked}
-          initialDiscrepancies={p.dentallyDiscrepanciesJson}
-        />
+      <div className="mt-6">
         <DentistFetchDetails
           payPeriodId={p.payPeriodId}
           payslipEntryId={p.payslipEntryId}
+          dentistName={p.dentistName}
           locked={p.locked}
           privateSplitPercent={p.privateSplitPercent?.toString() ?? null}
           analytics={asAnalytics(p.dentallyAnalyticsJson)}
           lines={p.privateRevenueLineItems}
+          dentallyDiscrepanciesJson={p.dentallyDiscrepanciesJson}
+          dentallyDentistLogJson={p.dentallyDentistLogJson}
         />
       </div>
     </div>
