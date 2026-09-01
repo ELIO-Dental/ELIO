@@ -10,6 +10,7 @@ import {
   formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { DentistFetchDetails } from "./dentist-fetch-details";
+import { DiscrepanciesPanel } from "./discrepancies-panel";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
 function asAnalytics(value: unknown): {
@@ -57,6 +58,7 @@ export interface PayslipEntryBodyProps {
   manualAdjustmentsPence: number | null;
   finalPayPence: number | null;
   dentallyAnalyticsJson: unknown;
+  dentallyDiscrepanciesJson: unknown;
   privateRevenueLineItems: Array<{
     id: string;
     patientName: string | null;
@@ -179,7 +181,13 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           </TableBody>
         </Table>
       </TablePanel>
-      <div className="mt-6">
+      <div className="mt-6 space-y-6">
+        <DiscrepanciesPanel
+          payPeriodId={p.payPeriodId}
+          payslipEntryId={p.payslipEntryId}
+          locked={p.locked}
+          initialDiscrepancies={p.dentallyDiscrepanciesJson}
+        />
         <DentistFetchDetails
           payPeriodId={p.payPeriodId}
           payslipEntryId={p.payslipEntryId}

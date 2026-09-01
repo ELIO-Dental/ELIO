@@ -172,6 +172,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       manualAdjustmentsPence={p.manualAdjustmentsPence}
                       finalPayPence={p.finalPayPence}
                       dentallyAnalyticsJson={p.dentallyAnalyticsJson}
+                      dentallyDiscrepanciesJson={p.dentallyDiscrepanciesJson}
                       privateRevenueLineItems={p.privateRevenueLineItems.map((line) => ({
                         id: line.id,
                         patientName: line.patientName,
