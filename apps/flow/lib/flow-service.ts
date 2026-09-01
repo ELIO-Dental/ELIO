@@ -171,7 +171,10 @@ export async function updateConsultDetails(
   if ("quotePenceOverride" in input) data.quotePenceOverride = input.quotePenceOverride;
   if ("hasDeposit" in input) data.hasDeposit = input.hasDeposit;
   if ("treatmentBooked" in input) data.treatmentBooked = input.treatmentBooked;
-  if ("practitionerDentistId" in input) data.practitionerDentistId = input.practitionerDentistId;
+  if ("practitionerDentistId" in input) {
+    data.practitionerDentistId = input.practitionerDentistId;
+    data.practitionerEdited = true;
+  }
   if ("notes" in input) data.notes = input.notes;
   if ("planSignedUp" in input) data.planSignedUp = input.planSignedUp;
 
@@ -460,7 +463,7 @@ export async function linkConsultToAppointment(practiceId: string, consultId: st
     appointment.dentallyState === "Completed" || appointment.dentallyState === "In surgery" ? true : null;
 
   let practitionerDentistId = consult.practitionerDentistId;
-  if (!practitionerDentistId && appointment.practitionerId) {
+  if (!consult.practitionerEdited && !practitionerDentistId && appointment.practitionerId) {
     const dentist = await db.dentist.findFirst({
       where: { dentallyPractitionerId: appointment.practitionerId },
     });

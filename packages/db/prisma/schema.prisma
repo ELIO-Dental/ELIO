@@ -1386,6 +1386,7 @@ model Consult {
   practitionerDentistId String?
   practitionerDentist   Dentist?            @relation(fields: [practitionerDentistId], references: [id])
   bookedBy              String?
+  practitionerEdited    Boolean             @default(false)
   quotePence            Int?
   // Manual override of quotePence, e.g. a discount agreed verbally — old
   // ElioFlow's `planValueOverride` semantics: once set, sync/re-derivation
