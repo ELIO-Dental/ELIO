@@ -21,10 +21,15 @@ function guard() {
   return process.env.GOCARDLESS_MOCK_MODE === "true";
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   if (!guard()) return NextResponse.json({ error: "not available" }, { status: 404 });
 
-  const practice = await prisma.practice.findFirst({ select: { id: true } });
+  const body = await req.json().catch(() => ({}));
+  const requestedPracticeId = typeof body?.practiceId === "string" ? body.practiceId.trim() : "";
+
+  const practice = requestedPracticeId
+    ? await prisma.practice.findUnique({ where: { id: requestedPracticeId }, select: { id: true } })
+    : await prisma.practice.findFirst({ select: { id: true } });
   if (!practice) return NextResponse.json({ error: "no practice found to seed against" }, { status: 500 });
 
   const suffix = randomUUID().slice(0, 8);

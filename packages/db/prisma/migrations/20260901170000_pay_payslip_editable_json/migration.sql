@@ -1,3 +1,3 @@
 -- AlterTable
-ALTER TABLE "payslip_entries" ADD COLUMN "labBillsJson" JSONB,
-ADD COLUMN "adjustmentsJson" JSONB;
+ALTER TABLE "pay_payslip_entries" ADD COLUMN IF NOT EXISTS "labBillsJson" JSONB,
+ADD COLUMN IF NOT EXISTS "adjustmentsJson" JSONB;

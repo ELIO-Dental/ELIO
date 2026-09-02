@@ -535,7 +535,7 @@ export function PatientDetailClient({
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-wrap gap-1.5 border-b border-(--color-border-subtle) pb-3">
+      <div className="flex flex-wrap gap-1.5 border-b border-(--color-border-subtle) pb-3" data-testid="patient-detail-tabs">
         {TABS.map((t) => (
           <button key={t} type="button" onClick={() => setTab(t)}>
             <Badge variant={tab === t ? "primary" : "neutral"}>{t}</Badge>

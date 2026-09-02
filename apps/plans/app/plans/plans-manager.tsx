@@ -354,7 +354,7 @@ export function PlansManager({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="plans-edit-dialog">
           <DialogHeader>
             <DialogTitle>{editingPlan ? "Edit plan" : "Create plan"}</DialogTitle>
             <DialogDescription>
@@ -680,7 +680,7 @@ export function PlansManager({
       </Dialog>
 
       <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
-        <DialogContent>
+          <DialogContent data-testid="plans-edit-dialog">
           <DialogHeader>
             <DialogTitle>Adjust plan price</DialogTitle>
             <DialogDescription>

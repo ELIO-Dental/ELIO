@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Dentist" ADD COLUMN "email" TEXT;
+ALTER TABLE "pay_dentists" ADD COLUMN IF NOT EXISTS "email" TEXT;

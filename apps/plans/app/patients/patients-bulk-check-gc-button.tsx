@@ -32,7 +32,7 @@ export function PatientsBulkCheckGcButton() {
   }
 
   return (
-    <Button variant="secondary" size="sm" onClick={handleBulkCheck} loading={loading}>
+    <Button variant="secondary" size="sm" onClick={handleBulkCheck} loading={loading} data-testid="plans-bulk-check-gc">
       <CreditCard className="mr-2 size-4" />
       Check GoCardless
     </Button>

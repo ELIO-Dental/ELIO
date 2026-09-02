@@ -19,7 +19,7 @@ export function PatientsExportButton() {
   }
 
   return (
-    <Button variant="secondary" size="sm" onClick={handleExport}>
+    <Button variant="secondary" size="sm" onClick={handleExport} data-testid="plans-export-csv">
       <Download className="mr-2 size-4" />
       Export CSV
     </Button>
