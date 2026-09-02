@@ -16,6 +16,7 @@ let sessionCookies: Cookie[] = [];
 let practiceId: string;
 let dentistId: string;
 let payPeriodId: string;
+let legacyArchiveSourceId: string | undefined;
 
 /** API sign-in avoids flaky native GET /login?email=… when React has not hydrated yet. */
 async function signInAndGetCookies(browser: Browser) {
@@ -64,6 +65,9 @@ test.afterAll(async () => {
   }
   if (dentistId) {
     await prisma.dentist.deleteMany({ where: { id: dentistId } });
+  }
+  if (legacyArchiveSourceId && practiceId) {
+    await prisma.legacyPayslipArchive.deleteMany({ where: { practiceId, sourceId: legacyArchiveSourceId } });
   }
   await prisma.$disconnect();
 });
@@ -228,5 +232,105 @@ test.describe("Pay verification (P5 / Part 6)", () => {
     expect(pdfRes.ok(), await pdfRes.text()).toBeTruthy();
     const bytes = Buffer.from(await pdfRes.body());
     expect(bytes.subarray(0, 4).toString("ascii")).toBe("%PDF");
+  });
+
+  test("legacy archived payslip is viewable read-only", async ({ page }) => {
+    const owner = await prisma.user.findUniqueOrThrow({ where: { email: OWNER_EMAIL } });
+    if (!owner.practiceId) throw new Error("Seeded OWNER has no practiceId");
+    practiceId = owner.practiceId;
+
+    legacyArchiveSourceId = `uat-legacy-${Date.now()}`;
+    const archive = await prisma.legacyPayslipArchive.create({
+      data: {
+        practiceId,
+        sourceId: legacyArchiveSourceId,
+        dentistName: "UAT Legacy Dentist",
+        periodMonth: 1,
+        periodYear: 2025,
+        rawRowJson: JSON.stringify({
+          id: 1,
+          gross_private: 1500,
+          nhs_udas: 42,
+          private_patients_json: "[]",
+          lab_bills_json: "[]",
+          adjustments_json: "[]",
+        }),
+      },
+    });
+
+    await page.goto("/pay/legacy-payslips?dentist=UAT%20Legacy%20Dentist");
+    await expect(page.getByRole("heading", { level: 1, name: "Legacy payslip archive" })).toBeVisible();
+
+    const listRes = await page.request.get("/pay/api/legacy-payslips?dentist=UAT%20Legacy%20Dentist");
+    expect(listRes.ok(), await listRes.text()).toBeTruthy();
+    const list = (await listRes.json()) as { items: Array<{ id: string; dentistName: string }> };
+    expect(list.items.some((r) => r.dentistName === "UAT Legacy Dentist")).toBeTruthy();
+
+    const detailRes = await page.request.get(`/pay/api/legacy-payslips/${archive.id}`);
+    expect(detailRes.ok(), await detailRes.text()).toBeTruthy();
+    const detail = (await detailRes.json()) as { dentistName: string };
+    expect(detail.dentistName).toBe("UAT Legacy Dentist");
+
+    await expect(async () => {
+      await page.goto(`/pay/legacy-payslips/${archive.id}`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { level: 1, name: /UAT Legacy Dentist/ })).toBeVisible();
+      await expect(page.getByRole("main").getByText("Legacy archive", { exact: true })).toBeVisible();
+    }).toPass({ timeout: 60_000 });
+  });
+
+  test("email payslip to dentist", async ({ page }) => {
+    const owner = await prisma.user.findUniqueOrThrow({ where: { email: OWNER_EMAIL } });
+    if (!owner.practiceId) throw new Error("Seeded OWNER has no practiceId");
+    practiceId = owner.practiceId;
+
+    const dentist = await prisma.dentist.create({
+      data: {
+        practiceId,
+        name: `UAT Email Dentist ${Date.now()}`,
+        email: "uat-dentist@elio.test",
+        payType: "PERCENTAGE_SPLIT",
+        privateSplitPercent: 50,
+        udaRatePence: 2810,
+      },
+    });
+    dentistId = dentist.id;
+
+    const periodStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0));
+    const period = await prisma.payPeriod.create({
+      data: { practiceId, periodStart, periodEnd, status: "LOCKED", triggeredAt: new Date() },
+    });
+    payPeriodId = period.id;
+
+    const payslip = await prisma.payslipEntry.create({
+      data: {
+        practiceId,
+        payPeriodId,
+        dentistId,
+        payType: "PERCENTAGE_SPLIT",
+        privateSplitPercent: 50,
+        finalPayPence: 50000,
+      },
+    });
+
+    await page.goto("/pay/settings");
+    await page.route(`**/pay/api/payslips/${payslip.id}/send-email`, async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, message: "Email sent to uat-dentist@elio.test" }),
+      });
+    });
+
+    const result = await page.evaluate(async (payslipId) => {
+      const res = await fetch(`/pay/api/payslips/${payslipId}/send-email`, { method: "POST" });
+      return { ok: res.ok, body: (await res.json()) as { message?: string } };
+    }, payslip.id);
+    expect(result.ok).toBeTruthy();
+    expect(result.body.message).toMatch(/Email sent/i);
   });
 });

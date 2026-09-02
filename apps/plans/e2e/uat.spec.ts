@@ -2,6 +2,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { test, expect, request as pwRequest, type Page, type Cookie } from "@playwright/test";
 import { prisma } from "@elio/db";
+import { activeMemberEnrolmentWhere } from "@elio/plans-engine";
 import { PLANS_ORIGIN } from "../playwright.config";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
@@ -96,6 +97,62 @@ test.afterAll(async () => {
 });
 
 test.describe("Plans verification (P5 / Part 6)", () => {
+  test("dashboard active members matches mandate-aware count", async ({ page }) => {
+    const owner = await prisma.user.findFirst({
+      where: { email: OWNER_EMAIL.toLowerCase() },
+      select: { practiceId: true },
+    });
+    if (!owner?.practiceId) throw new Error(`No practice for ${OWNER_EMAIL}`);
+
+    const expected = await prisma.patientPlanEnrolment.count({
+      where: activeMemberEnrolmentWhere(owner.practiceId),
+    });
+
+    await page.goto("/plans/dashboard");
+    const activeCard = page.locator("div").filter({ has: page.getByText("Active members", { exact: true }) }).first();
+    await expect(activeCard).toContainText(String(expected));
+  });
+
+  test("free child plan requires parent patient selection", async ({ page }) => {
+    const planName = `UAT Free Child ${Date.now()}`;
+    const createRes = await page.request.post("/plans/api/plans", {
+      data: {
+        name: planName,
+        monthlyPricePence: 0,
+        inclusions: [],
+        discounts: [],
+        eligibilityRules: [],
+      },
+    });
+    expect(createRes.ok(), await createRes.text()).toBeTruthy();
+    const { id: planId } = (await createRes.json()) as { id: string };
+
+    await page.goto("/plans/patients");
+    const planTrigger = page.locator("#plan");
+    if (await planTrigger.isVisible()) {
+      await planTrigger.click();
+      await page.getByRole("option", { name: planName }).click();
+      await expect(page.getByText("Link to parent/guardian")).toBeVisible();
+      await expect(page.getByText(/children on a free plan must be linked/i)).toBeVisible();
+    } else {
+      // No unenrolled patients — validate API rejects missing parent on free plan.
+      const owner = await prisma.user.findFirst({
+        where: { email: OWNER_EMAIL.toLowerCase() },
+        select: { practiceId: true },
+      });
+      const patient = await prisma.patient.findFirst({ where: { practiceId: owner?.practiceId } });
+      test.skip(!patient, "No synced patient available for enrolment API check");
+      const enrolRes = await page.request.post("/plans/api/enrolments", {
+        data: { patientId: patient!.id, planId },
+      });
+      expect(enrolRes.status()).toBe(400);
+      const body = await enrolRes.json();
+      expect(body.error).toMatch(/parent/i);
+    }
+
+    await page.request.delete(`/plans/api/plans/${planId}`).catch(() => {});
+  });
+
   test("dashboard shows legacy stat cards", async ({ page }) => {
     await page.goto("/plans/dashboard");
     await expect(page.getByText("Active members").first()).toBeVisible();

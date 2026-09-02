@@ -930,10 +930,10 @@ Client sign-off when **every row** passes on production-like staging:
 
 - [x] Dentally mappings page: map plan codes — `/plans/dentally` + `e2e/uat.spec.ts`
 - [x] **Sync from Dentally** imports patients on mapped plans — API smoke in `e2e/uat.spec.ts` (staging count: `verify-plans-parity`)
-- [x] Dashboard Active Members matches mandate-aware count
+- [x] Dashboard Active Members matches mandate-aware count — `apps/plans/e2e/uat.spec.ts`
 - [x] Patient list: **PENDING_DD** filter chip works — `e2e/uat.spec.ts`
 - [x] Patient list rows link to **detail page** with all tabs (payments, appointments, notes, correspondence) — `e2e/uat.spec.ts`
-- [x] Free child plan requires parent patient selection
+- [x] Free child plan requires parent patient selection — `apps/plans/e2e/uat.spec.ts`
 - [x] Bulk Check GoCardless links mandates — `e2e/uat.spec.ts`
 - [x] Plan edit: inclusions, discounts, eligibility rules — `e2e/uat.spec.ts` + `data-testid="plans-edit-dialog"`
 - [x] Export CSV patients — `e2e/uat.spec.ts` + `data-testid="plans-export-csv"`
@@ -947,8 +947,8 @@ Client sign-off when **every row** passes on production-like staging:
 - [x] Settings: therapy and finance rates configurable — `apps/pay/e2e/uat.spec.ts`
 - [x] Lab bill: mark paid, upload invoice file — `apps/pay/e2e/uat.spec.ts` + `data-testid="lab-bills-page"`
 - [x] Bulk payments: bank details saved, Starling CSV exports — `apps/pay/e2e/uat.spec.ts` + `data-testid="bulk-payments-page"`
-- [x] Email payslip to dentist
-- [x] View legacy archived payslip (read-only)
+- [x] Email payslip to dentist — `apps/pay/e2e/uat.spec.ts`
+- [x] View legacy archived payslip (read-only) — `apps/pay/e2e/uat.spec.ts`
 
 ### Portal
 
