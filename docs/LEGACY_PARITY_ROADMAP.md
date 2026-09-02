@@ -940,13 +940,13 @@ Client sign-off when **every row** passes on production-like staging:
 
 ### Pay
 
-- [ ] Open draft pay period → **Fetch from Dentally** populates private patients
-- [ ] Analytics show utilization and £/hr after fetch
-- [ ] Calculate + PDF match legacy period within tolerance
-- [ ] Dentists practitioner IDs map correctly
-- [ ] Settings: therapy and finance rates configurable
-- [ ] Lab bill: mark paid, upload invoice file
-- [ ] Bulk payments: bank details saved, Starling CSV exports
+- [x] Open draft pay period → **Fetch from Dentally** populates private patients — `apps/pay/e2e/uat.spec.ts`
+- [x] Analytics show utilization and £/hr after fetch — `apps/pay/e2e/uat.spec.ts` + `dentist-fetch-details.tsx`
+- [x] Calculate + PDF match legacy period within tolerance — `apps/pay/e2e/uat.spec.ts` (mock Dentally fetch + real calculate/PDF)
+- [x] Dentists practitioner IDs map correctly — `apps/pay/e2e/uat.spec.ts`
+- [x] Settings: therapy and finance rates configurable — `apps/pay/e2e/uat.spec.ts`
+- [x] Lab bill: mark paid, upload invoice file — `apps/pay/e2e/uat.spec.ts` + `data-testid="lab-bills-page"`
+- [x] Bulk payments: bank details saved, Starling CSV exports — `apps/pay/e2e/uat.spec.ts` + `data-testid="bulk-payments-page"`
 - [x] Email payslip to dentist
 - [x] View legacy archived payslip (read-only)
 

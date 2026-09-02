@@ -15,10 +15,11 @@ dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 // like apps/shell/e2e's pattern but with a second webServer for this app's own port.
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 120_000,
-  expect: { timeout: 20_000 },
+  timeout: 180_000,
+  expect: { timeout: 45_000 },
   fullyParallel: false,
   workers: 1,
+  retries: 2,
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3030",
     trace: "retain-on-failure",

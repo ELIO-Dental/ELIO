@@ -396,7 +396,7 @@ export function BulkPaymentsClient() {
   const hasSelection = selectedLab.size > 0 || selectedSupplier.size > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="bulk-payments-page">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1 rounded-lg bg-(--color-surface-muted) p-1">
           <button
@@ -427,7 +427,7 @@ export function BulkPaymentsClient() {
         </div>
 
         {activeTab === "unpaid" && hasSelection && (
-          <Button onClick={() => void generateCsv()}>
+          <Button onClick={() => void generateCsv()} data-testid="bulk-export-starling-csv">
             <Download className="mr-2 h-4 w-4" />
             Export Starling CSV
           </Button>

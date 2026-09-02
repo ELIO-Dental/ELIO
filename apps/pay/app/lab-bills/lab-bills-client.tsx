@@ -156,7 +156,7 @@ export function LabBillsClient({
   };
 
   return (
-    <>
+    <div data-testid="lab-bills-page">
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(
           [
@@ -435,6 +435,6 @@ export function LabBillsClient({
           )}
         </TablePanel>
       </div>
-    </>
+    </div>
   );
 }
