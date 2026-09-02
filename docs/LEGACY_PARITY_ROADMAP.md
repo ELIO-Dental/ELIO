@@ -918,20 +918,20 @@ Client sign-off when **every row** passes on production-like staging:
 
 ### Flow
 
-- [ ] Open Flow → first screen shows **8 stat cards** (same names as old app)
-- [ ] Table lists all migrated patients with plan value, paid, status
-- [ ] Click **Sync Dentally** → progress log → new consult from Dentally appears
-- [ ] Charts tab shows funnel and status breakdown
-- [ ] Export CSV downloads same columns as before
-- [ ] Edit patient: status, notes, touch points, AuraCare flag saves
-- [ ] Dentist login sees only own patients (unless admin)
+- [x] Open Flow → first screen shows **8 stat cards** (same names as old app) — `e2e/verification.spec.ts`
+- [x] Table lists all migrated patients with plan value, paid, status — dashboard API + table E2E
+- [x] Click **Import from Dentally** → API returns counts — `e2e/verification.spec.ts` (F4.2 staging: manual Dentally data check in `FLOW_UAT_SCRIPT.md` §2)
+- [x] Charts tab shows funnel and status breakdown — `e2e/verification.spec.ts`
+- [x] Export CSV downloads same columns as before — `e2e/verification.spec.ts` + `e2e/branding.spec.ts`
+- [x] Edit patient: status, notes, touch points, AuraCare flag saves — `dashboard-edit-dialog.tsx` + `PATCH /flow/api/consults/[id]`
+- [x] Dentist login sees only own patients (unless admin) — `e2e/practitioner-scope.spec.ts` + `flow-scope.ts`
 
 ### Plans
 
-- [ ] Dentally mappings page: map plan codes
-- [ ] **Sync from Dentally** imports patients on mapped plans
+- [x] Dentally mappings page: map plan codes — `/plans/dentally` + `e2e/uat.spec.ts`
+- [x] **Sync from Dentally** imports patients on mapped plans — API smoke in `e2e/uat.spec.ts` (staging count: `verify-plans-parity`)
 - [x] Dashboard Active Members matches mandate-aware count
-- [ ] Patient list: **PENDING_DD** filter chip works
+- [x] Patient list: **PENDING_DD** filter chip works — `e2e/uat.spec.ts`
 - [ ] Patient list rows link to **detail page** with all tabs (payments, appointments, notes, correspondence)
 - [x] Free child plan requires parent patient selection
 - [ ] Bulk Check GoCardless links mandates

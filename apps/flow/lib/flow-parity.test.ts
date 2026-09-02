@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareFlowDashboardParity } from "./flow-parity";
+import { compareFlowDashboardParity, parseLegacyFlowExportFile } from "./flow-parity";
 
 describe("compareFlowDashboardParity", () => {
   const legacy = {
@@ -41,5 +41,30 @@ describe("compareFlowDashboardParity", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.diffs.some((d) => d.field === "converted")).toBe(true);
+  });
+});
+
+describe("parseLegacyFlowExportFile", () => {
+  it("parses valid legacy stats JSON", () => {
+    const file = parseLegacyFlowExportFile(
+      JSON.stringify({
+        stats: {
+          totalConsultations: 5,
+          attended: 4,
+          converted: 2,
+          stuck: 1,
+          totalPipelineValue: 1000,
+          totalPlanned: 5000,
+          totalPaid: 500,
+          elioCareCount: 1,
+          conversionRate: 50,
+        },
+      })
+    );
+    expect(file.stats.totalConsultations).toBe(5);
+  });
+
+  it("rejects invalid export shape", () => {
+    expect(() => parseLegacyFlowExportFile("{}")).toThrow(/Invalid legacy Flow export/);
   });
 });
