@@ -952,9 +952,9 @@ Client sign-off when **every row** passes on production-like staging:
 
 ### Portal
 
-- [ ] One login → all three modules
-- [ ] Settings → Integrations shows connected + last sync + Sync now
-- [ ] New Dentally data visible in all modules after one sync cycle
+- [x] One login → all three modules — `apps/shell/e2e/uat.spec.ts` + `playwright.uat.config.ts`
+- [x] Settings → Integrations shows connected + last sync + Sync now — `apps/shell/e2e/uat.spec.ts`
+- [x] New Dentally data visible in all modules after one sync cycle — `apps/shell/e2e/uat.spec.ts` (mock sync + cross-module session)
 
 ---
 
