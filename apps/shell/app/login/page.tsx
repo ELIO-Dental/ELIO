@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button, Input, Label } from "@elio/ui";
 import { AuthFormCard, AuthShell } from "@/components/auth-shell";
@@ -21,7 +21,6 @@ function sanitizeCallbackUrl(raw: string | null): string {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"));
 
@@ -57,8 +56,9 @@ export default function LoginPage() {
     }
 
     setNavigating(true);
-    router.push(callbackUrl);
-    router.refresh();
+    // Full document load so the session cookie is on the first launcher request.
+    // Client router.push + refresh races the cookie and flashes a blank URL.
+    window.location.assign(callbackUrl);
   }
 
   async function submitMfa(e: React.FormEvent) {
@@ -87,8 +87,7 @@ export default function LoginPage() {
     }
 
     setNavigating(true);
-    router.push(callbackUrl);
-    router.refresh();
+    window.location.assign(callbackUrl);
   }
 
   const isBusy = loading || navigating;

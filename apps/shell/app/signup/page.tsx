@@ -123,8 +123,7 @@ export default function SignupPage() {
       router.push("/login");
       return;
     }
-    router.push("/launcher");
-    router.refresh();
+    window.location.assign("/launcher");
   }
 
   return (
