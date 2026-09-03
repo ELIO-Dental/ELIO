@@ -14,7 +14,7 @@ export async function GET() {
   }
 
   const users = await prisma.user.findMany({
-    where: { practiceId: session.practiceId },
+    where: { practiceId: session.practiceId, role: { not: "SUPER_ADMIN" } },
     select: {
       id: true,
       email: true,

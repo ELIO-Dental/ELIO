@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target || target.practiceId !== session.practiceId) {
+  if (!target || target.practiceId !== session.practiceId || target.role === "SUPER_ADMIN") {
     return NextResponse.json({ error: { code: "NOT_FOUND" } }, { status: 404 });
   }
 
