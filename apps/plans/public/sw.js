@@ -1,5 +1,5 @@
 /* ELIO PWA service worker — desktop-first, auth-safe caching */
-const CACHE = "elio-plans-v1";
+const CACHE = "elio-plans-v2";
 const OFFLINE_URL = "/plans/offline.html";
 
 self.addEventListener("install", (event) => {

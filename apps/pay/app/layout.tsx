@@ -12,7 +12,14 @@ export const metadata: Metadata = {
   title: "ElioPay",
   description: pwa.description,
   applicationName: pwa.shortName,
-  appleWebApp: { capable: true, title: pwa.shortName },
+  icons: {
+    icon: [
+      { url: "/pay/favicon.png", type: "image/png" },
+      { url: "/pay/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/pay/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: pwa.shortName, statusBarStyle: "black-translucent" },
 };
 
 // IMPORTANT (corrects an earlier assumption left in this file): Next.js

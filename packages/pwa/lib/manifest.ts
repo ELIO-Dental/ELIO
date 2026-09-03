@@ -69,12 +69,6 @@ export function buildWebManifest(config: PwaAppConfig): WebManifest {
         type: "image/png",
         purpose: "maskable",
       },
-      {
-        src: `${iconBase}/icon.svg`,
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
     ],
     shortcuts: buildShortcuts(config),
   };

@@ -13,7 +13,14 @@ export const metadata: Metadata = {
   title: "ElioFlow",
   description: pwa.description,
   applicationName: pwa.shortName,
-  appleWebApp: { capable: true, title: pwa.shortName },
+  icons: {
+    icon: [
+      { url: "/flow/favicon.png", type: "image/png" },
+      { url: "/flow/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/flow/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: pwa.shortName, statusBarStyle: "black-translucent" },
 };
 
 // Found live (2026-08-28, independent Phase 1 audit): apps/pay renders the

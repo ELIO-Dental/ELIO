@@ -71,6 +71,7 @@ function isPwaAsset(pathname: string): boolean {
     pathname.startsWith("/brand/") ||
     pathname === "/favicon.png" ||
     pathname === "/favicon.ico" ||
+    pathname === "/apple-touch-icon.png" ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/offline.html" ||
     pathname.endsWith("/offline.html")
@@ -148,6 +149,6 @@ export default auth((req: NextRequest & { auth?: unknown }) => {
 export const config = {
   // Protect everything except static assets, Next internals, and API auth routes.
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|brand/|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password|api/inngest|api/cron).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|apple-touch-icon\\.png|brand/|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password|api/inngest|api/cron).*)",
   ],
 };

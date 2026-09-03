@@ -36,8 +36,8 @@ export function PwaSettingsSection({ config }: { config: PwaAppConfig }) {
       <PwaInstallButton config={config} variant="primary" size="lg" />
 
       <p className="text-caption text-(--color-text-tertiary)">
-        Chrome and Edge on Windows/macOS support one-click install. If the button doesn&apos;t appear, use the install
-        icon in your browser&apos;s address bar.
+        Chrome and Edge: one-click install from the button or address bar. Safari (Mac): File → Add to Dock. Safari
+        (iPhone/iPad): Share → Add to Home Screen.
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 /* ELIO PWA service worker — desktop-first, auth-safe caching */
-const CACHE = "elio-flow-v1";
+const CACHE = "elio-flow-v2";
 const OFFLINE_URL = "/flow/offline.html";
 
 self.addEventListener("install", (event) => {

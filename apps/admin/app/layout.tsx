@@ -9,7 +9,14 @@ export const metadata: Metadata = {
   title: "ELIO Super Admin",
   description: pwa.description,
   applicationName: pwa.shortName,
-  appleWebApp: { capable: true, title: pwa.shortName },
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: pwa.shortName, statusBarStyle: "black-translucent" },
 };
 
 // No auth check here — this wraps EVERY route including /login itself, so

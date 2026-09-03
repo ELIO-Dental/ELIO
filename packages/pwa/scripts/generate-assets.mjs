@@ -23,16 +23,44 @@ const APPS = [
     id: "portal",
     publicDir: path.join(root, "../../apps/shell/public"),
     appDir: path.join(root, "../../apps/shell/app"),
-    cacheName: "elio-portal-v2",
+    cacheName: "elio-portal-v3",
     offlineUrl: "/offline.html",
     appName: "ELIO Portal",
-    /** Prefer client favicon mark when present; fall back to solid brand tile. */
+    /** Client favicon mark — used for tab favicon + all PWA / Safari icons. */
     iconSource: path.join(assetsDir, "portal-favicon.png"),
   },
-  { id: "pay", publicDir: path.join(root, "../../apps/pay/public"), cacheName: "elio-pay-v1", offlineUrl: "/pay/offline.html", appName: "ElioPay" },
-  { id: "plans", publicDir: path.join(root, "../../apps/plans/public"), cacheName: "elio-plans-v1", offlineUrl: "/plans/offline.html", appName: "ElioPlans" },
-  { id: "flow", publicDir: path.join(root, "../../apps/flow/public"), cacheName: "elio-flow-v1", offlineUrl: "/flow/offline.html", appName: "ElioFlow" },
-  { id: "admin", publicDir: path.join(root, "../../apps/admin/public"), cacheName: "elio-admin-v1", offlineUrl: "/offline.html", appName: "ELIO Admin" },
+  {
+    id: "pay",
+    publicDir: path.join(root, "../../apps/pay/public"),
+    cacheName: "elio-pay-v2",
+    offlineUrl: "/pay/offline.html",
+    appName: "ElioPay",
+    iconSource: path.join(assetsDir, "portal-favicon.png"),
+  },
+  {
+    id: "plans",
+    publicDir: path.join(root, "../../apps/plans/public"),
+    cacheName: "elio-plans-v2",
+    offlineUrl: "/plans/offline.html",
+    appName: "ElioPlans",
+    iconSource: path.join(assetsDir, "portal-favicon.png"),
+  },
+  {
+    id: "flow",
+    publicDir: path.join(root, "../../apps/flow/public"),
+    cacheName: "elio-flow-v2",
+    offlineUrl: "/flow/offline.html",
+    appName: "ElioFlow",
+    iconSource: path.join(assetsDir, "portal-favicon.png"),
+  },
+  {
+    id: "admin",
+    publicDir: path.join(root, "../../apps/admin/public"),
+    cacheName: "elio-admin-v2",
+    offlineUrl: "/offline.html",
+    appName: "ELIO Admin",
+    iconSource: path.join(assetsDir, "portal-favicon.png"),
+  },
 ];
 
 const PRIMARY = { r: 109, g: 62, b: 245 };
@@ -155,6 +183,10 @@ async function copyIcons(app) {
     const prev = path.join(iconsDir, name);
     if (fs.existsSync(prev)) fs.unlinkSync(prev);
   }
+  for (const name of ["apple-touch-icon.png", "favicon.png", "favicon.ico"]) {
+    const prev = path.join(app.publicDir, name);
+    if (fs.existsSync(prev)) fs.unlinkSync(prev);
+  }
 
   const source = app.iconSource && fs.existsSync(app.iconSource) ? app.iconSource : null;
   if (source) {
@@ -163,24 +195,24 @@ async function copyIcons(app) {
     await writeResizedPng(sharp, source, 512, path.join(iconsDir, "icon-512.png"));
     await writeResizedPng(sharp, source, 512, path.join(iconsDir, "icon-maskable-512.png"), { maskable: true });
     await writeResizedPng(sharp, source, 180, path.join(iconsDir, "apple-touch-icon.png"));
+    // Safari looks for /apple-touch-icon.png at the site root by default.
+    await writeResizedPng(sharp, source, 180, path.join(app.publicDir, "apple-touch-icon.png"));
+    await writeResizedPng(sharp, source, 48, path.join(app.publicDir, "favicon.png"));
+    await sharp(source).resize(32, 32).toFile(path.join(app.publicDir, "favicon.ico"));
 
     // Next.js app-dir metadata icons (Shell / portal only).
     if (app.appDir) {
       fs.mkdirSync(app.appDir, { recursive: true });
       await writeResizedPng(sharp, source, 32, path.join(app.appDir, "icon.png"));
       await writeResizedPng(sharp, source, 180, path.join(app.appDir, "apple-icon.png"));
-      // Keep a public favicon.png in sync with the source mark (browsers + metadata).
-      await writeResizedPng(sharp, source, 48, path.join(app.publicDir, "favicon.png"));
-      // Real multi-size ICO for legacy tabs.
-      await sharp(source)
-        .resize(32, 32)
-        .toFile(path.join(app.publicDir, "favicon.ico"));
     }
 
-    // Lightweight SVG placeholder pointing browsers at the PNG mark (manifest still lists SVG optionally).
+    // Real SVG mark so manifest does not reference a broken <image href> stub.
+    const svgMark = await sharp(source).resize(512, 512).png().toBuffer();
+    const b64 = svgMark.toString("base64");
     fs.writeFileSync(
       path.join(iconsDir, "icon.svg"),
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><image href="/icons/icon-512.png" width="512" height="512"/></svg>\n`
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><image href="data:image/png;base64,${b64}" width="512" height="512"/></svg>\n`
     );
     console.log("  icons from", path.relative(root, source));
   } else {

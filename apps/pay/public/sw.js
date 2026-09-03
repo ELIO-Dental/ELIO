@@ -1,5 +1,5 @@
 /* ELIO PWA service worker — desktop-first, auth-safe caching */
-const CACHE = "elio-pay-v1";
+const CACHE = "elio-pay-v2";
 const OFFLINE_URL = "/pay/offline.html";
 
 self.addEventListener("install", (event) => {

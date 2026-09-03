@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Download, Check, Monitor } from "lucide-react";
-import { usePwaInstall } from "../hooks/use-pwa-install";
+import { Download, Check, Monitor, Share } from "lucide-react";
+import { getSafariInstallInstructions, usePwaInstall } from "../hooks/use-pwa-install";
 import type { PwaAppConfig } from "../lib/config";
 
 export interface PwaInstallButtonProps {
@@ -31,7 +31,7 @@ const sizes = {
   lg: "h-12 px-6 text-body-lg",
 };
 
-/** Desktop PWA install CTA — uses beforeinstallprompt when available. */
+/** Desktop / Safari PWA install CTA. */
 export function PwaInstallButton({
   config,
   variant = "primary",
@@ -39,19 +39,23 @@ export function PwaInstallButton({
   className = "",
   showIcon = true,
 }: PwaInstallButtonProps) {
-  const { state, install, canInstall, isInstalled } = usePwaInstall();
+  const { state, install, canInstall, isInstalled, isSafari } = usePwaInstall();
   const [busy, setBusy] = React.useState(false);
 
   async function handleInstall() {
     setBusy(true);
     try {
+      if (isSafari) {
+        window.alert(getSafariInstallInstructions(config.name));
+        return;
+      }
       const accepted = await install();
-      if (!accepted && state === "installable") {
-        // Chromium may hide the prompt after dismissal — guide desktop users.
+      if (!accepted) {
         window.alert(
-          `To install ${config.name} on desktop:\n\n` +
-            "• Chrome / Edge: click the install icon in the address bar, or use the browser menu → Install app\n" +
-            "• Safari (macOS): File → Add to Dock"
+          `To install ${config.name}:\n\n` +
+            "• Chrome / Edge: click the install icon in the address bar, or Menu → Install app\n" +
+            "• Safari (macOS): File → Add to Dock\n" +
+            "• Safari (iPhone/iPad): Share → Add to Home Screen"
         );
       }
     } finally {
@@ -77,6 +81,12 @@ export function PwaInstallButton({
     );
   }
 
+  const label = isSafari
+    ? `Add ${config.shortName} from Safari`
+    : canInstall
+      ? `Install ${config.shortName}`
+      : `Install ${config.shortName}`;
+
   return (
     <button
       type="button"
@@ -85,8 +95,8 @@ export function PwaInstallButton({
       className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
       data-testid="pwa-install-button"
     >
-      {showIcon && <Download className="size-4" aria-hidden />}
-      {busy ? "Installing…" : canInstall ? `Install ${config.shortName}` : `Install ${config.shortName}`}
+      {showIcon && (isSafari ? <Share className="size-4" aria-hidden /> : <Download className="size-4" aria-hidden />)}
+      {busy ? "Opening…" : label}
     </button>
   );
 }

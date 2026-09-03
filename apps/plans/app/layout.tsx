@@ -14,7 +14,14 @@ export const metadata: Metadata = {
   title: "ElioPlans",
   description: pwa.description,
   applicationName: pwa.shortName,
-  appleWebApp: { capable: true, title: pwa.shortName },
+  icons: {
+    icon: [
+      { url: "/plans/favicon.png", type: "image/png" },
+      { url: "/plans/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/plans/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: pwa.shortName, statusBarStyle: "black-translucent" },
 };
 
 // Found live (2026-08-28, independent Phase 1 audit): apps/pay renders the
