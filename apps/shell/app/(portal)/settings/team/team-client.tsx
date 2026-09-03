@@ -156,6 +156,9 @@ export function TeamClient({
     if (!res.ok) setMfaToggle(prev);
     setMfaPending(false);
   }
+  void mfaToggle;
+  void mfaPending;
+  void toggleMfa;
 
   return (
     <div className="mt-8 space-y-6">
@@ -200,6 +203,7 @@ export function TeamClient({
         </Card>
       )}
 
+      {/* PORTAL MFA SKIPPED — re-enable with docs/reference/PORTAL_MFA_SKIPPED.md
       {canManage && (
         <Card>
           <CardHeader>
@@ -223,6 +227,7 @@ export function TeamClient({
           </CardContent>
         </Card>
       )}
+      */}
 
       <Card>
         <CardHeader>

@@ -82,18 +82,22 @@ export const authConfig: NextAuthConfig = {
           return null;
         }
 
-        const mfaRequired = user.mfaEnabled || user.practice.requireMfaForAllStaff;
-        if (mfaRequired) {
-          if (!mfaCode) {
-            // Signal to the client that a second MFA-challenge step is needed,
-            // without leaking anything else. Not a failed attempt yet.
-            throw new MfaRequiredError();
-          }
-          if (!user.mfaSecret || !verifyMfaCode(user.email, user.mfaSecret, mfaCode)) {
-            recordFailedAttempt(email);
-            throw new MfaInvalidError();
-          }
-        }
+        // PORTAL MFA SKIPPED (2026-09-04) — Admin MFA is unchanged (packages/auth/admin-config.ts).
+        // How to turn this back on: see docs/reference/PORTAL_MFA_SKIPPED.md
+        // const mfaRequired = user.mfaEnabled || user.practice.requireMfaForAllStaff;
+        // if (mfaRequired) {
+        //   if (!mfaCode) {
+        //     throw new MfaRequiredError();
+        //   }
+        //   if (!user.mfaSecret || !verifyMfaCode(user.email, user.mfaSecret, mfaCode)) {
+        //     recordFailedAttempt(email);
+        //     throw new MfaInvalidError();
+        //   }
+        // }
+        void mfaCode;
+        void MfaRequiredError;
+        void MfaInvalidError;
+        void verifyMfaCode;
 
         clearAttempts(email);
         return {
