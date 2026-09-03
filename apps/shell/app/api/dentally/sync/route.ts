@@ -9,6 +9,7 @@ import { can } from "@elio/auth";
 import type { Role } from "@elio/db";
 import {
   DentallySyncConfigError,
+  hasActiveDentallySyncRun,
   requestDentallySync,
   resolvePracticeDentallyApiKey,
 } from "@elio/dentally";
@@ -33,6 +34,13 @@ export async function POST() {
         ? err.message
         : "Dentally is not configured. Add your API key in Settings → Integrations.";
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  if (await hasActiveDentallySyncRun(session.practiceId)) {
+    return NextResponse.json(
+      { error: "A Dentally sync is already running. Wait for it to finish, then try again." },
+      { status: 409 }
+    );
   }
 
   const { ids } = await requestDentallySync(session.practiceId, "manual");

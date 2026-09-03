@@ -18,8 +18,11 @@ export {
   createDentallySyncRun,
   finalizeDentallySyncRun,
   failDentallySyncRun,
+  failStaleDentallySyncRuns,
   getLatestDentallySyncRun,
+  hasActiveDentallySyncRun,
   resolveRunStatus,
+  STALE_RUNNING_MS,
 } from "./src/sync-run";
 
 export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAllPaymentsForPatient, getAccounts, getPaymentPlans } from "./src/queries";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SyncResult } from "./sync";
-import { resolveRunStatus } from "./sync-run";
+import { resolveRunStatus, STALE_RUNNING_MS } from "./sync-run";
 
 describe("resolveRunStatus", () => {
   const base: SyncResult = {
@@ -34,5 +34,11 @@ describe("resolveRunStatus", () => {
         errors: [{ resource: "patient", dentallyId: "1", message: "fail" }],
       })
     ).toBe("FAILED");
+  });
+});
+
+describe("STALE_RUNNING_MS", () => {
+  it("is 30 minutes so Sync now unlocks after abandoned jobs", () => {
+    expect(STALE_RUNNING_MS).toBe(30 * 60 * 1000);
   });
 });
