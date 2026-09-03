@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { NoiseOverlay, cn, ThemeToggle, useIsDark } from "@elio/ui";
+import { NoiseOverlay, cn, ThemeToggle } from "@elio/ui";
 
 export interface AuthShellProps {
   headline?: string;
@@ -13,11 +13,34 @@ export interface AuthShellProps {
 const LOGO_LIGHT = "/brand/elio-portal.png";
 const LOGO_DARK = "/brand/elio-portal-dark.png";
 
+function PortalBrandLogo({
+  className,
+  testId,
+}: {
+  className?: string;
+  testId?: string;
+}) {
+  return (
+    <span className={cn("grid place-items-center justify-items-center", className)} data-testid={testId}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={LOGO_LIGHT}
+        alt="ELIO Portal"
+        className="elio-brand-logo-light col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={LOGO_DARK}
+        alt=""
+        aria-hidden
+        className="elio-brand-logo-dark col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+      />
+    </span>
+  );
+}
+
 /** Premium split auth chrome — brand panel + centered form area. UI only. */
 export function AuthShell({ headline, description, wide, children }: AuthShellProps) {
-  const isDark = useIsDark();
-  const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
-
   return (
     <div className="relative flex min-h-screen bg-(--color-bg)">
       <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end sm:right-6 sm:top-6">
@@ -34,12 +57,9 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
         </div>
 
         <div className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoSrc}
-            alt="ELIO Portal"
-            className="h-12 w-auto max-w-[280px] object-contain object-left sm:h-14 sm:max-w-[320px]"
-            data-testid="auth-brand-logo"
+          <PortalBrandLogo
+            className="h-14 w-full max-w-[320px] justify-start sm:h-16 sm:max-w-[360px]"
+            testId="auth-brand-logo"
           />
           <h1 className="mt-8 max-w-md text-display text-(--color-text-primary)">One platform for your whole practice.</h1>
           <p className="mt-4 max-w-sm text-body leading-relaxed text-(--color-text-secondary)">
@@ -58,13 +78,7 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
 
         <div className={cn("relative w-full", wide ? "max-w-2xl" : "max-w-[440px]")}>
           <div className="mb-8 flex justify-center lg:hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoSrc}
-              alt="ELIO Portal"
-              className="h-11 w-auto max-w-[240px] object-contain"
-              data-testid="auth-brand-logo-mobile"
-            />
+            <PortalBrandLogo className="h-12 w-full max-w-[280px]" testId="auth-brand-logo-mobile" />
           </div>
 
           {(headline || description) && (

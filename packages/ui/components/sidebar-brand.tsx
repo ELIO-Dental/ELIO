@@ -2,7 +2,6 @@
 
 import { cn } from "../lib/cn";
 import { Sparkles } from "lucide-react";
-import { useIsDark } from "../hooks/use-is-dark";
 
 export interface SidebarBrandProps {
   title: string;
@@ -12,14 +11,53 @@ export interface SidebarBrandProps {
   shortLabel?: string;
   /** Show ELIO portal star mark beside the wordmark. */
   showLogo?: boolean;
-  /** Optional logo image URL (Portal brand or practice logo) — light / default. */
+  /** Light-surface wordmark (dark text). */
   logoUrl?: string;
-  /** Dark-theme wordmark (white text). Falls back to logoUrl. */
+  /** Dark-surface wordmark (light/white text). */
   logoDarkUrl?: string;
   /** When true with logoUrl, hide the text title (logo already includes wordmark). */
   logoOnly?: boolean;
   /** Collapsed mark image (square favicon) — falls back to logoUrl. */
   collapsedLogoUrl?: string;
+}
+
+/**
+ * Theme-aware logos use CSS tied to `data-theme` (same rules as theme.css),
+ * not JS — avoids swapped light/dark picks from hydration timing.
+ */
+function ThemeAwareLogo({
+  lightSrc,
+  darkSrc,
+  alt,
+  className,
+}: {
+  lightSrc: string;
+  darkSrc?: string;
+  alt: string;
+  className?: string;
+}) {
+  if (!darkSrc) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={lightSrc} alt={alt} className={cn("object-contain", className)} />;
+  }
+
+  return (
+    <span className={cn("grid place-items-center justify-items-center", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={lightSrc}
+        alt={alt}
+        className="elio-brand-logo-light col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={darkSrc}
+        alt=""
+        aria-hidden
+        className="elio-brand-logo-dark col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+      />
+    </span>
+  );
 }
 
 /** Centered sidebar wordmark — ELIO PORTAL / ELIO PAY / ELIO PLANS / ELIO FLOW. */
@@ -34,22 +72,20 @@ export function SidebarBrand({
   logoOnly = false,
   collapsedLogoUrl,
 }: SidebarBrandProps) {
-  const isDark = useIsDark();
   const abbreviated = (shortLabel ?? (title.replace(/[^A-Z]/g, "").slice(0, 2) || title.charAt(0))).toUpperCase();
-  const activeLogo = isDark && logoDarkUrl ? logoDarkUrl : logoUrl;
-  const markUrl = collapsedLogoUrl ?? activeLogo;
+  const markLight = collapsedLogoUrl ?? logoUrl;
+  const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
 
   if (collapsed) {
     return (
       <span
         title={title}
-        className="flex size-11 items-center justify-center overflow-hidden rounded-(--radius-md) text-caption font-bold text-(--color-primary-600)"
+        className="flex size-12 items-center justify-center overflow-hidden rounded-(--radius-md) text-caption font-bold text-(--color-primary-600)"
       >
-        {markUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={markUrl} alt="" className="size-full object-contain" />
+        {markLight ? (
+          <ThemeAwareLogo lightSrc={markLight} darkSrc={markDark} alt="" className="size-11" />
         ) : showLogo ? (
-          <Sparkles className="size-4" aria-hidden />
+          <Sparkles className="size-5" aria-hidden />
         ) : (
           abbreviated
         )}
@@ -65,14 +101,14 @@ export function SidebarBrand({
         title.length > 12 ? "text-body-sm" : "text-body"
       )}
     >
-      {activeLogo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={activeLogo}
+      {logoUrl ? (
+        <ThemeAwareLogo
+          lightSrc={logoUrl}
+          darkSrc={logoDarkUrl}
           alt={logoOnly ? title : ""}
           className={cn(
-            "shrink-0 object-contain object-left",
-            logoOnly ? "h-11 w-auto max-w-[min(100%,240px)] sm:h-12 sm:max-w-[260px]" : "h-8 w-auto max-w-[120px]"
+            "shrink-0",
+            logoOnly ? "h-14 w-full max-w-[280px] sm:h-16 sm:max-w-[300px]" : "h-8 w-auto max-w-[120px]"
           )}
         />
       ) : showLogo ? (
