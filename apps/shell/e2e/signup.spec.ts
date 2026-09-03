@@ -130,7 +130,7 @@ test("selecting zero modules is rejected with a clear error, no Practice row cre
   expect(created).toBeNull();
 });
 
-test("signing up with an email that's already registered fails without revealing why", async ({ page }) => {
+test("signing up with an email that's already registered shows a duplicate-email error", async ({ page }) => {
   // Reuses the first test's now-existing user (relies on test order — Playwright
   // config here runs serially, workers: 1, matching the rest of this suite).
   await page.goto("/signup");
@@ -142,7 +142,7 @@ test("signing up with an email that's already registered fails without revealing
   await page.getByTestId("signup-module-pay").click();
   await page.getByTestId("signup-submit").click();
 
-  await expect(page.getByText(/couldn't create your account/i)).toBeVisible();
+  await expect(page.getByText(/already registered/i).first()).toBeVisible();
 
   // Confirm no second practice was created under the same email.
   const practiceCount = await prisma.practice.count({ where: { name: "Duplicate Email Test Practice" } });
