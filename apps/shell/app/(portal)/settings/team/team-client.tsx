@@ -45,6 +45,66 @@ interface TeamUser {
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "FINANCE", "STAFF", "AUDITOR"];
 
+const ROLE_ACCESS: { role: Role; summary: string; can: string; cannot: string }[] = [
+  {
+    role: "OWNER",
+    summary: "Full practice control",
+    can: "Team invite & roles, Dentally, Pay, Plans, Flow, settings",
+    cannot: "Platform Admin console",
+  },
+  {
+    role: "ADMIN",
+    summary: "Day-to-day manager",
+    can: "Use Pay, Plans, Flow; view team; manage Dentally sync",
+    cannot: "Invite/deactivate people or change roles",
+  },
+  {
+    role: "FINANCE",
+    summary: "Money & payroll",
+    can: "Full Pay; Plans payments & mismatches; view Flow",
+    cannot: "Team, practice settings, edit plan templates",
+  },
+  {
+    role: "STAFF",
+    summary: "Front desk",
+    can: "Plans invites; Flow pipeline; read-only plan payments",
+    cannot: "Pay, team, settings, plan templates",
+  },
+  {
+    role: "AUDITOR",
+    summary: "Read-only review",
+    can: "View Pay, Plans payments, Flow, audit log",
+    cannot: "Change anything (invite, pay run, edits)",
+  },
+];
+
+function RoleAccessBanner() {
+  return (
+    <div
+      className="rounded-(--radius-lg) border border-(--color-primary-500)/25 bg-(--color-primary-50) px-4 py-4 text-(--color-text-primary)"
+      data-testid="role-access-banner"
+    >
+      <p className="text-body-sm font-semibold">Who can do what</p>
+      <p className="mt-1 text-caption text-(--color-text-secondary)">
+        Pick a role when you invite someone. Access is enforced on every page, not only this list.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {ROLE_ACCESS.map((row) => (
+          <li key={row.role} className="grid gap-0.5 sm:grid-cols-[7.5rem_1fr]">
+            <span className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">
+              {row.role}
+            </span>
+            <span className="text-body-sm">
+              <span className="font-medium">{row.summary}.</span> {row.can}.{" "}
+              <span className="text-(--color-text-secondary)">Cannot: {row.cannot}.</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 async function fetchUsers(): Promise<TeamUser[]> {
   const res = await fetch("/api/team/users");
   if (!res.ok) throw new Error(`Failed to load users (${res.status})`);
@@ -162,6 +222,7 @@ export function TeamClient({
 
   return (
     <div className="mt-8 space-y-6">
+      <RoleAccessBanner />
       {canManage && (
         <Card>
           <CardHeader>
