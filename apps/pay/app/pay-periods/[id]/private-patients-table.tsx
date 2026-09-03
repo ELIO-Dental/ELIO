@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
-import { formatMoneyGBPOrDash } from "@elio/ui";
+import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination } from "@elio/ui";
 import { privatePatientsFooterTotals } from "@/lib/private-patients-table-format";
 
 export interface PrivatePatientRow {
@@ -51,6 +51,14 @@ export function PrivatePatientsTable({
   const [lines, setLines] = useState(initialLines);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const {
+    items: pageLines,
+    page,
+    pageSize,
+    totalCount,
+    setPage,
+    showPagination,
+  } = useClientTablePagination(lines, 25, [payslipEntryId]);
 
   useEffect(() => {
     setLines(initialLines);
@@ -195,33 +203,33 @@ export function PrivatePatientsTable({
           <table className="w-full text-caption">
             <thead>
               <tr className="border-b border-(--color-border-subtle) bg-(--color-surface-dim)">
-                <th className="px-3 py-2 text-left font-medium text-(--color-text-secondary)">Patient</th>
-                <th className="px-3 py-2 text-left font-medium text-(--color-text-secondary)">Date</th>
-                <th className="px-3 py-2 text-right font-medium text-(--color-text-secondary)">Amount</th>
+                <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Patient</th>
+                <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Date</th>
+                <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Amount</th>
                 <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Mins</th>
-                <th className="px-2 py-2 text-right font-medium text-(--color-text-secondary)">£/hr</th>
+                <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">£/hr</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Status</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Finance</th>
-                <th className="px-2 py-2 text-right font-medium text-(--color-text-secondary)">Fee</th>
+                <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Fee</th>
                 {!locked ? <th className="w-10" /> : null}
               </tr>
             </thead>
             <tbody>
-              {lines.map((line) => {
+              {pageLines.map((line) => {
                 const rowClass = line.flagged
                   ? "bg-(--color-warning)/10"
                   : "";
                 const busy = pendingId === line.id;
                 return (
                   <tr key={line.id} className={`border-b border-(--color-border-subtle) last:border-0 ${rowClass}`}>
-                    <td className="px-3 py-1.5">
-                      <div className="flex items-center gap-1">
+                    <td className="px-3 py-1.5 text-center">
+                      <div className="flex items-center justify-center gap-1">
                         {line.flagged ? <AlertCircle className="size-3 shrink-0 text-(--color-warning)" /> : null}
                         {locked ? (
                           <span>{line.patientName ?? "—"}</span>
                         ) : (
                           <input
-                            className="w-full bg-transparent text-caption outline-none"
+                            className="w-full bg-transparent text-center text-caption outline-none"
                             placeholder="Name"
                             value={line.patientName ?? ""}
                             disabled={busy}
@@ -235,19 +243,19 @@ export function PrivatePatientsTable({
                         )}
                       </div>
                       {line.flagReason && line.flagged ? (
-                        <p className="mt-0.5 pl-4 text-[10px] text-(--color-warning)">{line.flagReason}</p>
+                        <p className="mt-0.5 text-[10px] text-(--color-warning)">{line.flagReason}</p>
                       ) : null}
                       {line.treatmentDescription ? (
                         <p className="text-[10px] text-(--color-text-tertiary)">{line.treatmentDescription}</p>
                       ) : null}
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="px-3 py-1.5 text-center">
                       {locked ? (
                         line.invoiceDate ?? "—"
                       ) : (
                         <input
                           type="date"
-                          className="w-full bg-transparent text-caption outline-none"
+                          className="mx-auto bg-transparent text-center text-caption outline-none"
                           value={line.invoiceDate ?? ""}
                           disabled={busy}
                           onBlur={(e) => updateLine(line.id, { date: e.target.value })}
@@ -259,14 +267,14 @@ export function PrivatePatientsTable({
                         />
                       )}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-medium">
+                    <td className="px-3 py-1.5 text-center font-medium">
                       {locked ? (
                         formatMoneyGBPOrDash(line.amountPence)
                       ) : (
                         <input
                           type="number"
                           step="0.01"
-                          className="w-20 bg-transparent text-right text-caption outline-none"
+                          className="mx-auto w-20 bg-transparent text-center text-caption outline-none"
                           value={penceToPoundsInput(line.amountPence)}
                           disabled={busy}
                           onBlur={(e) => updateLine(line.id, { amount: e.target.value })}
@@ -283,7 +291,7 @@ export function PrivatePatientsTable({
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center text-(--color-text-tertiary)">{line.durationMins ?? "—"}</td>
-                    <td className={`px-2 py-1.5 text-right ${hourlyRateClass(line.hourlyRatePence)}`}>
+                    <td className={`px-2 py-1.5 text-center ${hourlyRateClass(line.hourlyRatePence)}`}>
                       {line.hourlyRatePence != null ? `£${Math.round(line.hourlyRatePence / 100)}` : "—"}
                     </td>
                     <td className="px-3 py-1.5 text-center">
@@ -319,7 +327,7 @@ export function PrivatePatientsTable({
                         />
                       )}
                     </td>
-                    <td className="px-2 py-1.5 text-right">
+                    <td className="px-2 py-1.5 text-center">
                       {line.isFinance ? (
                         locked ? (
                           formatMoneyGBPOrDash(line.financeFeePence)
@@ -328,7 +336,7 @@ export function PrivatePatientsTable({
                             type="number"
                             step="0.01"
                             placeholder="0"
-                            className="w-16 rounded border border-(--color-brand)/30 px-1 py-0.5 text-right text-[10px] outline-none"
+                            className="mx-auto w-16 rounded border border-(--color-brand)/30 px-1 py-0.5 text-center text-[10px] outline-none"
                             value={line.financeFeePence != null ? (line.financeFeePence / 100).toFixed(2) : ""}
                             disabled={busy}
                             onBlur={(e) => updateLine(line.id, { financeFee: e.target.value })}
@@ -349,7 +357,7 @@ export function PrivatePatientsTable({
                     </td>
                     {!locked ? (
                       <td className="px-1 py-1.5">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           {line.flagged ? (
                             <button
                               type="button"
@@ -378,12 +386,12 @@ export function PrivatePatientsTable({
             </tbody>
             <tfoot>
               <tr className="bg-(--color-surface-dim)">
-                <td className="px-3 py-2 font-semibold" colSpan={2}>
+                <td className="px-3 py-2 text-center font-semibold" colSpan={2}>
                   Total ({lines.length} patients)
                 </td>
-                <td className="px-3 py-2 text-right font-bold">{formatMoneyGBPOrDash(totals.totalAmountPence)}</td>
+                <td className="px-3 py-2 text-center font-bold">{formatMoneyGBPOrDash(totals.totalAmountPence)}</td>
                 <td className="px-2 py-2 text-center text-(--color-text-tertiary)">{totals.totalMins > 0 ? `${totals.totalMins}m` : "—"}</td>
-                <td className="px-2 py-2 text-right font-medium text-(--color-success)">
+                <td className="px-2 py-2 text-center font-medium text-(--color-success)">
                   {totals.blendedHourlyPence != null ? `£${Math.round(totals.blendedHourlyPence / 100)}` : "—"}
                 </td>
                 <td className="px-3 py-2 text-center">
@@ -395,7 +403,7 @@ export function PrivatePatientsTable({
                 <td className="px-3 py-2 text-center text-(--color-brand)">
                   {totals.financeCount > 0 ? `${totals.financeCount} fin` : "—"}
                 </td>
-                <td className="px-2 py-2 text-right font-medium text-(--color-brand)">
+                <td className="px-2 py-2 text-center font-medium text-(--color-brand)">
                   {totals.financeFeeTotalPence > 0 ? formatMoneyGBPOrDash(totals.financeFeeTotalPence) : "—"}
                 </td>
                 {!locked ? <td /> : null}
@@ -403,6 +411,11 @@ export function PrivatePatientsTable({
             </tfoot>
           </table>
         </div>
+        {showPagination ? (
+          <div className="mt-3">
+            <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+          </div>
+        ) : null}
       )}
     </div>
   );

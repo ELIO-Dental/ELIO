@@ -20,6 +20,8 @@ import {
   SelectItem,
   TablePanel,
   TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 import { Users as UsersIcon } from "lucide-react";
 
@@ -114,7 +116,34 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   }
 
   return (
-    <TablePanel toolbar={<TableToolbar title="Practice users" onRefresh={refetch} />}>
+    <PlansUsersTable users={users} canManage={canManage} currentUserId={currentUserId} onUpdate={updateUser} onRefresh={refetch} />
+  );
+}
+
+function PlansUsersTable({
+  users,
+  canManage,
+  currentUserId,
+  onUpdate,
+  onRefresh,
+}: {
+  users: PracticeUser[];
+  canManage: boolean;
+  currentUserId: string;
+  onUpdate: (id: string, patch: { role?: Role; active?: boolean }) => void;
+  onRefresh: () => void;
+}) {
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(users, 25);
+
+  return (
+    <TablePanel
+      toolbar={<TableToolbar title="Practice users" onRefresh={onRefresh} />}
+      footer={
+        showPagination ? (
+          <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+        ) : undefined
+      }
+    >
       <Table data-testid="plans-users-table">
         <TableHeader>
           <TableRow>
@@ -126,12 +155,12 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((u) => (
+          {items.map((u) => (
             <TableRow key={u.id}>
               <TableCell>{u.email}</TableCell>
               <TableCell>
                 {canManage ? (
-                  <Select value={u.role} onValueChange={(v) => updateUser(u.id, { role: v as Role })}>
+                  <Select value={u.role} onValueChange={(v) => onUpdate(u.id, { role: v as Role })}>
                     <SelectTrigger className="h-8 w-32">
                       <SelectValue />
                     </SelectTrigger>
@@ -159,7 +188,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
                     variant="secondary"
                     size="sm"
                     disabled={u.id === currentUserId}
-                    onClick={() => updateUser(u.id, { active: !u.active })}
+                    onClick={() => onUpdate(u.id, { active: !u.active })}
                   >
                     {u.active ? "Deactivate" : "Reactivate"}
                   </Button>

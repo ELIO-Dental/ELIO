@@ -16,6 +16,8 @@ import {
   TableCellMoney,
   formatMoneyGBP,
   TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 import { Building2, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { aggregateStarlingPayments, type UnpaidBillRow } from "@/lib/bulk-payment";
@@ -244,7 +246,7 @@ export function BulkPaymentsClient() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => addEntity(type)} aria-label="Save">
-                        <Check className="h-4 w-4 text-green-600" />
+                        <Check className="h-4 w-4 text-(--color-success)" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setShowAddEntity(null)} aria-label="Cancel">
                         <X className="h-4 w-4" />
@@ -289,7 +291,7 @@ export function BulkPaymentsClient() {
                       {isEditing ? (
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => saveEntity(type, entity.id)} aria-label="Save">
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4 text-(--color-success)" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditingEntity(null)} aria-label="Cancel">
                             <X className="h-4 w-4" />
@@ -301,7 +303,7 @@ export function BulkPaymentsClient() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => deleteEntity(type, entity.id)} aria-label="Delete">
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4 text-(--color-danger)" />
                           </Button>
                         </div>
                       )}
@@ -317,78 +319,16 @@ export function BulkPaymentsClient() {
   }
 
   function renderUnpaidTable(type: "lab" | "supplier", bills: UnpaidBillRow[], selected: Set<string>) {
-    const totalPence = bills.reduce((sum, bill) => sum + bill.amountPence, 0);
-    const selectedTotalPence = bills.filter((bill) => selected.has(bill.id)).reduce((sum, bill) => sum + bill.amountPence, 0);
-    const label = type === "lab" ? "Lab bills" : "Supplier invoices";
-
     return (
-      <TablePanel
-        toolbar={
-          <TableToolbar title={`Unpaid ${label.toLowerCase()}`}>
-            <p className="text-body-sm text-(--color-text-secondary)">
-              {bills.length} unpaid totalling {formatMoneyGBP(totalPence)}
-              {selected.size > 0 && ` — ${selected.size} selected: ${formatMoneyGBP(selectedTotalPence)}`}
-            </p>
-            {selected.size > 0 && (
-              <Button size="sm" onClick={() => markPaid(type, Array.from(selected))} disabled={marking}>
-                {marking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
-                Mark {selected.size} paid
-              </Button>
-            )}
-          </TableToolbar>
-        }
-      >
-        {bills.length === 0 ? (
-          <EmptyState title={`All ${label.toLowerCase()} are paid`} className="py-8" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === bills.length && bills.length > 0}
-                    onChange={() => selectAll(type)}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Bank details</TableHead>
-                <TableHead>Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bills.map((bill) => (
-                <TableRow key={bill.id} className={selected.has(bill.id) ? "bg-(--color-surface-muted)" : undefined}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(bill.id)}
-                      onChange={() => toggleSelection(type, bill.id)}
-                      aria-label={`Select ${bill.entity_name}`}
-                    />
-                  </TableCell>
-                  <TableCell>{bill.entity_name}</TableCell>
-                  <TableCell>{bill.date}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{bill.description ?? "—"}</TableCell>
-                  <TableCell>
-                    {bill.sort_code && bill.account_number ? (
-                      <span className="font-mono text-xs">
-                        {bill.sort_code} / {bill.account_number}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-amber-600">No bank details</span>
-                    )}
-                  </TableCell>
-                  <TableCellMoney>{formatMoneyGBP(bill.amountPence)}</TableCellMoney>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </TablePanel>
+      <UnpaidBillsTable
+        type={type}
+        bills={bills}
+        selected={selected}
+        marking={marking}
+        onToggle={(id) => toggleSelection(type, id)}
+        onSelectAll={() => selectAll(type)}
+        onMarkPaid={(ids) => markPaid(type, ids)}
+      />
     );
   }
 
@@ -398,12 +338,14 @@ export function BulkPaymentsClient() {
   return (
     <div className="space-y-6" data-testid="bulk-payments-page">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 rounded-lg bg-(--color-surface-muted) p-1">
+        <div className="flex gap-1 rounded-lg bg-(--color-bg-subtle) p-1">
           <button
             type="button"
             onClick={() => setActiveTab("bank_details")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
-              activeTab === "bank_details" ? "bg-white shadow-sm" : "text-(--color-text-secondary)"
+              activeTab === "bank_details"
+                ? "bg-(--color-surface) text-(--color-text-primary) shadow-(--shadow-sm)"
+                : "text-(--color-text-secondary)"
             }`}
           >
             <Building2 className="h-4 w-4" />
@@ -413,13 +355,15 @@ export function BulkPaymentsClient() {
             type="button"
             onClick={() => setActiveTab("unpaid")}
             className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
-              activeTab === "unpaid" ? "bg-white shadow-sm" : "text-(--color-text-secondary)"
+              activeTab === "unpaid"
+                ? "bg-(--color-surface) text-(--color-text-primary) shadow-(--shadow-sm)"
+                : "text-(--color-text-secondary)"
             }`}
           >
             <Download className="h-4 w-4" />
             Unpaid bills
             {unpaidCount > 0 && (
-              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+              <span className="rounded-full bg-(--color-danger)/15 px-1.5 py-0.5 text-xs font-semibold text-(--color-danger)">
                 {unpaidCount}
               </span>
             )}
@@ -434,7 +378,7 @@ export function BulkPaymentsClient() {
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-(--color-danger)">{error}</p>}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -452,5 +396,113 @@ export function BulkPaymentsClient() {
         </div>
       )}
     </div>
+  );
+}
+
+function UnpaidBillsTable({
+  type,
+  bills,
+  selected,
+  marking,
+  onToggle,
+  onSelectAll,
+  onMarkPaid,
+}: {
+  type: "lab" | "supplier";
+  bills: UnpaidBillRow[];
+  selected: Set<string>;
+  marking: boolean;
+  onToggle: (id: string) => void;
+  onSelectAll: () => void;
+  onMarkPaid: (ids: string[]) => void;
+}) {
+  const {
+    items: pageBills,
+    page,
+    pageSize,
+    totalCount,
+    setPage,
+    showPagination,
+  } = useClientTablePagination(bills, 25, [type, bills.length]);
+
+  const totalPence = bills.reduce((sum, bill) => sum + bill.amountPence, 0);
+  const selectedTotalPence = bills
+    .filter((bill) => selected.has(bill.id))
+    .reduce((sum, bill) => sum + bill.amountPence, 0);
+  const label = type === "lab" ? "Lab bills" : "Supplier invoices";
+
+  return (
+    <TablePanel
+      toolbar={
+        <TableToolbar title={`Unpaid ${label.toLowerCase()}`}>
+          <p className="text-body-sm text-(--color-text-secondary)">
+            {bills.length} unpaid totalling {formatMoneyGBP(totalPence)}
+            {selected.size > 0 && ` — ${selected.size} selected: ${formatMoneyGBP(selectedTotalPence)}`}
+          </p>
+          {selected.size > 0 && (
+            <Button size="sm" onClick={() => onMarkPaid(Array.from(selected))} disabled={marking}>
+              {marking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+              Mark {selected.size} paid
+            </Button>
+          )}
+        </TableToolbar>
+      }
+      footer={
+        showPagination ? (
+          <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+        ) : undefined
+      }
+    >
+      {bills.length === 0 ? (
+        <EmptyState title={`All ${label.toLowerCase()} are paid`} className="py-8" />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8">
+                <input
+                  type="checkbox"
+                  checked={selected.size === bills.length && bills.length > 0}
+                  onChange={onSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Bank details</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageBills.map((bill) => (
+              <TableRow key={bill.id} className={selected.has(bill.id) ? "bg-(--color-bg-subtle)" : undefined}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(bill.id)}
+                    onChange={() => onToggle(bill.id)}
+                    aria-label={`Select ${bill.entity_name}`}
+                  />
+                </TableCell>
+                <TableCell>{bill.entity_name}</TableCell>
+                <TableCell>{bill.date}</TableCell>
+                <TableCell className="max-w-[200px] truncate">{bill.description ?? "—"}</TableCell>
+                <TableCell>
+                  {bill.sort_code && bill.account_number ? (
+                    <span className="font-mono text-xs">
+                      {bill.sort_code} / {bill.account_number}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-(--color-warning)">No bank details</span>
+                  )}
+                </TableCell>
+                <TableCellMoney>{formatMoneyGBP(bill.amountPence)}</TableCellMoney>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </TablePanel>
   );
 }

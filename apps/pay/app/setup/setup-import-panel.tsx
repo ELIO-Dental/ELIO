@@ -162,16 +162,16 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
         {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
 
         {preview && (
-          <div className="rounded-lg border border-(--color-border) bg-(--color-surface-muted) p-3 text-body-sm">
+          <div className="rounded-lg border border-(--color-border) bg-(--color-bg-subtle) p-3 text-body-sm">
             <p className="font-medium">Preview</p>
             <p>{preview.valid?.length ?? 0} valid rows</p>
             {preview.errors?.length > 0 && <p className="text-(--color-danger)">{preview.errors.length} errors</p>}
-            {preview.warnings?.length > 0 && <p className="text-amber-600">{preview.warnings.length} warnings</p>}
+            {preview.warnings?.length > 0 && <p className="text-(--color-warning)">{preview.warnings.length} warnings</p>}
           </div>
         )}
 
         {result && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-body-sm text-green-900">
+          <div className="rounded-lg border border-(--color-success)/40 bg-(--color-success-bg) p-3 text-body-sm text-(--color-text-primary)">
             <p className="font-medium">Import complete</p>
             <p>
               Created {result.created}, updated {result.updated}, skipped {result.skipped}

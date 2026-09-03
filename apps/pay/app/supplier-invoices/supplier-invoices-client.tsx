@@ -218,7 +218,7 @@ export function SupplierInvoicesClient({
                       className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
                         i.paid
                           ? "bg-(--color-success-subtle) text-(--color-success)"
-                          : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                          : "bg-(--color-warning-bg) text-(--color-warning) hover:opacity-90"
                       }`}
                     >
                       {i.paid ? "Paid" : "Unpaid"}

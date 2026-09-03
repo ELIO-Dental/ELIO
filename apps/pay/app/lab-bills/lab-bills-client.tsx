@@ -409,7 +409,7 @@ export function LabBillsClient({
                           )
                         }
                         className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
-                          b.paid ? "bg-(--color-success-subtle) text-(--color-success)" : "bg-amber-100 text-amber-800"
+                          b.paid ? "bg-(--color-success-bg) text-(--color-success)" : "bg-(--color-warning-bg) text-(--color-warning)"
                         }`}
                       >
                         {b.paid ? "Paid" : "Unpaid"}

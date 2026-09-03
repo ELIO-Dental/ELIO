@@ -90,22 +90,22 @@ export function NhsStatementPanel({
 
   return (
     <div
-      className="rounded-(--radius-lg) border border-blue-200 bg-blue-50 p-4"
+      className="rounded-(--radius-lg) border border-(--color-primary-500)/30 bg-(--color-primary-50) p-4"
       data-testid="nhs-statement-panel"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-(--radius-md) bg-blue-100">
-            <FileText className="size-5 text-blue-600" />
+          <div className="flex size-10 items-center justify-center rounded-(--radius-md) bg-(--color-surface)">
+            <FileText className="size-5 text-(--color-primary-600)" />
           </div>
           <div>
-            <h3 className="text-body-sm font-semibold text-blue-900">NHS statement</h3>
-            <p className="text-caption text-blue-700">
+            <h3 className="text-body-sm font-semibold text-(--color-text-primary)">NHS statement</h3>
+            <p className="text-caption text-(--color-text-secondary)">
               Upload FP17 / activity statement PDF or enter UDAs for{" "}
               {nhsDentists.map((d) => d.name).join(", ")}
             </p>
             {initialPeriodStart && initialPeriodEnd ? (
-              <p className="mt-0.5 text-caption text-blue-600">
+              <p className="mt-0.5 text-caption text-(--color-text-tertiary)">
                 NHS period: {initialPeriodStart} – {initialPeriodEnd}
               </p>
             ) : null}
@@ -113,7 +113,7 @@ export function NhsStatementPanel({
         </div>
         <button
           type="button"
-          className="flex items-center gap-1.5 rounded-(--radius-md) bg-blue-100 px-3 py-1.5 text-caption font-medium text-blue-800 hover:bg-blue-200"
+          className="flex items-center gap-1.5 rounded-(--radius-md) bg-(--color-surface) px-3 py-1.5 text-caption font-medium text-(--color-text-primary) shadow-(--shadow-xs) hover:bg-(--color-bg-subtle)"
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
@@ -124,7 +124,7 @@ export function NhsStatementPanel({
       {error ? <p className="mt-2 text-caption text-(--color-danger)">{error}</p> : null}
       {message ? <p className="mt-2 text-caption text-(--color-success)">{message}</p> : null}
       {updates.length > 0 ? (
-        <ul className="mt-1 list-inside list-disc text-caption text-blue-800">
+        <ul className="mt-1 list-inside list-disc text-caption text-(--color-text-secondary)">
           {updates.map((u) => (
             <li key={u}>{u}</li>
           ))}
@@ -132,22 +132,24 @@ export function NhsStatementPanel({
       ) : null}
 
       {open ? (
-        <div className="mt-4 space-y-4 border-t border-blue-200 pt-4">
+        <div className="mt-4 space-y-4 border-t border-(--color-border-subtle) pt-4">
           <div>
-            <label className="mb-2 block text-caption font-medium text-blue-900">Upload NHS statement PDF</label>
+            <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">Upload NHS statement PDF</label>
             <label className="block cursor-pointer">
               <div
                 className={`flex items-center justify-center gap-2 rounded-(--radius-md) border-2 border-dashed px-4 py-6 transition ${
-                  pdfFile ? "border-green-400 bg-green-50" : "border-blue-300 hover:border-blue-400 hover:bg-blue-100/50"
+                  pdfFile
+                    ? "border-(--color-success) bg-(--color-success-bg)"
+                    : "border-(--color-border) hover:border-(--color-primary-500) hover:bg-(--color-bg-subtle)"
                 }`}
               >
                 {pdfFile ? (
                   <>
-                    <CheckCircle2 className="size-5 text-green-600" />
-                    <span className="text-body-sm font-medium text-green-800">{pdfFile.name}</span>
+                    <CheckCircle2 className="size-5 text-(--color-success)" />
+                    <span className="text-body-sm font-medium text-(--color-text-primary)">{pdfFile.name}</span>
                     <button
                       type="button"
-                      className="ml-2 text-red-500 hover:text-red-600"
+                      className="ml-2 text-(--color-danger) hover:opacity-80"
                       onClick={(e) => {
                         e.preventDefault();
                         setPdfFile(null);
@@ -157,7 +159,7 @@ export function NhsStatementPanel({
                     </button>
                   </>
                 ) : (
-                  <span className="text-body-sm text-blue-700">Click to select NHS statement PDF</span>
+                  <span className="text-body-sm text-(--color-text-secondary)">Click to select NHS statement PDF</span>
                 )}
               </div>
               <input
@@ -171,13 +173,13 @@ export function NhsStatementPanel({
                 }}
               />
             </label>
-            <p className="mt-1 text-caption text-blue-600">
+            <p className="mt-1 text-caption text-(--color-text-tertiary)">
               Auto-extracts UDAs and NHS period dates. Compass upload remains available separately.
             </p>
           </div>
 
           <div>
-            <label className="mb-2 block text-caption font-medium text-blue-900">NHS period dates</label>
+            <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">NHS period dates</label>
             <div className="flex flex-wrap items-end gap-3">
               <div>
                 <label className="mb-1 block text-caption text-(--color-text-tertiary)">Period start</label>
@@ -185,7 +187,7 @@ export function NhsStatementPanel({
                   type="date"
                   value={periodStart}
                   onChange={(e) => setPeriodStart(e.target.value)}
-                  className="rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-primary-500)/30"
                 />
               </div>
               <span className="pb-2 text-caption text-(--color-text-tertiary)">to</span>
@@ -195,17 +197,17 @@ export function NhsStatementPanel({
                   type="date"
                   value={periodEnd}
                   onChange={(e) => setPeriodEnd(e.target.value)}
-                  className="rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-primary-500)/30"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-caption font-medium text-blue-900">Or enter UDAs manually</label>
+            <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">Or enter UDAs manually</label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {nhsDentists.map((d) => (
-                <div key={d.id} className="rounded-(--radius-md) border border-blue-100 bg-white p-3">
+                <div key={d.id} className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-3">
                   <label className="mb-1 block text-caption font-medium text-(--color-text-primary)">
                     {d.name}
                     <span className="ml-1 text-(--color-text-tertiary)">
@@ -219,7 +221,7 @@ export function NhsStatementPanel({
                     placeholder="0"
                     value={manualUdas[d.name] ?? ""}
                     onChange={(e) => setManualUdas((prev) => ({ ...prev, [d.name]: e.target.value }))}
-                    className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-primary-500)/30"
                   />
                 </div>
               ))}
@@ -229,7 +231,7 @@ export function NhsStatementPanel({
           <button
             type="button"
             disabled={pending || (!pdfFile && !Object.values(manualUdas).some((v) => v.trim()))}
-            className="flex items-center gap-2 rounded-(--radius-md) bg-blue-700 px-4 py-2 text-body-sm font-semibold text-white disabled:opacity-50"
+            className="flex items-center gap-2 rounded-(--radius-md) bg-(--color-primary-600) px-4 py-2 text-body-sm font-semibold text-white disabled:opacity-50"
             onClick={() => void submit()}
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}

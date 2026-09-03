@@ -457,8 +457,8 @@ export function SettingsManager({
             <CardTitle>GoCardless configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3 rounded-(--radius-lg) border border-amber-200 bg-amber-50 p-4 text-body-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-              <AlertCircle className="size-5 shrink-0" />
+            <div className="flex gap-3 rounded-(--radius-lg) border border-(--color-warning)/40 bg-(--color-warning)/10 p-4 text-body-sm text-(--color-text-primary)">
+              <AlertCircle className="size-5 shrink-0 text-(--color-warning)" />
               <p>
                 Access token, environment and webhook secret are set via deployment environment variables. Only
                 collection/retry days and creditor ID are stored in the app.
@@ -652,8 +652,8 @@ export function SettingsManager({
             <CardTitle>Dentist payouts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3 rounded-(--radius-lg) border border-blue-200 bg-blue-50 p-4 text-body-sm text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100">
-              <AlertCircle className="size-5 shrink-0" />
+            <div className="flex gap-3 rounded-(--radius-lg) border border-(--color-primary-500)/30 bg-(--color-primary-50) p-4 text-body-sm text-(--color-text-primary)">
+              <AlertCircle className="size-5 shrink-0 text-(--color-primary-600)" />
               <p>Internal only — patients never see payout amounts. Used in revenue reports.</p>
             </div>
             <div>

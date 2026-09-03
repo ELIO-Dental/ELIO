@@ -12,7 +12,6 @@ import {
   TableHead,
   TableCell,
   Badge,
-  Card,
   StatCard,
   EmptyState,
   TablePanel,
@@ -68,114 +67,112 @@ export default async function TenantListPage({
         </p>
       )}
 
-      <Card className="overflow-hidden shadow-(--shadow-sm)">
-        {totalCount === 0 ? (
-          <TablePanel
-            toolbar={
-              <TableToolbar>
+      {totalCount === 0 ? (
+        <TablePanel
+          toolbar={
+            <TableToolbar>
+              <span className="inline-flex items-center gap-2 text-body-sm font-semibold text-(--color-text-primary)">
+                <Building2 className="size-4 text-(--color-primary-fg)" aria-hidden />
+                All practices
+              </span>
+            </TableToolbar>
+          }
+        >
+          <EmptyState
+            icon={Building2}
+            title="No practices yet"
+            description="When a dental practice signs up through ELIO Portal, it will appear here for licence and access management."
+            className="py-12"
+          />
+        </TablePanel>
+      ) : (
+        <TablePanel
+          toolbar={
+            <TableToolbar>
+              <div>
                 <span className="inline-flex items-center gap-2 text-body-sm font-semibold text-(--color-text-primary)">
                   <Building2 className="size-4 text-(--color-primary-fg)" aria-hidden />
                   All practices
                 </span>
-              </TableToolbar>
-            }
-          >
-            <EmptyState
-              icon={Building2}
-              title="No practices yet"
-              description="When a dental practice signs up through ELIO Portal, it will appear here for licence and access management."
-              className="py-12"
-            />
-          </TablePanel>
-        ) : (
-          <TablePanel
-            toolbar={
-              <TableToolbar>
-                <div>
-                  <span className="inline-flex items-center gap-2 text-body-sm font-semibold text-(--color-text-primary)">
-                    <Building2 className="size-4 text-(--color-primary-fg)" aria-hidden />
-                    All practices
-                  </span>
-                  <p className="mt-1 text-body-sm font-normal text-(--color-text-secondary)">
-                    Open a tenant to manage licences, flags, and impersonation.
-                  </p>
-                </div>
-              </TableToolbar>
-            }
-            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Practice</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Licences</TableHead>
-                  <TableHead>Users</TableHead>
-                  <TableHead>Dentally</TableHead>
-                  <TableHead>Status</TableHead>
+                <p className="mt-1 text-body-sm font-normal text-(--color-text-secondary)">
+                  Open a tenant to manage licences, flags, and impersonation.
+                </p>
+              </div>
+            </TableToolbar>
+          }
+          footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Practice</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Licences</TableHead>
+                <TableHead>Users</TableHead>
+                <TableHead>Dentally</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tenants.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>
+                    <Link
+                      href={`/tenants/${t.id}`}
+                      className="inline-flex items-center gap-2 font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted) hover:underline"
+                      data-testid={`tenant-link-${t.id}`}
+                    >
+                      <Users className="size-4 shrink-0 text-(--color-text-tertiary)" aria-hidden />
+                      {t.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{t.plan ?? "—"}</TableCell>
+                  <TableCell>
+                    {t.licences.filter((l) => l.active).length > 0
+                      ? t.licences
+                          .filter((l) => l.active)
+                          .map((l) => l.moduleId)
+                          .join(", ")
+                      : "None"}
+                  </TableCell>
+                  <TableCell>{t._count.users}</TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/tenants/${t.id}#dentally-sync-logs`}
+                      className="inline-flex items-center gap-2"
+                      data-testid={`tenant-dentally-logs-${t.id}`}
+                    >
+                      <Badge
+                        variant={
+                          t.dentallyConnectionStatus === "CONNECTED"
+                            ? "success"
+                            : t.dentallyConnectionStatus === "ERROR"
+                              ? "danger"
+                              : "neutral"
+                        }
+                      >
+                        {t.dentallyConnectionStatus}
+                      </Badge>
+                      <span className="text-caption text-(--color-primary-fg) hover:underline">Logs</span>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {t.suspendedAt ? (
+                      <Badge variant="danger" data-testid={`tenant-status-${t.id}`}>
+                        Suspended
+                      </Badge>
+                    ) : (
+                      <Badge variant="success" data-testid={`tenant-status-${t.id}`}>
+                        Active
+                      </Badge>
+                    )}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tenants.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      <Link
-                        href={`/tenants/${t.id}`}
-                        className="inline-flex items-center gap-2 font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted) hover:underline"
-                        data-testid={`tenant-link-${t.id}`}
-                      >
-                        <Users className="size-4 shrink-0 text-(--color-text-tertiary)" aria-hidden />
-                        {t.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{t.plan ?? "—"}</TableCell>
-                    <TableCell>
-                      {t.licences.filter((l) => l.active).length > 0
-                        ? t.licences
-                            .filter((l) => l.active)
-                            .map((l) => l.moduleId)
-                            .join(", ")
-                        : "None"}
-                    </TableCell>
-                    <TableCell>{t._count.users}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/tenants/${t.id}#dentally-sync-logs`}
-                        className="inline-flex items-center gap-2"
-                        data-testid={`tenant-dentally-logs-${t.id}`}
-                      >
-                        <Badge
-                          variant={
-                            t.dentallyConnectionStatus === "CONNECTED"
-                              ? "success"
-                              : t.dentallyConnectionStatus === "ERROR"
-                                ? "danger"
-                                : "neutral"
-                          }
-                        >
-                          {t.dentallyConnectionStatus}
-                        </Badge>
-                        <span className="text-caption text-(--color-primary-fg) hover:underline">Logs</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {t.suspendedAt ? (
-                        <Badge variant="danger" data-testid={`tenant-status-${t.id}`}>
-                          Suspended
-                        </Badge>
-                      ) : (
-                        <Badge variant="success" data-testid={`tenant-status-${t.id}`}>
-                          Active
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TablePanel>
-        )}
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        </TablePanel>
+      )}
     </div>
   );
 }

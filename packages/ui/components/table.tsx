@@ -21,7 +21,7 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
   return (
     <th
       className={cn(
-        "h-11 px-4 text-left text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)",
+        "h-11 px-4 text-center text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)",
         className
       )}
       {...props}
@@ -58,10 +58,10 @@ export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTable
 }
 
 export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-4 text-(--color-text-primary)", className)} {...props} />;
+  return <td className={cn("px-4 text-center text-(--color-text-primary)", className)} {...props} />;
 }
 
-/** Right-aligned, mono, tabular-nums — for money columns (§5.4). Pass a semantic color className. */
+/** Mono + tabular-nums for money — right-aligned; pair with TableHead className="text-right". */
 export function TableCellMoney({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td

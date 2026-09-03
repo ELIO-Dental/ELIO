@@ -19,19 +19,21 @@ export function SetupClient({
 
   return (
     <div className="mt-8 space-y-6">
-      <div className="flex flex-wrap gap-1 rounded-lg bg-(--color-surface-muted) p-1">
+      <div className="flex flex-wrap gap-1 rounded-lg bg-(--color-bg-subtle) p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-              tab === t.id ? "bg-white shadow-sm" : "text-(--color-text-secondary)"
+              tab === t.id
+                ? "bg-(--color-surface) text-(--color-text-primary) shadow-(--shadow-sm)"
+                : "text-(--color-text-secondary)"
             }`}
           >
             {t.label}
             {t.count != null && t.count > 0 && (
-              <span className="ml-1.5 rounded-full bg-(--color-surface-muted) px-1.5 text-xs">{t.count}</span>
+              <span className="ml-1.5 rounded-full bg-(--color-bg-subtle) px-1.5 text-xs">{t.count}</span>
             )}
           </button>
         ))}

@@ -557,7 +557,7 @@ export function PatientDetailClient({
           </DialogHeader>
           <div className="space-y-4">
             {!detail.patient.dentallyId ? (
-              <p className="rounded-(--radius-lg) border border-amber-200 bg-amber-50 p-3 text-body-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+              <p className="rounded-(--radius-lg) border border-(--color-warning)/40 bg-(--color-warning)/10 p-3 text-body-sm text-(--color-text-primary)">
                 This patient is not linked to Dentally. Redeems can only be created from Dentally appointments.
               </p>
             ) : appointments === null ? (

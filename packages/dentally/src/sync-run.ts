@@ -6,7 +6,7 @@ import type { SyncResult } from "./sync";
 /** Runs older than this with status RUNNING are treated as abandoned (serverless
  * timeout / missing Inngest). Multi-step Inngest syncs can legitimately span
  * wall-clock time across checkpoints — keep this above a full practice sync. */
-export const STALE_RUNNING_MS = 2 * 60 * 60 * 1000;
+export const STALE_RUNNING_MS = 12 * 60 * 60 * 1000;
 
 const STALE_RUNNING_MESSAGE =
   "Sync abandoned: stayed RUNNING with no finish (timeout or background worker unavailable). Click Sync now to retry.";

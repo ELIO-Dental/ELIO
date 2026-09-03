@@ -13,7 +13,7 @@ export const dentallyFullSyncFunction = inngest.createFunction(
   {
     id: "dentally-full-sync",
     retries: 2,
-    timeouts: { finish: "2h" },
+    timeouts: { finish: "12h" },
     onFailure: async ({ error, event }) => {
       const original = event.data.event;
       const practiceId = original?.data?.practiceId as string | undefined;

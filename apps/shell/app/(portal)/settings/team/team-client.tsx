@@ -27,6 +27,8 @@ import {
   SelectItem,
   TablePanel,
   TableToolbar,
+  TablePagination,
+  useClientTablePagination,
 } from "@elio/ui";
 import { Users } from "lucide-react";
 
@@ -243,66 +245,93 @@ export function TeamClient({
           ) : !users || users.length === 0 ? (
             <EmptyState icon={Users} title="No users yet" description="Invite your first team member above." />
           ) : (
-            <TablePanel toolbar={<TableToolbar title="Team members" onRefresh={refetch} />}>
-              <Table data-testid="team-users-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>MFA</TableHead>
-                  <TableHead>Status</TableHead>
-                  {canManage && <TableHead>Deactivate</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.id} data-testid={`team-row-${u.email}`}>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>
-                      {canManage ? (
-                        <Select value={u.role} onValueChange={(v) => updateUser(u.id, { role: v as Role })}>
-                          <SelectTrigger className="h-8 w-32" data-testid={`role-select-${u.email}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map((r) => (
-                              <SelectItem key={r} value={r}>
-                                {r}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        u.role
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={u.mfaEnabled ? "success" : "neutral"}>{u.mfaEnabled ? "Enabled" : "Not set up"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={u.active ? "success" : "danger"}>{u.active ? "Active" : "Deactivated"}</Badge>
-                    </TableCell>
-                    {canManage && (
-                      <TableCell>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={u.id === currentUserId}
-                          onClick={() => updateUser(u.id, { active: !u.active })}
-                          data-testid={`deactivate-${u.email}`}
-                        >
-                          {u.active ? "Deactivate" : "Reactivate"}
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </TablePanel>
+            <TeamUsersTable users={users} canManage={canManage} currentUserId={currentUserId} onUpdate={updateUser} onRefresh={refetch} />
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function TeamUsersTable({
+  users,
+  canManage,
+  currentUserId,
+  onUpdate,
+  onRefresh,
+}: {
+  users: TeamUser[];
+  canManage: boolean;
+  currentUserId: string;
+  onUpdate: (id: string, patch: { role?: Role; active?: boolean }) => void;
+  onRefresh: () => void;
+}) {
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(users, 25);
+
+  return (
+    <TablePanel
+      toolbar={<TableToolbar title="Team members" onRefresh={onRefresh} />}
+      footer={
+        showPagination ? (
+          <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+        ) : undefined
+      }
+    >
+      <Table data-testid="team-users-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>MFA</TableHead>
+            <TableHead>Status</TableHead>
+            {canManage && <TableHead>Deactivate</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((u) => (
+            <TableRow key={u.id} data-testid={`team-row-${u.email}`}>
+              <TableCell>{u.email}</TableCell>
+              <TableCell>
+                {canManage ? (
+                  <Select value={u.role} onValueChange={(v) => onUpdate(u.id, { role: v as Role })}>
+                    <SelectTrigger className="h-8 w-32" data-testid={`role-select-${u.email}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  u.role
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge variant={u.mfaEnabled ? "success" : "neutral"}>{u.mfaEnabled ? "Enabled" : "Not set up"}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant={u.active ? "success" : "danger"}>{u.active ? "Active" : "Deactivated"}</Badge>
+              </TableCell>
+              {canManage && (
+                <TableCell>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={u.id === currentUserId}
+                    onClick={() => onUpdate(u.id, { active: !u.active })}
+                    data-testid={`deactivate-${u.email}`}
+                  >
+                    {u.active ? "Deactivate" : "Reactivate"}
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TablePanel>
   );
 }

@@ -114,7 +114,7 @@ export function DentistLogImportPanel({
           </label>
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-(--radius-md) border border-green-200 bg-green-50 px-3 py-1.5 text-caption font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-(--radius-md) border border-(--color-success)/40 bg-(--color-success-bg) px-3 py-1.5 text-caption font-medium text-(--color-success) hover:opacity-90 disabled:opacity-50"
             disabled={pending}
             onClick={onGoogleSheets}
           >

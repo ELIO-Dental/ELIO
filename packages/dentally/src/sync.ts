@@ -148,12 +148,12 @@ const PHASE_LIST: Record<
   { path: string; listKey: string; perPage: number }
 > = {
   // Invoices are heavier (derive treatments) — smaller pages keep steps under Vercel 300s.
-  patients: { path: "/patients", listKey: "patients", perPage: 100 },
-  appointments: { path: "/appointments", listKey: "appointments", perPage: 100 },
-  invoices: { path: "/invoices", listKey: "invoices", perPage: 25 },
-  payments: { path: "/payments", listKey: "payments", perPage: 100 },
-  accounts: { path: "/accounts", listKey: "accounts", perPage: 100 },
-  payment_plans: { path: "/payment_plans", listKey: "payment_plans", perPage: 100 },
+  patients: { path: "/patients", listKey: "patients", perPage: 200 },
+  appointments: { path: "/appointments", listKey: "appointments", perPage: 200 },
+  invoices: { path: "/invoices", listKey: "invoices", perPage: 50 },
+  payments: { path: "/payments", listKey: "payments", perPage: 200 },
+  accounts: { path: "/accounts", listKey: "accounts", perPage: 200 },
+  payment_plans: { path: "/payment_plans", listKey: "payment_plans", perPage: 200 },
 };
 
 async function upsertPatientsPage(practiceId: string, patients: DentallyPatientRaw[]): Promise<SyncPhaseResult> {

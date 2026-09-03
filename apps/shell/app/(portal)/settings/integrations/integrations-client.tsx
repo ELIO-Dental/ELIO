@@ -47,6 +47,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral
   NOT_CONNECTED: "neutral",
   ERROR: "danger",
   RUNNING: "info",
+  STARTING: "info",
   SUCCESS: "success",
   PARTIAL: "warning",
   FAILED: "danger",
@@ -71,19 +72,24 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   const [status, setStatus] = React.useState<IntegrationStatus | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [syncing, setSyncing] = React.useState(false);
+  /** True after enqueue until DB shows RUNNING (Inngest create-sync-run lag). */
+  const [awaitingStart, setAwaitingStart] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [savingKey, setSavingKey] = React.useState(false);
   const [apiKey, setApiKey] = React.useState("");
   const [keySaved, setKeySaved] = React.useState(false);
   const loading = useSkeleton(!status && !error);
+  const runIdBeforeEnqueue = React.useRef<string | null>(null);
 
   const load = React.useCallback(async (testConnection = false) => {
     try {
       setError(null);
       const next = await fetchStatus(testConnection);
       setStatus(next);
+      return next;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load integration status");
+      return null;
     }
   }, []);
 
@@ -91,13 +97,46 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
     void load();
   }, [load]);
 
+  const displayStatus = awaitingStart ? "STARTING" : status?.latestRun?.status ?? null;
+  const isBusy = syncing || awaitingStart || status?.latestRun?.status === "RUNNING";
+
+  // Poll while a sync is starting or actively running.
   React.useEffect(() => {
-    if (status?.latestRun?.status !== "RUNNING") return;
+    if (!awaitingStart && status?.latestRun?.status !== "RUNNING") return;
+    const intervalMs = awaitingStart ? 1500 : 3000;
     const timer = setInterval(() => {
-      void load();
-    }, 3000);
+      void load().then((next) => {
+        if (!next) return;
+        const run = next.latestRun;
+        if (!run) return;
+        if (awaitingStart) {
+          const isNewRun = run.id !== runIdBeforeEnqueue.current;
+          if (run.status === "RUNNING" || (isNewRun && run.status === "RUNNING")) {
+            setAwaitingStart(false);
+          } else if (
+            isNewRun &&
+            (run.status === "SUCCESS" || run.status === "PARTIAL" || run.status === "FAILED")
+          ) {
+            setAwaitingStart(false);
+          }
+        }
+      });
+    }, intervalMs);
     return () => clearInterval(timer);
-  }, [status?.latestRun?.status, load]);
+  }, [awaitingStart, status?.latestRun?.status, load]);
+
+  // Safety: stop "Starting…" after 90s if Inngest never creates a row.
+  React.useEffect(() => {
+    if (!awaitingStart) return;
+    const timeout = setTimeout(() => {
+      setAwaitingStart(false);
+      setError(
+        "Sync was queued but has not started yet. Check Inngest / refresh in a moment — do not click Sync now again if a job is already running."
+      );
+      void load();
+    }, 90_000);
+    return () => clearTimeout(timeout);
+  }, [awaitingStart, load]);
 
   async function onSaveApiKey(e: React.FormEvent) {
     e.preventDefault();
@@ -125,14 +164,39 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   async function onSyncNow() {
     setSyncing(true);
     setError(null);
+    runIdBeforeEnqueue.current = status?.latestRun?.id ?? null;
     try {
       const res = await fetch("/api/dentally/sync", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.error ?? `Sync failed (${res.status})`);
       }
-      await load();
+      // Optimistic UI: Inngest creates the RUNNING row only after the first step.
+      setAwaitingStart(true);
+      setStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              latestRun: {
+                id: prev.latestRun?.id ?? "pending",
+                status: "STARTING",
+                trigger: "manual",
+                startedAt: new Date().toISOString(),
+                finishedAt: null,
+                counts: null,
+                errorMessage: null,
+                recordErrorCount: 0,
+              },
+            }
+          : prev
+      );
+      void load().then((next) => {
+        if (next?.latestRun?.status === "RUNNING") {
+          setAwaitingStart(false);
+        }
+      });
     } catch (err) {
+      setAwaitingStart(false);
       setError(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setSyncing(false);
@@ -149,6 +213,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   }
 
   const counts = status?.latestRun?.counts ?? null;
+  const resultBadgeStatus = displayStatus ?? status?.latestRun?.status;
 
   return (
     <Card className="border-(--color-border-subtle) shadow-(--shadow-sm)" data-testid="dentally-integrations">
@@ -169,7 +234,10 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
         ) : (
           <>
             {canManage && (
-              <form onSubmit={onSaveApiKey} className="space-y-3 rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-bg-subtle)/60 p-4">
+              <form
+                onSubmit={onSaveApiKey}
+                className="space-y-3 rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-bg-subtle)/60 p-4"
+              >
                 <div>
                   <Label htmlFor="dentally-api-key">Dentally API key</Label>
                   <p className="mt-1 text-body-sm text-(--color-text-tertiary)">
@@ -216,14 +284,16 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               <div>
                 <dt className="text-(--color-text-tertiary)">Last sync result</dt>
                 <dd>
-                  {status?.latestRun ? (
-                    <Badge variant={STATUS_VARIANT[status.latestRun.status] ?? "neutral"}>{status.latestRun.status}</Badge>
+                  {resultBadgeStatus ? (
+                    <Badge variant={STATUS_VARIANT[resultBadgeStatus] ?? "neutral"}>
+                      {resultBadgeStatus === "STARTING" ? "STARTING…" : resultBadgeStatus}
+                    </Badge>
                   ) : (
                     "Never synced"
                   )}
                 </dd>
               </div>
-              {counts && (
+              {counts && !awaitingStart && status?.latestRun?.status !== "RUNNING" && (
                 <div>
                   <dt className="text-(--color-text-tertiary)">Records synced (last run)</dt>
                   <dd className="font-medium text-(--color-text-primary)">
@@ -236,15 +306,24 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               )}
             </dl>
 
-            {status?.latestRun?.errorMessage && (
+            {(awaitingStart || status?.latestRun?.status === "RUNNING") && (
+              <p className="rounded-(--radius-md) border border-(--color-primary-500)/30 bg-(--color-primary-50) px-3 py-2 text-body-sm text-(--color-text-primary)">
+                {awaitingStart
+                  ? "Sync queued — waiting for the background worker to start (usually a few seconds)."
+                  : "Sync is running in the background. This page refreshes automatically."}
+              </p>
+            )}
+
+            {status?.latestRun?.errorMessage && !isBusy && (
               <p className="rounded-(--radius-md) border border-(--color-danger) bg-(--color-danger-bg) px-3 py-2 text-body-sm text-(--color-danger)">
                 {status.latestRun.errorMessage}
               </p>
             )}
 
-            {status?.latestRun && status.latestRun.recordErrorCount > 0 && (
+            {status?.latestRun && status.latestRun.recordErrorCount > 0 && !isBusy && (
               <p className="text-body-sm text-(--color-warning)">
-                {status.latestRun.recordErrorCount} individual record(s) failed on the last sync — data may be partially stale.
+                {status.latestRun.recordErrorCount} individual record(s) failed on the last sync — data may be partially
+                stale.
               </p>
             )}
 
@@ -268,15 +347,24 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               {canManage && (
                 <Button
                   onClick={onSyncNow}
-                  loading={syncing}
-                  disabled={!status?.configured || status?.latestRun?.status === "RUNNING"}
+                  loading={syncing || awaitingStart || status?.latestRun?.status === "RUNNING"}
+                  disabled={!status?.configured || isBusy}
                   data-testid="dentally-sync-now"
                 >
-                  Sync now
+                  {awaitingStart
+                    ? "Starting…"
+                    : status?.latestRun?.status === "RUNNING"
+                      ? "Syncing…"
+                      : "Sync now"}
                 </Button>
               )}
               {canManage && (
-                <Button variant="secondary" onClick={onTestConnection} loading={testing} disabled={!status?.configured}>
+                <Button
+                  variant="secondary"
+                  onClick={onTestConnection}
+                  loading={testing}
+                  disabled={!status?.configured || isBusy}
+                >
                   Test connection
                 </Button>
               )}

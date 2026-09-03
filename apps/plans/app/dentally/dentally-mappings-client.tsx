@@ -31,6 +31,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TablePanel,
+  TablePagination,
+  useClientTablePagination,
   formatMoneyGBP,
   toast,
 } from "@elio/ui";
@@ -291,40 +294,62 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
               className="py-12"
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dentally plan name</TableHead>
-                  <TableHead>ELIO plan</TableHead>
-                  {canManage && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mappings.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.dentallyPlanName}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="neutral">{m.planModel.name}</Badge>
-                        <span className="text-caption text-(--color-text-tertiary)">
-                          {formatPlanPrice(m.planModel)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    {canManage && (
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(m.id)} aria-label="Delete mapping">
-                          <Trash2 className="size-4 text-(--color-danger)" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <MappingsTable mappings={mappings} canManage={canManage} onDelete={handleDelete} />
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function MappingsTable({
+  mappings,
+  canManage,
+  onDelete,
+}: {
+  mappings: PlanMapping[];
+  canManage: boolean;
+  onDelete: (id: string) => void;
+}) {
+  const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(mappings, 25);
+
+  return (
+    <TablePanel
+      footer={
+        showPagination ? (
+          <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+        ) : undefined
+      }
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Dentally plan name</TableHead>
+            <TableHead>ELIO plan</TableHead>
+            {canManage && <TableHead className="text-right">Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((m) => (
+            <TableRow key={m.id}>
+              <TableCell className="font-medium">{m.dentallyPlanName}</TableCell>
+              <TableCell>
+                <div className="flex items-center justify-center gap-2">
+                  <Badge variant="neutral">{m.planModel.name}</Badge>
+                  <span className="text-caption text-(--color-text-tertiary)">{formatPlanPrice(m.planModel)}</span>
+                </div>
+              </TableCell>
+              {canManage && (
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => onDelete(m.id)} aria-label="Delete mapping">
+                    <Trash2 className="size-4 text-(--color-danger)" />
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TablePanel>
   );
 }

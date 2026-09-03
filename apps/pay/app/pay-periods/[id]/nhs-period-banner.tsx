@@ -15,17 +15,17 @@ export function NhsPeriodBanner({
 }) {
   return (
     <div
-      className="flex items-center gap-3 rounded-(--radius-md) border border-blue-200 bg-blue-50 px-4 py-2"
+      className="flex items-center gap-3 rounded-(--radius-md) border border-(--color-primary-500)/30 bg-(--color-primary-50) px-4 py-2"
       data-testid="nhs-period-banner"
     >
-      <FileText className="size-4 shrink-0 text-blue-500" />
-      <div className="text-caption text-blue-800">
+      <FileText className="size-4 shrink-0 text-(--color-primary-600)" />
+      <div className="text-caption text-(--color-text-primary)">
         <span className="font-medium">NHS period: </span>
         <span>
           {periodStart} – {periodEnd}
         </span>
         {udas ? (
-          <span className="ml-2 text-blue-600">
+          <span className="ml-2 text-(--color-text-secondary)">
             ({udas} UDAs @ {formatMoneyGBPOrDash(udaRatePence)}/UDA)
           </span>
         ) : null}
