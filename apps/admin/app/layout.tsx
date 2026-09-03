@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { geistSans, geistMono, Toaster, ThemeProvider, ThemeScript, NavigationProgress } from "@elio/ui";
+import { geistSans, geistMono, Toaster, ThemeProvider, ThemeScript, NavigationProgress, FlashQueuedToasts } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import "./globals.css";
 
@@ -33,6 +33,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <NavigationProgress />
             {children}
             <Toaster />
+            <FlashQueuedToasts />
           </PwaProvider>
         </ThemeProvider>
       </body>

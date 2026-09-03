@@ -29,6 +29,7 @@ export * from "./hooks/use-client-table-pagination";
 export * from "./components/dialog";
 export * from "./components/sheet";
 export * from "./components/toast";
+export * from "./components/flash-toast";
 export * from "./components/switch";
 export * from "./components/empty-state";
 export * from "./components/avatar";

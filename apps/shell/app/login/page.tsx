@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Input, Label } from "@elio/ui";
+import { Button, Input, Label, toast, queueFlashToast } from "@elio/ui";
 import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 type Step = "credentials" | "mfa";
@@ -20,6 +20,11 @@ function sanitizeCallbackUrl(raw: string | null): string {
   return raw;
 }
 
+function authErrorCode(result: unknown): string | undefined {
+  const r = result as { code?: string; error?: string } | null;
+  return r?.code ?? (r?.error && r.error !== "CredentialsSignin" ? r.error : undefined);
+}
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"));
@@ -32,33 +37,42 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const [navigating, setNavigating] = React.useState(false);
 
+  function fail(message: string) {
+    setLoading(false);
+    setError(message);
+    toast.error(message);
+  }
+
   async function submitCredentials(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const result = await signIn("credentials", { email, password, redirect: false });
+    try {
+      const result = await signIn("credentials", { email, password, redirect: false });
+      const code = authErrorCode(result);
 
-    if ((result as any)?.code === "MFA_REQUIRED") {
-      setLoading(false);
-      setStep("mfa");
-      return;
-    }
-    if ((result as any)?.code === "TOO_MANY_ATTEMPTS") {
-      setLoading(false);
-      setError("Too many attempts. Please wait a while before trying again.");
-      return;
-    }
-    if (result?.error) {
-      setLoading(false);
-      setError("Incorrect email or password.");
-      return;
-    }
+      if (code === "MFA_REQUIRED") {
+        setLoading(false);
+        setStep("mfa");
+        toast.info("Enter the 6-digit code from your authenticator app.");
+        return;
+      }
+      if (code === "TOO_MANY_ATTEMPTS") {
+        fail("Too many attempts. Please wait a while before trying again.");
+        return;
+      }
+      if (result?.error || !result?.ok) {
+        fail("Incorrect email or password.");
+        return;
+      }
 
-    setNavigating(true);
-    // Full document load so the session cookie is on the first launcher request.
-    // Client router.push + refresh races the cookie and flashes a blank URL.
-    window.location.assign(callbackUrl);
+      setNavigating(true);
+      queueFlashToast("success", "Signed in", "Welcome back to ELIO Portal.");
+      window.location.assign(callbackUrl);
+    } catch {
+      fail("Could not reach the server. Check your connection and try again.");
+    }
   }
 
   async function submitMfa(e: React.FormEvent) {
@@ -66,28 +80,31 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const result = await signIn("credentials", { email, password, mfaCode, redirect: false });
+    try {
+      const result = await signIn("credentials", { email, password, mfaCode, redirect: false });
+      const code = authErrorCode(result);
 
-    if ((result as any)?.code === "MFA_INVALID") {
-      setLoading(false);
-      setError("Invalid authentication code. Please try again.");
-      return;
-    }
-    if ((result as any)?.code === "TOO_MANY_ATTEMPTS") {
-      setLoading(false);
-      setError("Too many attempts. Please wait a while before trying again.");
-      setStep("credentials");
-      return;
-    }
-    if (result?.error) {
-      setLoading(false);
-      setError("Incorrect email or password.");
-      setStep("credentials");
-      return;
-    }
+      if (code === "MFA_INVALID") {
+        fail("Invalid authentication code. Please try again.");
+        return;
+      }
+      if (code === "TOO_MANY_ATTEMPTS") {
+        fail("Too many attempts. Please wait a while before trying again.");
+        setStep("credentials");
+        return;
+      }
+      if (result?.error || !result?.ok) {
+        fail("Incorrect email or password.");
+        setStep("credentials");
+        return;
+      }
 
-    setNavigating(true);
-    window.location.assign(callbackUrl);
+      setNavigating(true);
+      queueFlashToast("success", "Signed in", "Welcome back to ELIO Portal.");
+      window.location.assign(callbackUrl);
+    } catch {
+      fail("Could not reach the server. Check your connection and try again.");
+    }
   }
 
   const isBusy = loading || navigating;

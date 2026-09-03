@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Input, Label, Stepper, getModuleColor } from "@elio/ui";
+import { Button, Input, Label, Stepper, getModuleColor, toast, queueFlashToast } from "@elio/ui";
 import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 const STEPS = [
@@ -20,7 +19,6 @@ const MODULES: { id: "PAY" | "PLANS" | "FLOW"; name: string; description: string
 
 /** Step 2.1 (MASTER_BUILD_GUIDE.md §2.1, FR-5) — self-serve practice signup. */
 export default function SignupPage() {
-  const router = useRouter();
   const [stepIndex, setStepIndex] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -41,9 +39,24 @@ export default function SignupPage() {
   function goNext() {
     setError(null);
     if (stepIndex === 0) {
-      if (practiceName.trim().length < 2) return setError("Enter your practice name.");
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) return setError("Enter a valid email address.");
-      if (adminPassword.length < 10) return setError("Password must be at least 10 characters.");
+      if (practiceName.trim().length < 2) {
+        const msg = "Enter your practice name.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+        const msg = "Enter a valid email address.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (adminPassword.length < 10) {
+        const msg = "Password must be at least 10 characters.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
     }
     setStepIndex((i) => i + 1);
   }
@@ -59,11 +72,15 @@ export default function SignupPage() {
     setDentallyTestError(null);
     const key = dentallyApiKey.trim();
     if (!key) {
-      setDentallyTestError("Enter an API key to test.");
+      const msg = "Enter an API key to test.";
+      setDentallyTestError(msg);
+      toast.error(msg);
       return;
     }
     if (key.length < 8) {
-      setDentallyTestError("API key looks too short.");
+      const msg = "API key looks too short.";
+      setDentallyTestError(msg);
+      toast.error(msg);
       return;
     }
     setDentallyTesting(true);
@@ -76,13 +93,18 @@ export default function SignupPage() {
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (res.ok && data.ok) {
         setDentallyTestOk(true);
+        toast.success("Dentally connection successful.");
       } else {
         setDentallyTestOk(false);
-        setDentallyTestError(data.error ?? "Connection test failed.");
+        const msg = data.error ?? "Connection test failed.";
+        setDentallyTestError(msg);
+        toast.error(msg);
       }
     } catch {
       setDentallyTestOk(false);
-      setDentallyTestError("Connection test failed.");
+      const msg = "Connection test failed.";
+      setDentallyTestError(msg);
+      toast.error(msg);
     } finally {
       setDentallyTesting(false);
     }
@@ -91,39 +113,59 @@ export default function SignupPage() {
   async function submit() {
     setError(null);
     if (selectedModules.length === 0) {
-      setError("Select at least one module to trial.");
+      const msg = "Select at least one module to trial.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setLoading(true);
 
-    const res = await fetch("/api/public/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        practiceName,
-        adminEmail,
-        adminPassword,
-        dentallyApiKey: dentallyApiKey.trim() || undefined,
-        selectedModules,
-      }),
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/public/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          practiceName,
+          adminEmail,
+          adminPassword,
+          dentallyApiKey: dentallyApiKey.trim() || undefined,
+          selectedModules,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
+      if (!res.ok) {
+        setLoading(false);
+        const msg =
+          res.status === 429
+            ? "Too many signup attempts. Try again later."
+            : typeof data.error === "string"
+              ? data.error
+              : "Signup failed. Please try again.";
+        setError(msg);
+        toast.error(msg);
+        if (msg.toLowerCase().includes("already registered")) {
+          setStepIndex(0);
+        }
+        return;
+      }
+
+      const signInResult = await signIn("credentials", { email: adminEmail, password: adminPassword, redirect: false });
       setLoading(false);
-      setError(data.error ?? "Signup failed. Please try again.");
-      return;
+      if (signInResult?.error) {
+        toast.success("Account created. Please sign in.");
+        queueFlashToast("success", "Account created", "Sign in with your new email and password.");
+        window.location.assign("/login");
+        return;
+      }
+      queueFlashToast("success", "Account created", "Welcome to ELIO Portal.");
+      window.location.assign("/launcher");
+    } catch {
+      setLoading(false);
+      const msg = "Could not reach the server. Check your connection and try again.";
+      setError(msg);
+      toast.error(msg);
     }
-
-    // Sign the new OWNER in immediately — no reason to make them re-enter the
-    // password they just chose on the very next screen.
-    const signInResult = await signIn("credentials", { email: adminEmail, password: adminPassword, redirect: false });
-    setLoading(false);
-    if (signInResult?.error) {
-      router.push("/login");
-      return;
-    }
-    window.location.assign("/launcher");
   }
 
   return (

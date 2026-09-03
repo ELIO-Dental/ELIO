@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Input, Label } from "@elio/ui";
+import { Button, Input, Label, toast } from "@elio/ui";
 import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 export default function ForgotPasswordPage() {
@@ -19,6 +19,7 @@ export default function ForgotPasswordPage() {
     }).catch(() => {});
     setLoading(false);
     setSubmitted(true);
+    toast.success("If that email has an account, a reset link is on its way.");
   }
 
   return (

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
+import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript, FlashQueuedToasts } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth } from "@/lib/auth";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
@@ -52,6 +52,7 @@ export default async function RootLayout({
         )}
         <PageTransition>{children}</PageTransition>
         <Toaster />
+        <FlashQueuedToasts />
         </PwaProvider>
         </ThemeProvider>
       </body>

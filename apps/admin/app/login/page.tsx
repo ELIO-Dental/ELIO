@@ -1,24 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Input, Label } from "@elio/ui";
+import { Button, Input, Label, toast, queueFlashToast } from "@elio/ui";
 import { AuthFormCard, AuthShell } from "@/components/auth-shell";
 
 type Step = "credentials" | "mfa";
 
-/**
- * Step 2.3 — Super Admin login. Deliberately separate from apps/shell's
- * /login: this page's `signIn()` call hits THIS app's own origin
- * (/api/auth/callback/credentials), which resolves to the adminAuthConfig
- * NextAuth instance (packages/auth/admin-config.ts) — a completely different
- * session/cookie from apps/shell. MFA is required once an authenticator is
- * enrolled; first-time operators sign in with password only and complete setup
- * under Settings.
- */
+function authErrorCode(result: unknown): string | undefined {
+  const r = result as { code?: string; error?: string } | null;
+  return r?.code ?? (r?.error && r.error !== "CredentialsSignin" ? r.error : undefined);
+}
+
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [step, setStep] = React.useState<Step>("credentials");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -27,38 +21,46 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = React.useState(false);
   const [navigating, setNavigating] = React.useState(false);
 
+  function fail(message: string) {
+    setLoading(false);
+    setError(message);
+    toast.error(message);
+  }
+
   async function submitCredentials(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const result = await signIn("credentials", { email, password, redirect: false });
-    const err = (result as { code?: string } | null)?.code ?? result?.error;
+    try {
+      const result = await signIn("credentials", { email, password, redirect: false });
+      const err = authErrorCode(result);
 
-    if (err === "MFA_REQUIRED") {
-      setLoading(false);
-      setStep("mfa");
-      return;
-    }
-    if (err === "NOT_SUPER_ADMIN") {
-      setLoading(false);
-      setError("Incorrect email or password.");
-      return;
-    }
-    if (err === "TOO_MANY_ATTEMPTS") {
-      setLoading(false);
-      setError("Too many attempts. Please wait a while before trying again.");
-      return;
-    }
-    if (!result?.ok) {
-      setLoading(false);
-      setError("Incorrect email or password.");
-      return;
-    }
+      if (err === "MFA_REQUIRED") {
+        setLoading(false);
+        setStep("mfa");
+        toast.info("Enter the 6-digit code from your authenticator app.");
+        return;
+      }
+      if (err === "NOT_SUPER_ADMIN") {
+        fail("This account is not a Super Admin. Use ELIO Portal to sign in.");
+        return;
+      }
+      if (err === "TOO_MANY_ATTEMPTS") {
+        fail("Too many attempts. Please wait a while before trying again.");
+        return;
+      }
+      if (!result?.ok) {
+        fail("Incorrect email or password.");
+        return;
+      }
 
-    setNavigating(true);
-    router.push("/settings");
-    router.refresh();
+      setNavigating(true);
+      queueFlashToast("success", "Signed in", "Welcome to ELIO Admin.");
+      window.location.assign("/settings");
+    } catch {
+      fail("Could not reach the server. Check your connection and try again.");
+    }
   }
 
   async function submitMfa(e: React.FormEvent) {
@@ -66,36 +68,36 @@ export default function AdminLoginPage() {
     setError(null);
     setLoading(true);
 
-    const result = await signIn("credentials", { email, password, mfaCode, redirect: false });
-    const err = (result as { code?: string } | null)?.code ?? result?.error;
+    try {
+      const result = await signIn("credentials", { email, password, mfaCode, redirect: false });
+      const err = authErrorCode(result);
 
-    if (err === "MFA_REQUIRED") {
-      setLoading(false);
-      setError("Complete authenticator setup under Settings after signing in.");
-      setStep("credentials");
-      return;
-    }
-    if (err === "MFA_INVALID") {
-      setLoading(false);
-      setError("Invalid authentication code. Please try again.");
-      return;
-    }
-    if (err === "TOO_MANY_ATTEMPTS") {
-      setLoading(false);
-      setError("Too many attempts. Please wait a while before trying again.");
-      setStep("credentials");
-      return;
-    }
-    if (!result?.ok) {
-      setLoading(false);
-      setError("Incorrect email or password.");
-      setStep("credentials");
-      return;
-    }
+      if (err === "MFA_REQUIRED") {
+        fail("Complete authenticator setup under Settings after signing in.");
+        setStep("credentials");
+        return;
+      }
+      if (err === "MFA_INVALID") {
+        fail("Invalid authentication code. Please try again.");
+        return;
+      }
+      if (err === "TOO_MANY_ATTEMPTS") {
+        fail("Too many attempts. Please wait a while before trying again.");
+        setStep("credentials");
+        return;
+      }
+      if (!result?.ok) {
+        fail("Incorrect email or password.");
+        setStep("credentials");
+        return;
+      }
 
-    setNavigating(true);
-    router.push("/");
-    router.refresh();
+      setNavigating(true);
+      queueFlashToast("success", "Signed in", "Welcome to ELIO Admin.");
+      window.location.assign("/");
+    } catch {
+      fail("Could not reach the server. Check your connection and try again.");
+    }
   }
 
   const isBusy = loading || navigating;

@@ -58,7 +58,7 @@ export async function signUpPractice(input: SignupInput): Promise<SignupResult> 
   if (existing) {
     // Same generic-failure principle as login (Testing 1.2) — never confirm
     // whether an email is already registered to a real reason vs. a typo.
-    throw new SignupValidationError("Couldn't create your account with those details. Check the email and try again.");
+    throw new SignupValidationError("This email is already registered. Sign in or use a different email.");
   }
 
   const hashedPassword = await bcrypt.hash(input.adminPassword, 12);
@@ -108,7 +108,7 @@ export async function signUpPractice(input: SignupInput): Promise<SignupResult> 
     // pre-check path returns, not a raw 500, or the race-losing request
     // becomes a distinguishable oracle for "this email already existed."
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new SignupValidationError("Couldn't create your account with those details. Check the email and try again.");
+      throw new SignupValidationError("This email is already registered. Sign in or use a different email.");
     }
     throw error;
   }
