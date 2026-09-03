@@ -6,6 +6,11 @@ import { serve } from "inngest/next";
 import { inngest } from "@elio/dentally";
 import { dentallyFullSyncFunction } from "@/lib/dentally-full-sync";
 
+// Each Inngest step is one serverless invocation. Resource phases (esp.
+// invoices+treatments) need headroom beyond the default 60s.
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [dentallyFullSyncFunction],

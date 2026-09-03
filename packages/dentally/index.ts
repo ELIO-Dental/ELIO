@@ -5,8 +5,8 @@
 export { DentallyClient, DentallyApiError, getDentallyClient } from "./src/client";
 export type { DentallyClientOptions } from "./src/client";
 
-export { syncPracticeDentallyData } from "./src/sync";
-export type { SyncResult, SyncError } from "./src/sync";
+export { syncPracticeDentallyData, syncPracticeDentallyPhase, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS } from "./src/sync";
+export type { SyncResult, SyncError, SyncCounts, SyncPhaseResult, DentallySyncPhase } from "./src/sync";
 
 export {
   resolvePracticeDentallyApiKey,
@@ -19,6 +19,7 @@ export {
   finalizeDentallySyncRun,
   failDentallySyncRun,
   failStaleDentallySyncRuns,
+  failLatestRunningDentallySyncRun,
   getLatestDentallySyncRun,
   hasActiveDentallySyncRun,
   resolveRunStatus,
@@ -29,7 +30,13 @@ export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, g
 
 export { inngest, dentallySyncFunction, requestDentallySync, inngestConfigured } from "./src/inngest";
 
-export { runDentallySyncJob, setDentallyPostSyncHook } from "./src/sync-job";
+export {
+  runDentallySyncJob,
+  runDentallySyncJobWithSteps,
+  markDentallySyncFailedFromInngest,
+  setDentallyPostSyncHook,
+} from "./src/sync-job";
+export type { DentallySyncStepRunner } from "./src/sync-job";
 
 export {
   DEFAULT_FLOW_SETTINGS,

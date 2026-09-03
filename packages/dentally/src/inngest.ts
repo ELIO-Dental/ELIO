@@ -12,21 +12,14 @@
 // duplicate) the request-level backoff already in client.ts, which handles
 // Dentally's own 429s within a single step.
 //
-// Two entry points:
-// - `dentallySyncScheduled`: cron-triggered full sync (registered on a
-//   schedule below; the actual cron dispatch happens via Inngest Cloud once
-//   this function is deployed, OR via an app-level cron route calling
-//   `inngest.send()` — apps/shell's /api/cron/dentally-sync does the latter
-//   so the schedule lives in one place: Vercel's vercel.json cron config).
-// - `dentallySyncManual`: fired by the "Sync now" button
-//   (apps/shell's POST /api/dentally/sync), preserving the UX pattern from
-//   ElioPay aurapay's synchronous /api/dentally route — except here the route
-//   returns immediately (202-style) and the UI polls the returned run's
-//   status, per PERFORMANCE_SCALABILITY.md section 1's pattern, instead of
-//   blocking the request on the full sync.
+// Production lesson (2026-09-03): a single `step.run` wrapping the entire sync
+// still timed out (~16m) on Vercel. Phases are now separate steps.
 
 import { Inngest, EventSchemas } from "inngest";
-import { runDentallySyncJob } from "./sync-job";
+import {
+  markDentallySyncFailedFromInngest,
+  runDentallySyncJobWithSteps,
+} from "./sync-job";
 
 type DentallySyncEvents = {
   "dentally/sync.requested": {
@@ -41,11 +34,28 @@ export const inngest = new Inngest({
 });
 
 export const dentallySyncFunction = inngest.createFunction(
-  { id: "dentally-full-sync", retries: 2 },
+  {
+    id: "dentally-full-sync",
+    retries: 2,
+    // Wall-clock budget across many short serverless invocations (not one step).
+    timeouts: { finish: "2h" },
+    onFailure: async ({ error, event }) => {
+      const original = event.data.event;
+      const practiceId = original?.data?.practiceId as string | undefined;
+      if (!practiceId) return;
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "Dentally sync failed after retries";
+      await markDentallySyncFailedFromInngest(practiceId, message);
+    },
+  },
   { event: "dentally/sync.requested" },
   async ({ event, step }) => {
     const { practiceId, trigger } = event.data;
-    return step.run("dentally-sync-job", () => runDentallySyncJob(practiceId, trigger));
+    return runDentallySyncJobWithSteps(step, practiceId, trigger);
   }
 );
 

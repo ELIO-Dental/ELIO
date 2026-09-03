@@ -1,11 +1,35 @@
-import { inngest, runDentallySyncJob } from "@elio/dentally";
+import {
+  inngest,
+  markDentallySyncFailedFromInngest,
+  runDentallySyncJobWithSteps,
+} from "@elio/dentally";
 
-/** Shell Inngest job: central Dentally sync; Flow import runs via post-sync hook (F1.1). */
+/**
+ * Shell Inngest job: central Dentally sync with one step per resource phase
+ * so production syncs survive Vercel invocation limits. Flow consult import
+ * runs as the final post-sync step (F1.1).
+ */
 export const dentallyFullSyncFunction = inngest.createFunction(
-  { id: "dentally-full-sync", retries: 2 },
+  {
+    id: "dentally-full-sync",
+    retries: 2,
+    timeouts: { finish: "2h" },
+    onFailure: async ({ error, event }) => {
+      const original = event.data.event;
+      const practiceId = original?.data?.practiceId as string | undefined;
+      if (!practiceId) return;
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "Dentally sync failed after retries";
+      await markDentallySyncFailedFromInngest(practiceId, message);
+    },
+  },
   { event: "dentally/sync.requested" },
   async ({ event, step }) => {
     const { practiceId, trigger } = event.data;
-    return step.run("dentally-sync-job", () => runDentallySyncJob(practiceId, trigger));
+    return runDentallySyncJobWithSteps(step, practiceId, trigger);
   }
 );

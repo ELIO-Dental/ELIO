@@ -8,7 +8,8 @@ describe("plans patient search", () => {
   beforeEach(() => {
     client = new DentallyClient({
       apiKey: "test-key",
-      fetchImpl: vi.fn(async (url: string) => {
+      fetchImpl: vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
         if (url.includes("/patients/99")) {
           return new Response(
             JSON.stringify({

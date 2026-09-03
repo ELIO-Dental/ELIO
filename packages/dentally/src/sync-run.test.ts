@@ -38,7 +38,7 @@ describe("resolveRunStatus", () => {
 });
 
 describe("STALE_RUNNING_MS", () => {
-  it("is 30 minutes so Sync now unlocks after abandoned jobs", () => {
-    expect(STALE_RUNNING_MS).toBe(30 * 60 * 1000);
+  it("is 2 hours so multi-step Inngest syncs are not abandoned mid-run", () => {
+    expect(STALE_RUNNING_MS).toBe(2 * 60 * 60 * 1000);
   });
 });

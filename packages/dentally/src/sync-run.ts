@@ -4,8 +4,9 @@ import { prisma, type DentallySyncRunStatus, type DentallySyncTrigger } from "@e
 import type { SyncResult } from "./sync";
 
 /** Runs older than this with status RUNNING are treated as abandoned (serverless
- * timeout / missing Inngest). Keeps Sync now from staying disabled forever. */
-export const STALE_RUNNING_MS = 30 * 60 * 1000;
+ * timeout / missing Inngest). Multi-step Inngest syncs can legitimately span
+ * wall-clock time across checkpoints — keep this above a full practice sync. */
+export const STALE_RUNNING_MS = 2 * 60 * 60 * 1000;
 
 const STALE_RUNNING_MESSAGE =
   "Sync abandoned: stayed RUNNING with no finish (timeout or background worker unavailable). Click Sync now to retry.";
@@ -48,7 +49,7 @@ export async function finalizeDentallySyncRun(runId: string, result: SyncResult)
     data: {
       status,
       finishedAt: result.finishedAt,
-      counts: result.counts,
+      counts: result.counts as object,
       recordErrors:
         result.errors.length > 0
           ? (JSON.parse(JSON.stringify(result.errors.slice(0, 100))) as object)
@@ -76,6 +77,18 @@ export async function failDentallySyncRun(runId: string, practiceId: string, mes
     where: { id: practiceId },
     data: { dentallyConnectionStatus: "ERROR" },
   });
+}
+
+/** Fails the newest RUNNING row for a practice (Inngest onFailure / cancel). */
+export async function failLatestRunningDentallySyncRun(practiceId: string, message: string) {
+  const latest = await prisma.dentallySyncRun.findFirst({
+    where: { practiceId, status: "RUNNING" },
+    orderBy: { startedAt: "desc" },
+    select: { id: true },
+  });
+  if (!latest) return { cleared: 0 };
+  await failDentallySyncRun(latest.id, practiceId, message);
+  return { cleared: 1, runId: latest.id };
 }
 
 /** Marks abandoned RUNNING rows FAILED so Integrations unlocks Sync now. */
