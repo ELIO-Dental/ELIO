@@ -16,7 +16,12 @@ import {
   resolveEffectiveDentistFilter,
   type FlowPractitionerScope,
 } from "./flow-scope";
+import {
+  DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE,
+  isLegacyConverted,
+} from "./flow-conversion";
 
+export { isLegacyConverted, DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE } from "./flow-conversion";
 // ---------------------------------------------------------------------------
 // Capture
 // ---------------------------------------------------------------------------
@@ -499,8 +504,6 @@ export async function syncConsultFinancials(practiceId: string, consultId: strin
 // Dashboard (F2.1–F2.5 — legacy ElioFlow home parity)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE = 45_000; // £450 — legacy default
-
 export interface FlowDashboardStats {
   totalConsultations: number;
   attended: number;
@@ -555,23 +558,6 @@ function consultDate(c: { appointment: { startsAt: Date | null } | null; created
   return c.appointment?.startsAt ?? c.createdAt;
 }
 
-/** Legacy ElioFlow conversion: ACCEPTED/planSignedUp OR (deposit/£450+ paid + treatment booked). */
-export function isLegacyConverted(
-  c: {
-    outcome: string | null;
-    planSignedUp: boolean;
-    hasDeposit: boolean | null;
-    totalPaidPence: number | null;
-    treatmentBooked: boolean | null;
-  },
-  paidConversionThresholdPence = DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE
-): boolean {
-  if (c.outcome === "ACCEPTED" || c.planSignedUp) return true;
-  const paidEnough =
-    Boolean(c.hasDeposit) || (c.totalPaidPence ?? 0) >= paidConversionThresholdPence;
-  return paidEnough && Boolean(c.treatmentBooked);
-}
-
 function dashboardStatusLabel(
   c: {
     outcome: string | null;
@@ -585,6 +571,7 @@ function dashboardStatusLabel(
   paidConversionThresholdPence = DEFAULT_PAID_CONVERSION_THRESHOLD_PENCE
 ): { label: string; key: string } {
   if (isLegacyConverted(c, paidConversionThresholdPence)) {
+    // Legacy "completed" ≈ converted + ElioCare signup
     return c.planSignedUp ? { label: "Completed", key: "completed" } : { label: "Converted", key: "converted" };
   }
   if (c.attended === true) {
@@ -595,7 +582,13 @@ function dashboardStatusLabel(
     if (c.outcome === "THINKING") return { label: "Thinking", key: "thinking" };
     return { label: "Stuck", key: "stuck" };
   }
-  if (c.outcome === "DECLINED") return { label: "Declined", key: "declined" };
+  if (c.outcome === "DECLINED") {
+    if (c.stuckReason === "FAILED_FINANCE") return { label: "Failed Finance", key: "failed-finance" };
+    if (c.stuckReason === "PRICE_SHOPPING") return { label: "Price Shopping", key: "price-shopping" };
+    if (c.stuckReason === "BAD_EXPERIENCE") return { label: "Bad Experience", key: "bad-experience" };
+    if (c.stuckReason === "OUT_OF_BUDGET") return { label: "Out of Budget", key: "out-of-budget" };
+    return { label: "Declined", key: "declined" };
+  }
   return { label: "New", key: "new" };
 }
 

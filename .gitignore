@@ -49,3 +49,6 @@ project-docs/
 # node_modules/ ignore above — no separate entry needed.
 
 .vercel
+
+# Local parity compare exports (practice metrics; not for commit)
+parity-exports/

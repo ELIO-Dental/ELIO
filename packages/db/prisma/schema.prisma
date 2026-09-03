@@ -253,6 +253,8 @@ model Practice {
   planGuideArticles    PlanGuideArticle[]
   dentallyPlanMappings DentallyPlanMapping[]
   planPracticeSettings PlanPracticeSetting[]
+  planPatientNotes     PlanPatientNote[]
+  planEmailLogs        PlanEmailLog[]
 
   // ElioFlow (draft)
   enquiries                    Enquiry[]
@@ -282,6 +284,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   auditLogsAsActor    AuditLog[]           @relation("AuditLogActor")
   planRedeemApprovals PlanRedeem[]         @relation("PlanRedeemApprovedBy")
+  planPatientNotes    PlanPatientNote[]
+  planEmailsSent      PlanEmailLog[]
   enquiriesCaptured   Enquiry[]
 
   createdAt DateTime @default(now())
@@ -1074,11 +1078,52 @@ model PlanPatient {
   parentPatientId   String?
   parentPatient     PlanPatient?  @relation("PlanPatientParentChild", fields: [parentPatientId], references: [id])
   childPatients     PlanPatient[] @relation("PlanPatientParentChild")
+  patientNotes      PlanPatientNote[]
+  emailLogs         PlanEmailLog[]
 
   @@index([practiceId])
   @@index([patientId])
   @@index([parentPatientId])
   @@map("plans_patients")
+}
+
+/** Staff notes on a plan patient (legacy ElioPlans PatientNote). */
+model PlanPatientNote {
+  id            String      @id @default(cuid())
+  practiceId    String
+  practice      Practice    @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  planPatientId String
+  planPatient   PlanPatient @relation(fields: [planPatientId], references: [id], onDelete: Cascade)
+  content       String      @db.Text
+  authorId      String?
+  author        User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+
+  @@index([practiceId])
+  @@index([planPatientId, createdAt])
+  @@map("plans_patient_notes")
+}
+
+/** Outbound email history per plan patient (legacy ElioPlans EmailLog). */
+model PlanEmailLog {
+  id            String      @id @default(cuid())
+  practiceId    String
+  practice      Practice    @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  planPatientId String
+  planPatient   PlanPatient @relation(fields: [planPatientId], references: [id], onDelete: Cascade)
+  to            String
+  subject       String
+  type          String
+  status        String      @default("sent")
+  messageId     String?
+  sentById      String?
+  sentBy        User?       @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  error         String?
+  createdAt     DateTime    @default(now())
+
+  @@index([practiceId])
+  @@index([planPatientId, createdAt])
+  @@map("plans_email_logs")
 }
 
 model PatientPlanEnrolment {

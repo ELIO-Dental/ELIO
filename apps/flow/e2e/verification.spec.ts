@@ -1,7 +1,5 @@
-import { test, expect } from "@playwright/test";
-
-const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
-const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
+import { test, expect, type Cookie } from "@playwright/test";
+import { signInAndGetCookies } from "./auth-helper";
 
 const STAT_CARD_LABELS = [
   "Consultations",
@@ -14,18 +12,19 @@ const STAT_CARD_LABELS = [
   "Conversion",
 ];
 
-async function login(page: import("@playwright/test").Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await page.waitForURL(/\/launcher$/, { timeout: 30_000 });
-}
+let sessionCookies: Cookie[] = [];
+
+test.beforeAll(async ({ browser }) => {
+  sessionCookies = await signInAndGetCookies(browser);
+});
+
+test.beforeEach(async ({ context }) => {
+  await context.addCookies(sessionCookies);
+});
 
 /** F4.3 + Part 6 Flow UAT — dashboard parity smoke tests. */
 test.describe("Flow verification (F4)", () => {
   test("dashboard shows eight legacy stat cards", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
 
     for (const label of STAT_CARD_LABELS) {
@@ -34,7 +33,6 @@ test.describe("Flow verification (F4)", () => {
   });
 
   test("charts tab renders funnel charts", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
     await page.getByRole("button", { name: "Charts" }).click();
     await expect(page.getByText("Patients by status")).toBeVisible();
@@ -42,7 +40,6 @@ test.describe("Flow verification (F4)", () => {
   });
 
   test("import consults API responds and dashboard API returns rows shape", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
 
     const importRes = await page.request.post("/flow/api/sync/consults");
@@ -67,22 +64,23 @@ test.describe("Flow verification (F4)", () => {
   });
 
   test("sync payment button triggers API", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
 
-    const res = await page.request.post("/flow/api/sync/dentally", { data: { mode: "payments" } });
-    expect(res.ok(), await res.text()).toBeTruthy();
+    const res = await page.request.post("/flow/api/sync/dentally", {
+      data: { mode: "payments" },
+    });
+    expect(res.status(), await res.text()).toBe(202);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.mode).toBe("payments");
   });
 
   test("CSV export matches legacy column headers and filename pattern", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
-    await page.getByRole("button", { name: "Table" }).click();
+    await page.getByRole("button", { name: "Table", exact: true }).click();
+    await expect(page.getByTestId("flow-export-csv")).toBeVisible();
 
-    const downloadPromise = page.waitForEvent("download");
+    const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
     await page.getByTestId("flow-export-csv").click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/-export-\d{4}-\d{2}-\d{2}\.csv$/);
@@ -97,11 +95,10 @@ test.describe("Flow verification (F4)", () => {
   });
 
   test("status filter chips are visible on table view", async ({ page }) => {
-    await login(page);
     await page.goto("/flow/dashboard");
-    await page.getByRole("button", { name: "Table" }).click();
-    await expect(page.getByRole("button", { name: /^All/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Stuck/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Converted/ })).toBeVisible();
+    await page.getByRole("button", { name: "Table", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^All \(\d+\)/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Stuck/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Converted/ }).first()).toBeVisible();
   });
 });

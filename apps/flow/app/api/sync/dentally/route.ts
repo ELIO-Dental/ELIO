@@ -18,16 +18,31 @@ export async function POST(req: Request) {
     const mode = parseFlowDentallySyncMode(body?.mode);
 
     if (mode === "payments") {
-      const result = await syncAllConsultFinancialsFromSyncedCore(session.practiceId);
-      await writeAuditLog({
-        ...resolveAuditActor(session),
-        practiceId: session.practiceId,
-        action: "flow.sync.payments",
-        targetType: "Practice",
-        targetId: session.practiceId,
-        metadata: { ...result },
-      });
-      return NextResponse.json({ ok: true, mode: "payments", ...result });
+      const practiceId = session.practiceId;
+      const actor = resolveAuditActor(session);
+      void syncAllConsultFinancialsFromSyncedCore(practiceId)
+        .then(async (result) => {
+          await writeAuditLog({
+            ...actor,
+            practiceId,
+            action: "flow.sync.payments",
+            targetType: "Practice",
+            targetId: practiceId,
+            metadata: { ...result },
+          });
+        })
+        .catch((err) => {
+          console.error(`[flow] payment sync failed practice=${practiceId}`, err);
+        });
+
+      return NextResponse.json(
+        {
+          ok: true,
+          mode: "payments",
+          message: "Payment sync started — this runs in the background for all consults.",
+        },
+        { status: 202 },
+      );
     }
 
     try {

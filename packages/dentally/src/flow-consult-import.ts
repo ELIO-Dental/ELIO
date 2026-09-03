@@ -4,8 +4,9 @@
  */
 
 import { scopedDb } from "@elio/db";
-import { getAccounts, getAppointments, getPayments } from "./queries";
+import { getAccounts, getAppointments, getAllPaymentsForPatient } from "./queries";
 import { getFlowSettings } from "./flow-settings-service";
+import { mergeConsultFinancialUpdate } from "./flow-financial-merge";
 
 const CONSULT_IMPORT_MONTHS = 12;
 
@@ -51,10 +52,11 @@ export async function syncConsultFinancialsFromSyncedCore(practiceId: string, co
   }
 
   const patientId = consult.enquiry.patientId;
-  const [payments, accounts, futureAppointments] = await Promise.all([
-    getPayments(practiceId, { patientId, take: 200 }),
+  const [payments, accounts, futureAppointments, appointmentCount] = await Promise.all([
+    getAllPaymentsForPatient(practiceId, patientId),
     getAccounts(practiceId, { patientId, take: 1 }),
     getAppointments(practiceId, { patientId, from: new Date(), take: 50 }),
+    db.appointment.count({ where: { practiceId, patientId } }),
   ]);
 
   const totalPaidPence = payments.reduce((sum, p) => sum + (p.amountPence ?? 0), 0);
@@ -73,18 +75,32 @@ export async function syncConsultFinancialsFromSyncedCore(practiceId: string, co
     return !reason.includes("consultation") && (state === "pending" || state === "confirmed");
   });
 
-  const data: {
-    totalPaidPence: number;
-    hasDeposit: boolean;
-    treatmentBooked: boolean;
-    quotePence?: number | null;
-  } = { totalPaidPence, hasDeposit, treatmentBooked };
+  const patch = mergeConsultFinancialUpdate(
+    {
+      totalPaidPence: consult.totalPaidPence,
+      hasDeposit: consult.hasDeposit,
+      treatmentBooked: consult.treatmentBooked,
+      quotePence: consult.quotePence,
+      quotePenceOverride: consult.quotePenceOverride,
+    },
+    {
+      totalPaidPence,
+      hasDeposit,
+      treatmentBooked,
+      quotePence: account?.plannedPrivateTreatmentValuePence ?? null,
+    },
+    {
+      hasPaymentRows: payments.length > 0,
+      hasAppointmentRows: appointmentCount > 0,
+      hasAccountRow: Boolean(account),
+    }
+  );
 
-  if (consult.quotePenceOverride == null && account) {
-    data.quotePence = account.plannedPrivateTreatmentValuePence;
+  if (Object.keys(patch).length === 0) {
+    return consult;
   }
 
-  return db.consult.update({ where: { id: consultId }, data });
+  return db.consult.update({ where: { id: consultId }, data: patch });
 }
 
 export async function importCosmeticConsultsFromDentally(

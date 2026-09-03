@@ -61,7 +61,7 @@ async function main() {
 
   const [mappingCount, syncedPatients, activeMembers, newSignups, pendingDd] = await Promise.all([
     prisma.dentallyPlanMapping.count({ where: { practiceId } }),
-    prisma.patient.count({ where: { practiceId, dentallyId: { not: null } } }),
+    prisma.patient.count({ where: { practiceId } }),
     prisma.patientPlanEnrolment.count({ where: activeMemberEnrolmentWhere(practiceId) }),
     prisma.planPatient.count({ where: newSignupsPatientWhere(practiceId, startOfMonth) }),
     prisma.planPatient.count({
@@ -69,7 +69,7 @@ async function main() {
         practiceId,
         status: "ACTIVE",
         mandates: { none: { status: "ACTIVE" } },
-        enrolments: { some: { status: "ACTIVE" } },
+        patientPlans: { some: { status: "ACTIVE" } },
       },
     }),
   ]);

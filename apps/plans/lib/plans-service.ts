@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { scopedDb, prisma, Prisma } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 import { sendSignupCompleteEmail, sendPatientInviteEmail } from "./email";
+import { logPlanEmail } from "./patient-correspondence";
+import { BadRequestError } from "./api-error";
 import {
   idempotentCreate,
   billingPeriodFromDate,
@@ -370,6 +372,7 @@ export async function increasePlanPrice(
     totalPatients: activeEnrolments.length,
     effectiveDate: input.effectiveDate ?? new Date().toLocaleDateString("en-GB"),
     patients: activeEnrolments.map((e) => ({
+      planPatientId: e.planPatientId,
       email: e.planPatient.patient.email,
       firstName: e.planPatient.patient.firstName,
       lastName: e.planPatient.patient.lastName,
@@ -404,14 +407,14 @@ export async function enrolPatient(
   const db = scopedDb(practiceId);
 
   const plan = await db.planModel.findUnique({ where: { id: input.planId } });
-  if (!plan) throw new Error("Plan not found");
+  if (!plan) throw new BadRequestError("Plan not found");
 
   const isFreePlan = plan.monthlyPricePence === 0;
 
   if (isFreePlan) {
     const parentPatientId = input.parentPatientId?.trim();
     if (!parentPatientId) {
-      throw new Error(
+      throw new BadRequestError(
         "Please link this patient to a parent/guardian. Children on a free plan must be linked to an adult member.",
       );
     }
@@ -419,9 +422,9 @@ export async function enrolPatient(
       where: { id: parentPatientId, practiceId, status: "ACTIVE" },
       include: { patient: { select: { id: true } } },
     });
-    if (!parent) throw new Error("Parent member not found or not active");
+    if (!parent) throw new BadRequestError("Parent member not found or not active");
     if (parent.patient.id === input.patientId) {
-      throw new Error("A patient cannot be their own parent");
+      throw new BadRequestError("A patient cannot be their own parent");
     }
 
     let planPatient = await db.planPatient.findFirst({ where: { patientId: input.patientId } });
@@ -456,7 +459,7 @@ export async function enrolPatient(
   }
 
   if (input.parentPatientId) {
-    throw new Error("Parent linking is only required for free child plans");
+    throw new BadRequestError("Parent linking is only required for free child plans");
   }
 
   const document = await db.planDocument.findFirst({
@@ -464,7 +467,7 @@ export async function enrolPatient(
     orderBy: { effectiveDate: "desc" },
   });
   if (!document) {
-    throw new Error("No active Terms & Conditions document — add one in Settings before inviting a patient");
+    throw new BadRequestError("No active Terms & Conditions document — add one in Settings before inviting a patient");
   }
 
   let planPatient = await db.planPatient.findFirst({ where: { patientId: input.patientId } });
@@ -537,7 +540,7 @@ export async function acceptSigningRequestByToken(
 ) {
   const signingRequest = await prisma.planSigningRequest.findUnique({
     where: { token },
-    include: { planPatient: true },
+    include: { planPatient: { include: { patient: true } }, document: true },
   });
   if (!signingRequest) throw new Error("Signup link not found");
   if (signingRequest.expiresAt < new Date()) throw new Error("Signup link has expired");
@@ -561,6 +564,18 @@ export async function acceptSigningRequestByToken(
       },
     }),
   ]);
+  const patientEmail = signingRequest.planPatient.patient.email;
+  if (patientEmail) {
+    await logPlanEmail({
+      practiceId: signingRequest.practiceId,
+      planPatientId: signingRequest.planPatientId,
+      to: patientEmail,
+      subject: `${signingRequest.document.title} signed`,
+      type: "terms_signed",
+      status: "sent",
+      messageId: `sign-${signingRequest.id}`,
+    }).catch((e) => console.error("[plans] failed to log terms_signed email:", e));
+  }
   return { signingRequest: updatedRequest, acceptance };
 }
 
@@ -610,12 +625,23 @@ async function activatePlanMembershipAfterMandate(practiceId: string, planPatien
     });
     const practice = await db.practice.findUnique({ where: { id: practiceId } });
     if (planPatient?.patient.email && planPatient.planModel) {
-      await sendSignupCompleteEmail({
+      const practiceName = practice?.name ?? "your practice";
+      const result = await sendSignupCompleteEmail({
         to: planPatient.patient.email,
         patientFirstName: planPatient.patient.firstName ?? "there",
-        practiceName: practice?.name ?? "your practice",
+        practiceName,
         planName: planPatient.planModel.name,
-      }).catch((e) => console.error("[plans] signup confirmation email failed:", e));
+      });
+      await logPlanEmail({
+        practiceId,
+        planPatientId,
+        to: planPatient.patient.email,
+        subject: `You're all set up — ${practiceName}`,
+        type: "signup_confirmation",
+        status: result.success ? "sent" : "failed",
+        messageId: result.messageId ?? null,
+        error: result.error ?? null,
+      }).catch((e) => console.error("[plans] failed to log signup email:", e));
     }
   }
 
@@ -1602,7 +1628,7 @@ export async function cancelPlanPatient(
 export async function resendPatientSignupInvite(
   practiceId: string,
   planPatientId: string,
-  options?: { sendEmail?: boolean },
+  options?: { sendEmail?: boolean; sentById?: string },
 ) {
   const db = scopedDb(practiceId);
   const planPatient = await db.planPatient.findUnique({
@@ -1637,13 +1663,26 @@ export async function resendPatientSignupInvite(
   const signupUrl = `/plans/signup/${signingRequest.token}`;
   if (options?.sendEmail && planPatient.patient.email) {
     const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
-    await sendPatientInviteEmail({
+    const planName = planPatient.planModel?.name ?? "membership plan";
+    const practiceName = practice?.name ?? "your practice";
+    const result = await sendPatientInviteEmail({
       to: planPatient.patient.email,
       patientFirstName: planPatient.patient.firstName ?? "there",
-      practiceName: practice?.name ?? "your practice",
-      planName: planPatient.planModel?.name ?? "membership plan",
+      practiceName,
+      planName,
       signupUrl,
     });
+    await logPlanEmail({
+      practiceId,
+      planPatientId,
+      to: planPatient.patient.email,
+      subject: `Join ${practiceName} — ${planName}`,
+      type: "invite",
+      status: result.success ? "sent" : "failed",
+      messageId: result.messageId ?? null,
+      sentById: options.sentById ?? null,
+      error: result.error ?? null,
+    }).catch((e) => console.error("[plans] failed to log invite email:", e));
   }
 
   return { signupUrl, token: signingRequest.token, emailed: Boolean(options?.sendEmail && planPatient.patient.email) };

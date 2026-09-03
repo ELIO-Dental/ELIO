@@ -19,6 +19,7 @@ import {
   EmptyState,
   Input,
   Label,
+  Textarea,
   Select,
   SelectContent,
   SelectItem,
@@ -119,6 +120,14 @@ function formatWhen(iso: string | null) {
   return d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  invite: "Invite",
+  signup_confirmation: "Signup confirmation",
+  payment_failed: "Payment failed",
+  price_increase: "Price change",
+  terms_signed: "T&C signed",
+};
+
 export function PatientDetailClient({
   detail,
   canInvite,
@@ -159,6 +168,32 @@ export function PatientDetailClient({
       description?: string;
     }>;
     dentallyConfigured: boolean;
+  } | null>(null);
+  const [notes, setNotes] = React.useState<Array<{
+    id: string;
+    content: string;
+    createdAt: string;
+    authorEmail: string | null;
+  }> | null>(null);
+  const [noteContent, setNoteContent] = React.useState("");
+  const [savingNote, setSavingNote] = React.useState(false);
+  const [correspondence, setCorrespondence] = React.useState<{
+    emails: Array<{
+      id: string;
+      to: string;
+      subject: string;
+      type: string;
+      status: string;
+      messageId: string | null;
+      error: string | null;
+      createdAt: string;
+      sentByEmail: string | null;
+    }>;
+    documentAcceptances: Array<{
+      id: string;
+      acceptedAt: string;
+      document: { id: string; title: string; type: string; version: string };
+    }>;
   } | null>(null);
 
   const name =
@@ -301,6 +336,39 @@ export function PatientDetailClient({
     }
   }
 
+  async function refreshCorrespondence() {
+    setCorrespondence(null);
+    const res = await fetch(`/plans/api/patients/${detail.id}/correspondence`);
+    const data = await res.json().catch(() => ({}));
+    setCorrespondence({
+      emails: data.emails ?? [],
+      documentAcceptances: data.documentAcceptances ?? [],
+    });
+  }
+
+  async function handleAddNote() {
+    const content = noteContent.trim();
+    if (!content) return;
+    setSavingNote(true);
+    try {
+      const res = await fetch(`/plans/api/patients/${detail.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to add note");
+        return;
+      }
+      setNoteContent("");
+      setNotes((prev) => [data.note, ...(prev ?? [])]);
+      toast.success("Note added");
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
   React.useEffect(() => {
     if (tab === "Appointments" && appointments === null) {
       void fetch(`/plans/api/patients/${detail.id}/appointments`)
@@ -319,7 +387,24 @@ export function PatientDetailClient({
         )
         .catch(() => setPaymentTrail({ trail: [], dentallyConfigured: false }));
     }
-  }, [tab, detail.id, appointments, paymentTrail]);
+    if (tab === "Notes" && notes === null) {
+      void fetch(`/plans/api/patients/${detail.id}/notes`)
+        .then((r) => r.json())
+        .then((data) => setNotes(data.notes ?? []))
+        .catch(() => setNotes([]));
+    }
+    if (tab === "Correspondence" && correspondence === null) {
+      void fetch(`/plans/api/patients/${detail.id}/correspondence`)
+        .then((r) => r.json())
+        .then((data) =>
+          setCorrespondence({
+            emails: data.emails ?? [],
+            documentAcceptances: data.documentAcceptances ?? [],
+          }),
+        )
+        .catch(() => setCorrespondence({ emails: [], documentAcceptances: [] }));
+    }
+  }, [tab, detail.id, appointments, paymentTrail, notes, correspondence]);
 
   return (
     <div className="space-y-6">
@@ -794,19 +879,93 @@ export function PatientDetailClient({
       )}
 
       {tab === "Notes" && (
-        <EmptyState
-          title="Notes not available"
-          description="Patient notes are planned for a future schema migration (legacy PatientNote model)."
-          className="py-12"
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Patient notes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {canInvite && (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Add a note about this patient…"
+                  className="min-h-24 flex-1"
+                />
+                <Button onClick={() => void handleAddNote()} loading={savingNote} disabled={!noteContent.trim()}>
+                  Add note
+                </Button>
+              </div>
+            )}
+            {notes === null ? (
+              <p className="text-body-sm text-(--color-text-secondary)">Loading notes…</p>
+            ) : notes.length === 0 ? (
+              <EmptyState title="No notes yet" description="Add the first note for this patient." className="py-8" />
+            ) : (
+              <ul className="space-y-3">
+                {notes.map((note) => (
+                  <li
+                    key={note.id}
+                    className="rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface-dim) p-4"
+                  >
+                    <p className="whitespace-pre-wrap text-body-sm text-(--color-text-primary)">{note.content}</p>
+                    <p className="mt-2 text-caption text-(--color-text-tertiary)">
+                      {formatWhen(note.createdAt)}
+                      {note.authorEmail ? ` · ${note.authorEmail}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {tab === "Correspondence" && (
-        <EmptyState
-          title="Correspondence not available"
-          description="Email history was not migrated from legacy ElioPlans. Check the audit log for staff actions on this patient."
-          className="py-12"
-        />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardTitle>Email correspondence</CardTitle>
+            <Button variant="secondary" size="sm" onClick={() => void refreshCorrespondence()}>
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {correspondence === null ? (
+              <p className="text-body-sm text-(--color-text-secondary)">Loading correspondence…</p>
+            ) : correspondence.emails.length === 0 ? (
+              <EmptyState
+                title="No emails logged yet"
+                description="Invites, signup confirmations, and price changes appear here when sent from Plans."
+                className="py-8"
+              />
+            ) : (
+              <ul className="space-y-3">
+                {correspondence.emails.map((email) => (
+                  <li
+                    key={email.id}
+                    className="rounded-(--radius-lg) border border-(--color-border-subtle) px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-body-sm text-(--color-text-primary)">{email.subject}</p>
+                        <p className="text-caption text-(--color-text-secondary)">To: {email.to}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={email.status === "sent" ? "success" : "danger"}>{email.status}</Badge>
+                        <Badge variant="neutral">{EMAIL_TYPE_LABELS[email.type] ?? email.type}</Badge>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-caption text-(--color-text-tertiary)">
+                      {formatWhen(email.createdAt)}
+                      {email.sentByEmail ? ` · ${email.sentByEmail}` : ""}
+                    </p>
+                    {email.error ? <p className="mt-1 text-caption text-(--color-danger)">{email.error}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

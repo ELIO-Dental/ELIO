@@ -3,8 +3,8 @@
 **Purpose:** Restore full functional parity with the three legacy root apps (`ElioFlow`, `ElioPlans`, `ElioPay`) inside the new ELIO monorepo — same workflows, dashboards, sync behaviour, and data visibility — while keeping the **unified login**, **multi-tenant architecture**, and **new ELIO design theme**.
 
 **Audience:** Developers, project lead, client handoff  
-**Last updated:** 2026-08-31 (fourth pass — **final confirmed** + implementation reference guide)  
-**Status:** Planning document — not yet implemented  
+**Last updated:** 2026-09-03 — Live DB has real data; do **not** re-seed. Part 12: Inngest keys pending; GoCardless live confirmed.  
+**Status:** **Part 6 complete.** **Active:** Part 12 staging parity (compare against existing live data only — no seed / no duplicate imports).
 **Audit coverage:** Every legacy page (Flow 8, Plans 18, Pay 12), every legacy API route (Flow 17, Plans 54, Pay 38), Prisma/schema fields, cron schedules, deploy env vars, and admin console features cross-checked against new ELIO codebase.
 
 > **Final confirmation (fourth pass):** All legacy routes and APIs are accounted for in Parts 10–11. Schema gaps are in Part 9. When implementing any step, use **Part 16** to find the exact original file to port from — do not guess behaviour from memory.
@@ -568,7 +568,7 @@ GoCardless status, redeem approval toggles, reconciliation info, branding upload
 | Import patient from Dentally search | None | ❌ |
 | Patient detail: Payments trail | None | ❌ |
 | Patient detail: Appointments (Dentally) | None | ❌ |
-| Patient detail: Correspondence / Notes | None | ❌ |
+| Patient detail: Correspondence / Notes | None | ✅ |
 | Patient header actions (pause, DD, etc.) | Partial | 🟡 |
 | Plans CRUD + inclusions/discounts | Create + list; edit limited | 🟡 |
 | Plan price increase flow | None | ❌ |
@@ -595,7 +595,7 @@ GoCardless status, redeem approval toggles, reconciliation info, branding upload
 | **Public landing page** (`/`) | Portal launcher only | 🟡 |
 | **`sign/[token]` standalone doc signing** | Folded into `/signup/[token]` flow | 🟡 Verify parity |
 | **FINANCE / AUDITOR roles** in team UI | Schema supports; UI may not expose | 🟡 |
-| **Patient notes** (`PatientNote`) | Model not in new schema | ❌ |
+| **Patient notes** (`PatientNote`) | `PlanPatientNote` model + Notes tab + API | ✅ |
 | **Family / parent-child plans** (`parentPatientId`) | Legacy links child to paying parent | **Shipped** — `PlanPatient.parentPatientId` + enrol/import UI |
 | **PENDING_DD derived status filter** | Legacy filter chip (ACTIVE + no mandate); new list has no chip | ❌ |
 | **Plan eligibility rules UI** | Legacy `PlanEligibilityRule` per plan; schema exists in new DB, **no UI** | ❌ |
@@ -604,7 +604,7 @@ GoCardless status, redeem approval toggles, reconciliation info, branding upload
 | **Legacy `Setting` KV store** (~25 keys: branding, GC days, payout, payment rules) | `plan_practice_settings` + settings tabs (P4.4) | ✅ |
 | **`payoutPerExam` setting** | Legacy Settings → Payouts tab | Not in new schema/UI | ❌ |
 | **Redeem create from Dentally appointment** | `POST /plans/api/redeems` + patient New Redeem dialog | ✅ |
-| **Email log / correspondence tab** | Legacy `EmailLog` model + patient tab | Not migrated | ❌ |
+| **Email log / correspondence tab** | `PlanEmailLog` model + Correspondence tab + outbound email logging | ✅ |
 | **Users `[id]` edit/delete API** | Legacy CRUD | New list/create only | 🟡 |
 | **Upload / branding APIs** | `/api/upload`, `/api/branding`, `/api/branding/public` | `/plans/api/upload`, `/plans/api/branding`, `/plans/api/branding/public` | ✅ |
 | **Seed routes** (`/api/seed`, `/api/seed-terms`, `/api/guides/seed`) | Dev/bootstrap helpers | None | 🟡 Dev only |
@@ -635,8 +635,8 @@ GoCardless status, redeem approval toggles, reconciliation info, branding upload
 |------|------|---------|
 | P2.1 | **Nav: Dentally** → `/dentally` mappings page (SUPER_ADMIN / OWNER) | Table: code, name, mapped plan, active, actions | **Shipped** |
 | P2.2 | **Patients toolbar: Sync from Dentally** | Loading state + result toast (imported/updated/skipped/errors) | **Shipped** |
-| P2.3 | **`/patients/[id]` detail page** (critical) | All tabs + header actions from legacy | **Shipped** (Notes/Correspondence placeholders — no legacy schema) |
-| P2.3a | **Patient sub-route APIs** | pause, cancel, invite, send-terms, send-dd-link, check-gc, payment-trail, appointments, notes, correspondence | **Shipped** (notes/correspondence N/A; resume + GC discover + setup-dd + link-mandate) |
+| P2.3 | **`/patients/[id]` detail page** (critical) | All tabs + header actions from legacy | **Shipped** |
+| P2.3a | **Patient sub-route APIs** | pause, cancel, invite, send-terms, send-dd-link, check-gc, payment-trail, appointments, notes, correspondence | **Shipped** |
 | P2.4 | **Add Patient dialog** — tab “Import from Dentally” | Search → select → confirm | **Shipped** |
 | P2.5 | **Export CSV** on patients list | | **Shipped** |
 | P2.6 | **Bulk Check GoCardless** button | Link mandates for imported patients | **Shipped** |
@@ -998,8 +998,8 @@ Items that block parity and are **not** just missing UI:
 |-----|--------|----------|--------|
 | `DentallyPlanMapping` | `ElioPlans` Prisma model | `plans_dentally_plan_mappings` (P1.2) | **Shipped** — seed UI in P2.1 |
 | `PlanPatient.parentPatientId` | Child plan linked to paying parent | **Shipped** — optional self-FK on `PlanPatient` + enrol/import UI | |
-| `PatientNote` | ElioPlans patient notes tab | **Missing** | New model or audit-log substitute |
-| `EmailLog` | Sent email history per patient | **Not migrated** | New model or drop if correspondence not required |
+| `PatientNote` | ElioPlans patient notes tab | **Shipped** — `PlanPatientNote` + Notes tab |
+| `EmailLog` | Sent email history per patient | **Shipped** — `PlanEmailLog` + Correspondence tab + email logging |
 | `UserPermission` | Per-user permission overrides | **Missing** — role-only in new auth | Map to `@elio/auth` or add override table |
 | `Setting` KV (~25 keys) | ElioPlans `Setting` table | **Not migrated** | Extend `Practice` JSON or `PracticeSetting` table |
 | `PlanEligibilityRule` UI | Per-plan rules (e.g. Dentally Fit) | **Schema exists** — no admin UI | Build plan edit form |
@@ -1263,6 +1263,59 @@ Before telling the client “sync is fixed”, verify on **each Vercel project**
 3. `CRON_SECRET` mismatch → cron returns 401 silently in Vercel logs
 4. Pay expects `DENTALLY_API_TOKEN` in old docs but deploy has `DENTALLY_API_KEY`
 5. Wrong `practiceId` after migration → data exists but UI shows empty for logged-in practice
+
+### Part 12 — Go-live checklist (active)
+
+Run locally before each production deploy:
+
+```bash
+npm run verify:production-env      # elio-deploy-env sample files
+npm run verify:dentally-sync       # live/staging shell (needs INNGEST_* + CRON_SECRET)
+cd apps/shell && npx playwright test e2e/part12-infra.spec.ts
+```
+
+| Step | Verification | Status |
+|------|----------------|--------|
+| P12.1 | `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` on shell Vercel | [ ] **Deferred** — client will send keys; not blocking dev |
+| P12.2 | Inngest integration installed; `/api/inngest` registers `dentally-full-sync` | [x] Local — `apps/shell/e2e/part12-infra.spec.ts` (route JSON, no login redirect) |
+| P12.3 | Portal → Integrations → **Sync now** → row in `dentally_sync_runs` | [x] Local — `integrations.spec.ts` + Portal `uat.spec.ts` (mock/real 202) |
+| P12.4 | Shell cron `0 3 * * *` → `/api/cron/dentally-sync` returns 200 | [x] Local — `part12-infra.spec.ts` + `vercel.json` schedule |
+| P12.5 | `CRON_SECRET` matches on shell + plans Vercel projects | [x] Sample envs have **distinct** secrets per app (correct). Confirm each Vercel project matches its sample. |
+| P12.6 | Pay: `DENTALLY_SITE_ID`, `SMTP_*`, `BLOB_*` on pay Vercel | [x] `verify:production-env` checks `elio-deploy-env/pay.env` |
+| P12.7 | Plans: GoCardless **live** keys (when ready) + webhook URL | [x] **Client confirmed live on Vercel**; `elio-deploy-env/plans.env` updated to LIVE (2026-09-03) |
+| P12.8 | Staging side-by-side: Flow stats (`verify:flow-parity`) | [x] **PASS vs Google Sheet** (2026-09-03): all cards match after financial repair + conversion bugfix. |
+| P12.9 | Staging side-by-side: Plans active members (`verify:plans-parity`) | [x] **27 = legacy ACTIVE PatientPlans**; mappings **4/4** restored from old `DentallyPlanMapping` (idempotent upsert, no dupes). Mandate-aware old query=26 (1 PENDING_DD). |
+| P12.10 | Staging side-by-side: Pay period net pay (`verify:pay-parity`) | [x] **PASS May 2026** (2026-09-03): all 8 dentists **£0.00** diff vs Turso/AuraPay. Fixed lab period-scope, therapy default 0.5833, UDA rates, legacy rounding. Hydrated existing period only (no new periods). |
+| P12.11 | Part 6 E2E UAT suites green on CI/staging | [x] Local — Pay 7/7, Plans 10/10, Portal 3/3, Flow 7/7 (2026-09-02) |
+
+### Live data safety (2026-09-03)
+
+**Canonical practice for parity:** `seed-practice` (has consults + pay periods). Do **not** treat empty test practices as needing a fresh seed.
+
+| Action | Safe on live? | Why |
+|--------|---------------|-----|
+| `npm run audit:live-data` / `verify:staging-snapshot` / `verify:*-parity` | ✅ Yes | Read-only |
+| Portal **Sync now** / Dentally sync | ✅ Yes | Upsert by `[practiceId, dentallyId]` — updates, does not duplicate patients |
+| Flow consult import (post-sync) | ✅ Yes | Skips patients that already have a consult; updates financials |
+| `npm run seed` | ❌ **Do not run on live** | Would touch seed users/practice; live already has real data |
+| Legacy migrate scripts (`scripts/migrations/migrate-*`) | ❌ **Do not re-run** | Would risk duplicate Flow/Plans/Pay rows |
+| Creating a new pay period for the same month | ⚠ Avoid unless needed | Live already has multiple Sep 2026 periods |
+
+```bash
+# Read-only audit + snapshot (use existing PRACTICE_ID — never seed)
+DATABASE_URL=... npm run audit:live-data
+PRACTICE_ID=seed-practice npm run verify:staging-snapshot
+PRACTICE_ID=seed-practice npm run verify:plans-parity
+```
+
+**Part 6 automated UAT commands:**
+
+```bash
+cd apps/flow && npx playwright test e2e/verification.spec.ts e2e/practitioner-scope.spec.ts
+cd apps/plans && npx playwright test e2e/uat.spec.ts
+cd apps/pay && npx playwright test e2e/uat.spec.ts
+cd apps/shell && npx playwright test -c playwright.uat.config.ts
+```
 
 ---
 

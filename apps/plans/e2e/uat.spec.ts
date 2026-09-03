@@ -1,9 +1,11 @@
 import path from "path";
 import dotenv from "dotenv";
-import { test, expect, request as pwRequest, type Page, type Cookie } from "@playwright/test";
+import { test, expect, request as pwRequest, type Browser, type Cookie } from "@playwright/test";
 import { prisma } from "@elio/db";
 import { activeMemberEnrolmentWhere } from "@elio/plans-engine";
-import { PLANS_ORIGIN } from "../playwright.config";
+import { PLANS_ORIGIN, SHELL_PORT } from "../playwright.config";
+
+const SHELL_ORIGIN = `http://localhost:${SHELL_PORT}`;
 
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 
@@ -19,27 +21,27 @@ type UatFixture = {
   documentId: string;
 };
 
-/** Waits for client hydration before submitting — avoids native GET /login?email=… */
-async function login(page: Page) {
-  await page.goto("/login");
-  const form = page.getByTestId("login-form");
-  await expect(form).toBeVisible();
-  await page.waitForFunction(() => {
-    const el = document.querySelector<HTMLFormElement>('[data-testid="login-form"]');
-    if (!el) return false;
-    const key = Object.keys(el).find((k) => k.startsWith("__reactProps$"));
-    return Boolean(key && typeof (el as Record<string, unknown>)[key as string] === "object");
+/** API sign-in avoids flaky native GET /login?email=… when React has not hydrated yet. */
+async function signInAndGetCookies(browser: Browser) {
+  const authContext = await browser.newContext();
+  const csrfRes = await authContext.request.get(`${SHELL_ORIGIN}/api/auth/csrf`);
+  expect(csrfRes.ok(), await csrfRes.text()).toBeTruthy();
+  const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
+
+  const loginRes = await authContext.request.post(`${SHELL_ORIGIN}/api/auth/callback/credentials`, {
+    form: {
+      csrfToken,
+      email: OWNER_EMAIL,
+      password: OWNER_PASSWORD,
+      redirect: "false",
+      json: "true",
+    },
   });
-  await page.getByLabel("Email").click();
-  await page.getByLabel("Email").fill("");
-  await page.getByLabel("Email").pressSequentially(OWNER_EMAIL, { delay: 5 });
-  await page.getByLabel("Password").click();
-  await page.getByLabel("Password").fill("");
-  await page.getByLabel("Password").pressSequentially(OWNER_PASSWORD, { delay: 5 });
-  await Promise.all([
-    page.waitForURL(/\/launcher$/, { timeout: 120_000 }),
-    form.evaluate((el) => (el as HTMLFormElement).requestSubmit()),
-  ]);
+  expect(loginRes.ok(), await loginRes.text()).toBeTruthy();
+
+  const cookies = await authContext.cookies();
+  await authContext.close();
+  return cookies;
 }
 
 /** Part 6 Plans UAT — full automated coverage (P5 verification follow-up). */
@@ -49,11 +51,12 @@ let fixture: UatFixture | null = null;
 let sessionCookies: Cookie[] = [];
 
 test.beforeAll(async ({ browser }) => {
-  const authContext = await browser.newContext();
-  const page = await authContext.newPage();
-  await login(page);
-  sessionCookies = await authContext.cookies();
-  await authContext.close();
+  const api = await pwRequest.newContext();
+  await api.get(`${SHELL_ORIGIN}/login`).catch(() => {});
+  await api.get(`${PLANS_ORIGIN}/plans/dashboard`).catch(() => {});
+  await api.dispose();
+
+  sessionCookies = await signInAndGetCookies(browser);
 
   const owner = await prisma.user.findFirst({
     where: { email: OWNER_EMAIL.toLowerCase() },
@@ -61,9 +64,8 @@ test.beforeAll(async ({ browser }) => {
   });
   if (!owner?.practiceId) throw new Error(`No practice for ${OWNER_EMAIL}`);
 
-  const api = await pwRequest.newContext();
-  await api.get(`${PLANS_ORIGIN}/plans/dashboard`).catch(() => {});
-  const seedRes = await api.post(`${PLANS_ORIGIN}/plans/api/test/e2e-signup`, {
+  const seedApi = await pwRequest.newContext();
+  const seedRes = await seedApi.post(`${PLANS_ORIGIN}/plans/api/test/e2e-signup`, {
     data: { practiceId: owner.practiceId },
   });
   if (seedRes.ok()) {
@@ -75,7 +77,7 @@ test.beforeAll(async ({ browser }) => {
       documentId: body.documentId,
     };
   }
-  await api.dispose();
+  await seedApi.dispose();
 });
 
 test.beforeEach(async ({ context }) => {
@@ -109,8 +111,8 @@ test.describe("Plans verification (P5 / Part 6)", () => {
     });
 
     await page.goto("/plans/dashboard");
-    const activeCard = page.locator("div").filter({ has: page.getByText("Active members", { exact: true }) }).first();
-    await expect(activeCard).toContainText(String(expected));
+    const activeValue = page.getByText("Active members", { exact: true }).locator("..").locator(".tabular-nums");
+    await expect(activeValue).toHaveText(String(expected), { timeout: 60_000 });
   });
 
   test("free child plan requires parent patient selection", async ({ page }) => {
@@ -125,13 +127,16 @@ test.describe("Plans verification (P5 / Part 6)", () => {
       },
     });
     expect(createRes.ok(), await createRes.text()).toBeTruthy();
-    const { id: planId } = (await createRes.json()) as { id: string };
+    const { plan } = (await createRes.json()) as { plan: { id: string } };
+    const planId = plan.id;
 
     await page.goto("/plans/patients");
     const planTrigger = page.locator("#plan");
     if (await planTrigger.isVisible()) {
       await planTrigger.click();
-      await page.getByRole("option", { name: planName }).click();
+      const planOption = page.getByRole("option", { name: new RegExp(planName) });
+      await expect(planOption).toBeVisible({ timeout: 15_000 });
+      await planOption.click();
       await expect(page.getByText("Link to parent/guardian")).toBeVisible();
       await expect(page.getByText(/children on a free plan must be linked/i)).toBeVisible();
     } else {
@@ -193,9 +198,16 @@ test.describe("Plans verification (P5 / Part 6)", () => {
       await expect(page.getByRole("button", { name: tab })).toBeVisible();
     }
     await page.getByRole("button", { name: "Payments" }).click();
-    await expect(page.getByText("No GoCardless payments yet", { exact: false })).toBeVisible();
+    await page.waitForResponse(
+      (res) => res.url().includes("/payment-trail") && res.ok(),
+      { timeout: 60_000 },
+    );
+    await expect(page.getByText("No payments", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Notes" }).click();
-    await expect(page.getByText("Patient notes are planned", { exact: false })).toBeVisible();
+    await expect(page.getByText("Patient notes", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Correspondence" }).click();
+    await page.waitForResponse((res) => res.url().includes("/correspondence") && res.ok());
+    await expect(page.getByText("Email correspondence", { exact: true })).toBeVisible();
   });
 
   test("bulk Check GoCardless links mandates", async ({ page }) => {

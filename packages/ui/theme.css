@@ -41,6 +41,12 @@
   --color-primary-button-bg-hover: #5b2fd6;
   --color-primary-button-fg: #ffffff;
 
+  /* Aliases used by Flow/Pay module UIs for filled controls & charts */
+  --color-primary: var(--color-primary-button-bg);
+  --color-brand: var(--color-primary-button-bg);
+  --color-brand-subtle: var(--color-primary-50);
+  --color-surface-dim: var(--color-bg-subtle);
+
   /* §2.3 Secondary / accent — sparing use, capped at 3 per screen */
   --color-accent-teal: #14b8a6;
   --color-accent-amber: #f59e0b;

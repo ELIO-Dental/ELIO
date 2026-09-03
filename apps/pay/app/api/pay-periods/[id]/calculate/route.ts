@@ -8,6 +8,7 @@ import {
   privateRevenueItemsToTreatments,
   therapyDeductionPence,
 } from "@/lib/private-revenue";
+import { labBillAmountsPenceFromPayslipJson, labBillPeriodWhere } from "@/lib/lab-bills-period";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
@@ -126,14 +127,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         privateSplitPercent
       );
 
-      const labAgg = await db.labBillEntry.aggregate({
-        where: { dentistId: dentist.id },
-        _sum: { amountPence: true },
-      });
-      const labDeductionPence = calculateLabDeduction(
-        input.labBillsPence?.length ? input.labBillsPence : [labAgg._sum.amountPence ?? 0],
-        labBillSplit
-      );
+      const fromPayslipLabs = labBillAmountsPenceFromPayslipJson(existingPayslip?.labBillsJson);
+      let labAmounts: number[];
+      if (input.labBillsPence?.length) {
+        labAmounts = input.labBillsPence;
+      } else if (fromPayslipLabs != null) {
+        labAmounts = fromPayslipLabs;
+      } else {
+        const labAgg = await db.labBillEntry.aggregate({
+          where: labBillPeriodWhere(dentist.id, payPeriod.periodStart),
+          _sum: { amountPence: true },
+        });
+        labAmounts = [labAgg._sum.amountPence ?? 0];
+      }
+      const labDeductionPence = calculateLabDeduction(labAmounts, labBillSplit);
 
       const therapyDeduction = therapyDeductionPence(
         existingPayslip?.therapyMinutes != null ? Number(existingPayslip.therapyMinutes) : 0,

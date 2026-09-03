@@ -21,12 +21,25 @@ const REQUIRED = {
     "PAY_APP_ORIGIN",
     "PLANS_APP_ORIGIN",
     "FLOW_APP_ORIGIN",
-    "INNGEST_EVENT_KEY",
-    "INNGEST_SIGNING_KEY",
   ],
-  "pay.env": ["DATABASE_URL", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "DENTALLY_API_KEY", "DENTALLY_SITE_ID", "BLOB_READ_WRITE_TOKEN"],
+  "pay.env": [
+    "DATABASE_URL",
+    "NEXTAUTH_URL",
+    "NEXTAUTH_SECRET",
+    "DENTALLY_API_KEY",
+    "DENTALLY_SITE_ID",
+    "BLOB_READ_WRITE_TOKEN",
+    "SMTP_HOST",
+    "SMTP_PASS",
+    "EMAIL_FROM",
+  ],
   "plans.env": ["DATABASE_URL", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "GOCARDLESS_ACCESS_TOKEN", "GOCARDLESS_WEBHOOK_SECRET", "CRON_SECRET"],
   "flow.env": ["DATABASE_URL", "NEXTAUTH_URL", "NEXTAUTH_SECRET", "DENTALLY_API_KEY"],
+};
+
+/** Client provides before production go-live — not required for local dev (inline sync fallback). */
+const DEFERRED = {
+  "shell.env": ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"],
 };
 
 function parseEnvFile(filePath) {
@@ -69,6 +82,20 @@ for (const [file, keys] of Object.entries(REQUIRED)) {
     } else if (isUnset(filePath, key)) {
       console.error(`  ✗ empty value: ${key}`);
       failed = true;
+    } else {
+      console.log(`  ✓ ${key}`);
+    }
+  }
+}
+
+for (const [file, keys] of Object.entries(DEFERRED)) {
+  const filePath = path.join(deployDir, file);
+  if (!fs.existsSync(filePath)) continue;
+  const present = parseEnvFile(filePath);
+  console.log(`\n${file} (deferred — client)`);
+  for (const key of keys) {
+    if (!present.has(key) || isUnset(filePath, key)) {
+      console.log(`  ○ ${key} — pending (OK for now)`);
     } else {
       console.log(`  ✓ ${key}`);
     }

@@ -98,6 +98,25 @@ export async function getPayments(
   });
 }
 
+/** All payments for a patient (paginated) — Flow financial sync must not cap at 200. */
+export async function getAllPaymentsForPatient(practiceId: string, patientId: string) {
+  const pageSize = 200;
+  const all: Awaited<ReturnType<typeof getPayments>> = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await getPayments(practiceId, {
+      patientId,
+      take: pageSize,
+      ...(cursor ? { cursor } : {}),
+    });
+    if (page.length === 0) break;
+    all.push(...page);
+    if (page.length < pageSize) break;
+    cursor = page[page.length - 1]?.id;
+  }
+  return all;
+}
+
 export async function getAccounts(
   practiceId: string,
   opts: { patientId?: string; cursor?: string; take?: number } = {}

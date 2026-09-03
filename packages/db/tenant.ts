@@ -72,6 +72,9 @@ const TENANT_SCOPED_MODELS = new Set([
   "dentallyAccount",
   "dentallyPaymentPlan",
   "dentallyPlanMapping",
+  "planPatientNote",
+  "planEmailLog",
+  "planPracticeSetting",
 ]);
 
 const READ_OPS = new Set([

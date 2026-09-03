@@ -20,8 +20,8 @@ export default async function DashboardPage() {
   return (
     <PageContent width="xl">
       <PageHeader
-        title="Pipeline"
-        description="Cosmetic consultation funnel — same metrics as the legacy Flow dashboard."
+        title="Dashboard"
+        description="Cosmetic consultation overview — stats, filters, and the full patient table (legacy ElioFlow home)."
       />
       <div className="mt-8">
         <DashboardClient initial={data} />

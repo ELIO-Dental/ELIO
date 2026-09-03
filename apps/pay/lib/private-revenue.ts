@@ -15,12 +15,16 @@ export function privateRevenueItemsToTreatments(
   }));
 }
 
-/** AuraPay: therapy deduction = minutes × £/min, as integer pence. */
+/** AuraPay: therapy deduction = minutes × £/min, as integer pence.
+ * Default rate 0.5833 when minutes > 0 and rate missing/0 (legacy AuraPay). */
+export const DEFAULT_THERAPY_RATE_PER_MINUTE = 0.5833;
+
 export function therapyDeductionPence(therapyMinutes: number | null | undefined, ratePerMinute: number | null | undefined): number {
   const mins = Number(therapyMinutes ?? 0);
+  if (!(mins > 0)) return 0;
   const rate = Number(ratePerMinute ?? 0);
-  if (!(mins > 0) || !(rate > 0)) return 0;
-  return Math.round(mins * rate * 100);
+  const effectiveRate = rate > 0 ? rate : DEFAULT_THERAPY_RATE_PER_MINUTE;
+  return Math.round(mins * effectiveRate * 100);
 }
 
 /**

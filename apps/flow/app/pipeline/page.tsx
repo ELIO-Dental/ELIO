@@ -46,7 +46,7 @@ export default async function PipelinePage() {
     <PageContent width="xl">
       <PageHeader
         title="Pipeline"
-        description="Enquiry-to-consult funnel. Drag a card to move it between stages."
+        description="Kanban board for moving leads through the funnel. Use Dashboard for the full patient table, stats, and exports."
       />
 
       <div className="mt-8">

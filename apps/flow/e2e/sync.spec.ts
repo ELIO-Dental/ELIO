@@ -20,12 +20,10 @@ test("payment sync API returns counts for existing consults", async ({ page }) =
   const res = await page.request.post("/flow/api/sync/dentally", {
     data: { mode: "payments" },
   });
-  expect(res.ok(), await res.text()).toBeTruthy();
+  expect(res.status(), await res.text()).toBe(202);
   const body = await res.json();
   expect(body.ok).toBe(true);
   expect(body.mode).toBe("payments");
-  expect(typeof body.total).toBe("number");
-  expect(typeof body.updated).toBe("number");
 });
 
 test("full sync API starts background job or returns configuration error", async ({ page }) => {

@@ -12,6 +12,7 @@ import {
   type TreatmentRecord,
 } from "@elio/pay-engine";
 import { financeFeesDeductionPence, privateRevenueItemsToTreatments, therapyDeductionPence } from "./private-revenue";
+import { labBillAmountsPenceFromPayslipJson, labBillPeriodWhere } from "./lab-bills-period";
 import { getPaySettings } from "./pay-settings-service";
 import { resolveFinanceFeeSplit, resolveLabBillSplit } from "./pay-settings";
 
@@ -526,11 +527,18 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
   const labBillSplit = resolveLabBillSplit(paySettings);
   const financeFeeSplit = resolveFinanceFeeSplit(paySettings);
 
-  const lab = await db.labBillEntry.aggregate({
-    where: { dentistId },
-    _sum: { amountPence: true },
-  });
-  const labDeductionPence = calculateLabDeduction([lab._sum.amountPence ?? 0], labBillSplit);
+  const fromPayslipLabs = labBillAmountsPenceFromPayslipJson(existing?.labBillsJson);
+  let labAmounts: number[];
+  if (fromPayslipLabs != null) {
+    labAmounts = fromPayslipLabs;
+  } else {
+    const lab = await db.labBillEntry.aggregate({
+      where: labBillPeriodWhere(dentistId, payPeriod.periodStart),
+      _sum: { amountPence: true },
+    });
+    labAmounts = [lab._sum.amountPence ?? 0];
+  }
+  const labDeductionPence = calculateLabDeduction(labAmounts, labBillSplit);
 
   // Latest confident PayLine for this dentist within this period's Compass statements.
   const payLine = await db.payLine.findFirst({

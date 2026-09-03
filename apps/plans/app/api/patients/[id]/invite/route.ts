@@ -13,7 +13,10 @@ export async function POST(req: Request, { params }: RouteParams) {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const sendEmail = body?.sendEmail !== false;
-    const result = await resendPatientSignupInvite(session.practiceId, id, { sendEmail });
+    const result = await resendPatientSignupInvite(session.practiceId, id, {
+      sendEmail,
+      sentById: session.userId,
+    });
     await writeAuditLog({
       ...resolveAuditActor(session),
       practiceId: session.practiceId,

@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { increasePlanPrice } from "@/lib/plans-service";
 import { sendPriceIncreaseEmail } from "@/lib/email";
+import { logPlanEmail } from "@/lib/patient-correspondence";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -41,7 +42,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     for (const patient of result.patients) {
       if (!patient.email) continue;
       const name = [patient.firstName, patient.lastName].filter(Boolean).join(" ") || "Member";
-      const sent = await sendPriceIncreaseEmail({
+      const subject = `Changes to your ${planName} membership — ${practiceName}`;
+      const sendResult = await sendPriceIncreaseEmail({
         to: patient.email,
         patientName: name,
         planName,
@@ -50,8 +52,21 @@ export async function POST(req: Request, { params }: RouteParams) {
         newPriceFormatted,
         effectiveDate: result.effectiveDate,
       });
-      if (sent) emailsSent++;
+      if (sendResult.success) emailsSent++;
       else errors.push(`Email failed for ${patient.email}`);
+      if (patient.planPatientId) {
+        await logPlanEmail({
+          practiceId: session.practiceId,
+          planPatientId: patient.planPatientId,
+          to: patient.email,
+          subject,
+          type: "price_increase",
+          status: sendResult.success ? "sent" : "failed",
+          messageId: sendResult.messageId ?? null,
+          sentById: session.userId,
+          error: sendResult.error ?? null,
+        }).catch((e) => console.error("[plans] failed to log price increase email:", e));
+      }
     }
 
     await writeAuditLog({

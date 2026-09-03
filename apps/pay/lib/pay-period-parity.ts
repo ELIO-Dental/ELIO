@@ -52,35 +52,43 @@ function poundsToPence(value: number): number {
   return Math.round(value * 100);
 }
 
+/** Match AuraPay `roundCurrency` — 2dp after every leg. */
+function roundCurrency(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
 /** Legacy AuraPay reporting-page net pay formula (pounds in, pence out). */
 export function calculateLegacyAuraPayNetPayPence(input: LegacyAuraPayCalcInput): number {
   const labBills = input.labBillsJson ? legacyPayslipLabBills({ lab_bills_json: input.labBillsJson }) : [];
-  const labTotal = labBills.reduce((sum, bill) => sum + (Number(bill.amount) || 0), 0);
+  const labTotal = roundCurrency(
+    labBills.filter((b) => (Number(b.amount) || 0) > 0).reduce((sum, bill) => sum + (Number(bill.amount) || 0), 0)
+  );
   const adjustments = input.adjustmentsJson
     ? legacyPayslipAdjustments({ adjustments_json: input.adjustmentsJson })
     : [];
-  const adjTotal = adjustments.reduce((sum, adj) => {
+  let adjTotal = 0;
+  for (const adj of adjustments) {
     const amount = Number(adj.amount) || 0;
-    return sum + (adj.type === "addition" ? amount : -amount);
-  }, 0);
+    if (amount < 0) continue;
+    adjTotal += adj.type === "addition" ? amount : -amount;
+  }
+  adjTotal = roundCurrency(adjTotal);
 
   const labSplit = input.labBillSplit ?? 0.5;
   const financeSplit = input.financeFeeSplit ?? 0.5;
-  const netPrivate = input.grossPrivatePounds * (input.splitPercent / 100);
-  const nhsIncome = input.isNhs ? input.nhsUdas * input.udaRatePounds : 0;
-  const labDeduction = labTotal * labSplit;
-  const financeDeduction = input.financeFeesPounds * financeSplit;
-  const therapyDeduction = input.therapyMinutes * input.therapyRatePerMinute;
-  const netPounds =
-    netPrivate +
-    nhsIncome -
-    labDeduction -
-    financeDeduction -
-    therapyDeduction -
-    input.superannuationPounds +
-    adjTotal;
+  const netPrivate = roundCurrency(input.grossPrivatePounds * (input.splitPercent / 100));
+  const nhsIncome = input.isNhs ? roundCurrency(input.nhsUdas * input.udaRatePounds) : 0;
+  const labDeduction = roundCurrency(labTotal * labSplit);
+  const financeDeduction = roundCurrency(Math.max(0, input.financeFeesPounds) * financeSplit);
+  const therapyRate = input.therapyRatePerMinute > 0 ? input.therapyRatePerMinute : 0.5833;
+  const therapyDeduction = roundCurrency(Math.max(0, input.therapyMinutes) * therapyRate);
+  const superannuation = roundCurrency(Math.max(0, input.superannuationPounds));
+  const totalEarnings = roundCurrency(netPrivate + nhsIncome);
+  const totalDeductions = roundCurrency(labDeduction + financeDeduction + therapyDeduction + superannuation);
+  const netPounds = roundCurrency(totalEarnings - totalDeductions + adjTotal);
 
-  return Math.max(0, poundsToPence(netPounds));
+  // AuraPay allows negative net pay (does not clamp).
+  return poundsToPence(netPounds);
 }
 
 export function calculateLegacyNetPayFromArchiveRow(

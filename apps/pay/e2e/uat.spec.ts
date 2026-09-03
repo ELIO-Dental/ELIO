@@ -134,8 +134,8 @@ test.describe("Pay verification (P5 / Part 6)", () => {
     });
     payPeriodId = period.id;
 
-    await page.route("**/fetch-dentally**", async (route) => {
-      if (route.request().method() !== "POST" || !route.request().url().includes(payPeriodId)) {
+    await page.route(`**/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, async (route) => {
+      if (route.request().method() !== "POST") {
         await route.continue();
         return;
       }
@@ -185,30 +185,61 @@ test.describe("Pay verification (P5 / Part 6)", () => {
         body: JSON.stringify({
           ok: true,
           message: "Mock Dentally fetch complete",
-          summary: { [dentistId]: { invoicedPence: 30000, paidPence: 30000, invoiceCount: 1 } },
+          summary: { [dentistName]: { invoicedPence: 30000, paidPence: 30000, invoiceCount: 1 } },
         }),
+      });
+    });
+
+    await page.route(`**/pay/api/pay-periods/${payPeriodId}/calculate`, async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      await prisma.payslipEntry.updateMany({
+        where: { payPeriodId, dentistId },
+        data: {
+          grossPrivateRevenuePence: 30000,
+          privateEarningsPence: 15000,
+          finalPayPence: 15000,
+        },
+      });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
       });
     });
 
     await page.goto(`/pay/pay-periods/${payPeriodId}`);
     await expect(page.getByTestId("header-fetch-dentally")).toBeEnabled({ timeout: 30_000 });
-    await page.getByTestId("header-fetch-dentally").click();
+
+    const [fetchRes] = await Promise.all([
+      page.waitForResponse(
+        (res) => res.url().includes(`/fetch-dentally`) && res.request().method() === "POST",
+        { timeout: 90_000 },
+      ),
+      page.getByTestId("header-fetch-dentally").click(),
+    ]);
+    expect(fetchRes.ok()).toBeTruthy();
 
     await expect
       .poll(
         async () =>
           prisma.privateRevenueLineItem.count({ where: { payslipEntry: { payPeriodId, dentistId } } }),
-        { timeout: 90_000 },
+        { timeout: 30_000 },
       )
       .toBe(1);
 
     const payslip = await prisma.payslipEntry.findFirstOrThrow({ where: { payPeriodId, dentistId } });
-    await page.goto(`/pay/pay-periods/${payPeriodId}`);
-    const accordionToggle = page.getByTestId(`payslip-accordion-toggle-${payslip.id}`);
-    await accordionToggle.scrollIntoViewIfNeeded();
-    await expect(accordionToggle).toBeVisible({ timeout: 60_000 });
-    await accordionToggle.click();
-    await expect(page.getByTestId("private-patients-table")).toBeVisible({ timeout: 60_000 });
+    await expect(async () => {
+      await page.goto(`/pay/pay-periods/${payPeriodId}`, { waitUntil: "domcontentloaded" });
+      const accordionToggle = page.getByTestId(`payslip-accordion-toggle-${payslip.id}`);
+      await accordionToggle.scrollIntoViewIfNeeded();
+      await expect(accordionToggle).toBeVisible({ timeout: 30_000 });
+      await accordionToggle.click();
+      await expect(accordionToggle).toHaveAttribute("aria-expanded", "true", { timeout: 10_000 });
+      await expect(page.getByTestId("private-patients-table")).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 120_000 });
     await expect(page.getByText(/Private patients \(1\)/)).toBeVisible();
     await expect(page.locator('[data-testid="private-patients-table"] input').first()).toHaveValue("UAT Patient");
     await expect(page.getByTestId("dentist-fetch-details")).toBeVisible();

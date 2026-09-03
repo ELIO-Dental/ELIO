@@ -14,9 +14,11 @@ import {
   TableHead,
   TableHeader,
   TablePanel,
+  TablePagination,
   TableRow,
   formatMoneyGBPOrDash,
   toast,
+  useClientTablePagination,
 } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
 import type { FlowDashboardData, FlowDashboardRow } from "@/lib/flow-service";
@@ -232,6 +234,12 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         body: JSON.stringify({ mode: "payments" }),
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 202) {
+        toast.success("Payment sync started", {
+          description: body.message ?? "Refreshing financial fields for all consults in the background.",
+        });
+        return;
+      }
       if (!res.ok) throw new Error(body.error ?? "Payment sync failed");
       toast.success("Payment sync complete", {
         description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s).`,
@@ -287,6 +295,8 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     }
     return true;
   });
+
+  const tablePagination = useClientTablePagination(filteredRows, 25, [statusFilter, search, preset, dentistId]);
 
   const statusCounts = React.useMemo(() => {
     const counts: Record<string, number> = { all: data.rows.length };
@@ -385,7 +395,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               onClick={() => setView("table")}
               className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
                 view === "table"
-                  ? "bg-(--color-primary) text-(--color-primary-fg)"
+                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
                   : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
               }`}
             >
@@ -396,7 +406,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               onClick={() => setView("charts")}
               className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
                 view === "charts"
-                  ? "bg-(--color-primary) text-(--color-primary-fg)"
+                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
                   : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
               }`}
             >
@@ -422,7 +432,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               onClick={() => setStatusFilter(f.id)}
               className={`rounded-full px-3 py-1 text-caption font-medium transition-colors ${
                 statusFilter === f.id
-                  ? "bg-(--color-primary) text-(--color-primary-fg)"
+                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
                   : "bg-(--color-bg-subtle) text-(--color-text-secondary) hover:text-(--color-text-primary)"
               }`}
             >
@@ -444,7 +454,18 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           />
         </div>
 
-        <TablePanel>
+        <TablePanel
+          footer={
+            tablePagination.showPagination ? (
+              <TablePagination
+                page={tablePagination.page}
+                pageSize={tablePagination.pageSize}
+                totalCount={tablePagination.totalCount}
+                onPageChange={tablePagination.setPage}
+              />
+            ) : undefined
+          }
+        >
           {filteredRows.length === 0 ? (
             <EmptyState
               title="No patients in this view"
@@ -471,7 +492,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((row) => (
+                  {tablePagination.items.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
                         <button
