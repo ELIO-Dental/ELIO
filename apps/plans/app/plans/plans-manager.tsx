@@ -9,6 +9,7 @@ import {
   Card,
   CardContent,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -354,7 +355,7 @@ export function PlansManager({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="plans-edit-dialog">
+        <DialogContent className="max-w-2xl overflow-hidden" data-testid="plans-edit-dialog">
           <DialogHeader>
             <DialogTitle>{editingPlan ? "Edit plan" : "Create plan"}</DialogTitle>
             <DialogDescription>
@@ -362,7 +363,7 @@ export function PlansManager({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-2">
+          <DialogBody className="space-y-6 py-2">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="plan-name">Plan name</Label>
@@ -666,7 +667,7 @@ export function PlansManager({
                 </div>
               ))}
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="secondary" onClick={() => setDialogOpen(false)}>

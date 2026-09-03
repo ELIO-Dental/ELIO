@@ -4,11 +4,13 @@ import * as React from "react";
 import {
   Badge,
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +21,7 @@ import {
   TableRow,
   formatMoneyGBPOrDash,
   toast,
+  useSkeleton,
 } from "@elio/ui";
 import type { FlowDashboardRow } from "@/lib/flow-service";
 
@@ -62,6 +65,23 @@ function formatWhen(iso: string | null) {
   return d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function PanelSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy aria-label="Loading patient">
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPatientPanel({
   row,
   open,
@@ -76,6 +96,7 @@ export function DashboardPatientPanel({
   const [loading, setLoading] = React.useState(false);
   const [panel, setPanel] = React.useState<LivePanel | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
+  const showSkeleton = useSkeleton(loading && !panel);
 
   React.useEffect(() => {
     if (!open || !row?.patientId) {
@@ -113,19 +134,29 @@ export function DashboardPatientPanel({
   const title = row?.patientName ?? "Patient";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed right-0 top-0 left-auto flex h-full w-full max-w-lg translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-l border-(--color-border-subtle) p-0 shadow-(--shadow-lg)">
-        <div className="border-b border-(--color-border-subtle) p-6 pb-4">
-          <DialogHeader>
-            <div className="flex items-start justify-between gap-3 pr-8">
-              <div>
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>
-                  {row?.patientId
-                    ? "Live Dentally records for this pipeline patient."
-                    : "This lead has no linked Dentally patient yet."}
-                </DialogDescription>
-              </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-w-lg sm:max-w-xl" data-testid="flow-patient-sheet">
+        <SheetHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="truncate">{title}</SheetTitle>
+              <SheetDescription>
+                {row?.patientId
+                  ? "Live Dentally records for this pipeline patient."
+                  : "This lead has no linked Dentally patient yet."}
+              </SheetDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {row?.patientId ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={loading}
+                  onClick={() => setReloadKey((k) => k + 1)}
+                >
+                  Refresh
+                </Button>
+              ) : null}
               {row && onEdit ? (
                 <Button
                   size="sm"
@@ -139,7 +170,7 @@ export function DashboardPatientPanel({
                 </Button>
               ) : null}
             </div>
-          </DialogHeader>
+          </div>
 
           {row ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -170,27 +201,15 @@ export function DashboardPatientPanel({
               </p>
             </div>
           ) : null}
+        </SheetHeader>
 
-          {row?.patientId ? (
-            <Button
-              className="mt-3"
-              size="sm"
-              variant="secondary"
-              loading={loading}
-              onClick={() => setReloadKey((k) => k + 1)}
-            >
-              Refresh from Dentally
-            </Button>
-          ) : null}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 pt-4">
+        <SheetBody>
           {!row?.patientId ? (
             <p className="text-body-sm text-(--color-text-tertiary)">
               Link this enquiry to a Dentally patient before viewing live records.
             </p>
-          ) : loading && !panel ? (
-            <p className="text-body-sm text-(--color-text-tertiary)">Loading from Dentally…</p>
+          ) : showSkeleton ? (
+            <PanelSkeleton />
           ) : panel ? (
             <div className="flex flex-col gap-6">
               <section>
@@ -282,8 +301,8 @@ export function DashboardPatientPanel({
               </section>
             </div>
           ) : null}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }

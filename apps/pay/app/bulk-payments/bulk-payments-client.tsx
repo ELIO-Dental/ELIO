@@ -18,6 +18,8 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  Skeleton,
+  TableRefreshButton,
 } from "@elio/ui";
 import { Building2, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { aggregateStarlingPayments, type UnpaidBillRow } from "@/lib/bulk-payment";
@@ -207,7 +209,7 @@ export function BulkPaymentsClient() {
     return (
       <TablePanel
         toolbar={
-          <TableToolbar title={`${label} bank details`}>
+          <TableToolbar title={`${label} bank details`} onRefresh={load}>
             <Button size="sm" variant="outline" onClick={() => setShowAddEntity(type)}>
               <Plus className="mr-1 h-4 w-4" />
               Add {type === "lab" ? "lab" : "supplier"}
@@ -376,13 +378,16 @@ export function BulkPaymentsClient() {
             Export Starling CSV
           </Button>
         )}
+        <TableRefreshButton onRefresh={load} aria-label="Refresh bulk payments" />
       </div>
 
       {error && <p className="text-sm text-(--color-danger)">{error}</p>}
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-(--color-primary)" />
+        <div className="space-y-4" aria-busy aria-label="Loading bulk payments">
+          <Skeleton className="h-10 w-full rounded-(--radius-lg)" />
+          <Skeleton className="h-48 w-full rounded-(--radius-lg)" />
+          <Skeleton className="h-48 w-full rounded-(--radius-lg)" />
         </div>
       ) : activeTab === "bank_details" ? (
         <div className="space-y-6">

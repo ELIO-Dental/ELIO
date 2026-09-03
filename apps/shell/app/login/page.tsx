@@ -128,10 +128,16 @@ export default function LoginPage() {
             <Button type="submit" className="h-12 w-full text-body" loading={isBusy} data-testid="login-submit">
               Sign in
             </Button>
-            <div className="text-center">
-              <a href="/forgot-password" className="text-body-sm font-medium text-(--color-primary-600) hover:underline" data-testid="forgot-password-link">
+            <div className="space-y-2 text-center">
+              <a href="/forgot-password" className="block text-body-sm font-medium text-(--color-primary-600) hover:underline" data-testid="forgot-password-link">
                 Forgot your password?
               </a>
+              <p className="text-body-sm text-(--color-text-secondary)">
+                New practice?{" "}
+                <a href="/signup" className="font-medium text-(--color-primary-600) hover:underline" data-testid="signup-link">
+                  Create an account
+                </a>
+              </p>
             </div>
           </form>
         ) : (

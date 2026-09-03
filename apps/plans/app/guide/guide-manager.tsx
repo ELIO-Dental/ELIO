@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -248,12 +249,12 @@ export function GuideManager({
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-w-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit article" : "New article"}</DialogTitle>
             <DialogDescription>Markdown-style plain text is supported.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <div>
               <Label htmlFor="guide-title">Title</Label>
               <Input id="guide-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -282,7 +283,7 @@ export function GuideManager({
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setDialogOpen(false)}>
               Cancel

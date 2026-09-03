@@ -5,6 +5,10 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../lib/cn";
 
+/** Hide scrollbars while keeping scroll — production modals shouldn't show chrome scrollbars. */
+const hideScrollbar =
+  "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
+
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
@@ -33,13 +37,14 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-(--z-index-modal) w-[calc(100%-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface-raised) p-6 shadow-(--shadow-lg) outline-none data-[state=open]:animate-[dialogIn_200ms_ease-out] data-[state=closed]:animate-[dialogOut_150ms_ease-out]",
+        "fixed left-1/2 top-1/2 z-(--z-index-modal) flex max-h-[min(90vh,880px)] w-[calc(100%-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto overflow-x-hidden rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface-raised) p-6 shadow-(--shadow-lg) outline-none data-[state=open]:animate-[dialogIn_200ms_ease-out] data-[state=closed]:animate-[dialogOut_150ms_ease-out]",
+        hideScrollbar,
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-(--radius-sm) p-1 text-(--color-text-tertiary) transition-colors hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)">
+      <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-(--radius-sm) p-1 text-(--color-text-tertiary) transition-colors hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)">
         <X className="size-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -49,7 +54,17 @@ export const DialogContent = React.forwardRef<
 DialogContent.displayName = "DialogContent";
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mb-4", className)} {...props} />;
+  return <div className={cn("mb-4 shrink-0 pr-8", className)} {...props} />;
+}
+
+/** Scrollable middle region — use between DialogHeader and DialogFooter on tall dialogs. */
+export function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain", hideScrollbar, className)}
+      {...props}
+    />
+  );
 }
 
 export const DialogTitle = React.forwardRef<
@@ -73,5 +88,5 @@ export const DialogDescription = React.forwardRef<
 DialogDescription.displayName = "DialogDescription";
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-6 flex justify-end gap-2", className)} {...props} />;
+  return <div className={cn("mt-6 flex shrink-0 justify-end gap-2", className)} {...props} />;
 }

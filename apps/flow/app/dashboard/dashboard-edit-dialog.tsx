@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Button,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -96,14 +97,15 @@ export function DashboardEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="overflow-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{row?.patientName ?? "Edit patient"}</DialogTitle>
           <DialogDescription>Update pipeline status and manual fields — same as legacy ElioFlow edit modal.</DialogDescription>
         </DialogHeader>
 
         {row ? (
-          <form onSubmit={save} className="grid grid-cols-1 gap-4">
+          <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
+            <DialogBody className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="edit-status">Status</Label>
               <Select value={legacyStatus} onValueChange={setLegacyStatus}>
@@ -165,6 +167,7 @@ export function DashboardEditDialog({
               <Label htmlFor="edit-notes">Notes</Label>
               <Textarea id="edit-notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+            </DialogBody>
 
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>

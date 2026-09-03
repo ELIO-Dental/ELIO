@@ -259,6 +259,12 @@ export default function SignupPage() {
             </div>
           )}
       </AuthFormCard>
+      <p className="mt-6 text-center text-body-sm text-(--color-text-secondary)">
+        Already have an account?{" "}
+        <a href="/login" className="font-medium text-(--color-primary-600) hover:underline" data-testid="signin-link">
+          Sign in
+        </a>
+      </p>
     </AuthShell>
   );
 }

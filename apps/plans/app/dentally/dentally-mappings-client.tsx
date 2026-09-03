@@ -78,6 +78,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [plans, setPlans] = React.useState<PlanOption[]>([]);
   const [livePlans, setLivePlans] = React.useState<LiveDentallyPlan[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [reassigning, setReassigning] = React.useState(false);
@@ -85,8 +86,9 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [dentallyPlanName, setDentallyPlanName] = React.useState("");
   const [planModelId, setPlanModelId] = React.useState("");
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const load = React.useCallback(async (opts?: { soft?: boolean }) => {
+    if (opts?.soft) setRefreshing(true);
+    else setLoading(true);
     try {
       const [mappingsRes, plansRes, liveRes] = await Promise.all([
         fetch("/plans/api/dentally/mappings"),
@@ -107,6 +109,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
       toast.error("Failed to load Dentally mappings");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [canManage]);
 
@@ -191,6 +194,15 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
       </Card>
 
       <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => void load({ soft: true })}
+          disabled={loading || refreshing}
+          data-testid="mappings-refresh"
+        >
+          <RefreshCw className={`mr-2 size-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
         {canManage && (
           <>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

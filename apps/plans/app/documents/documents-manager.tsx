@@ -9,6 +9,7 @@ import {
   Card,
   CardContent,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -223,12 +224,12 @@ export function DocumentsManager({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-w-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editingDoc ? "Edit document" : "Create document"}</DialogTitle>
             <DialogDescription>Active documents are shown to patients during signup.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Document type</Label>
@@ -287,7 +288,7 @@ export function DocumentsManager({
               />
               Set as active document for this type
             </label>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setDialogOpen(false)}>
               Cancel
@@ -300,15 +301,15 @@ export function DocumentsManager({
       </Dialog>
 
       <Dialog open={!!viewDoc} onOpenChange={() => setViewDoc(null)}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-w-3xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>{viewDoc?.title}</DialogTitle>
             <DialogDescription>
               Version {viewDoc?.version} · Effective {viewDoc?.effectiveDate.slice(0, 10)}
             </DialogDescription>
           </DialogHeader>
-          <div
-            className="prose prose-sm max-w-none py-4 text-(--color-text-primary)"
+          <DialogBody
+            className="prose prose-sm max-w-none py-2 text-(--color-text-primary)"
             dangerouslySetInnerHTML={{ __html: viewDoc?.content ?? "" }}
           />
         </DialogContent>
