@@ -5,8 +5,8 @@
 export { DentallyClient, DentallyApiError, getDentallyClient } from "./src/client";
 export type { DentallyClientOptions } from "./src/client";
 
-export { syncPracticeDentallyData, syncPracticeDentallyPhase, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS } from "./src/sync";
-export type { SyncResult, SyncError, SyncCounts, SyncPhaseResult, DentallySyncPhase } from "./src/sync";
+export { syncPracticeDentallyData, syncPracticeDentallyPhase, syncPracticeDentallyPhasePage, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS } from "./src/sync";
+export type { SyncResult, SyncError, SyncCounts, SyncPhaseResult, SyncPhasePageResult, DentallySyncPhase } from "./src/sync";
 
 export {
   resolvePracticeDentallyApiKey,

@@ -5,9 +5,9 @@ import {
 } from "@elio/dentally";
 
 /**
- * Shell Inngest job: central Dentally sync with one step per resource phase
- * so production syncs survive Vercel invocation limits. Flow consult import
- * runs as the final post-sync step (F1.1).
+ * Shell Inngest job: central Dentally sync with one step per Dentally list page
+ * (e.g. sync-patients-p1) so production syncs stay under Vercel maxDuration.
+ * Flow consult import runs as the final post-sync step (F1.1).
  */
 export const dentallyFullSyncFunction = inngest.createFunction(
   {

@@ -22,8 +22,8 @@ export interface SidebarBrandProps {
 }
 
 /**
- * Theme-aware logos use CSS tied to `data-theme` (same rules as theme.css),
- * not JS — avoids swapped light/dark picks from hydration timing.
+ * Theme-aware logos use CSS tied to `data-theme` (same rules as theme.css).
+ * Both images share one fixed box so light/dark render the same size and stay centered.
  */
 function ThemeAwareLogo({
   lightSrc,
@@ -42,19 +42,19 @@ function ThemeAwareLogo({
   }
 
   return (
-    <span className={cn("grid place-items-center justify-items-center", className)}>
+    <span className={cn("relative grid place-items-center", className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={lightSrc}
         alt={alt}
-        className="elio-brand-logo-light col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+        className="elio-brand-logo-light absolute inset-0 m-auto h-full w-full object-contain object-center"
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={darkSrc}
         alt=""
         aria-hidden
-        className="elio-brand-logo-dark col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+        className="elio-brand-logo-dark absolute inset-0 m-auto h-full w-full object-contain object-center"
       />
     </span>
   );
@@ -83,7 +83,7 @@ export function SidebarBrand({
         className="flex size-12 items-center justify-center overflow-hidden rounded-(--radius-md) text-caption font-bold text-(--color-primary-600)"
       >
         {markLight ? (
-          <ThemeAwareLogo lightSrc={markLight} darkSrc={markDark} alt="" className="size-11" />
+          <ThemeAwareLogo lightSrc={markLight} darkSrc={markDark} alt="" className="size-10" />
         ) : showLogo ? (
           <Sparkles className="size-5" aria-hidden />
         ) : (
@@ -97,7 +97,7 @@ export function SidebarBrand({
     <span
       data-testid={testId}
       className={cn(
-        "flex w-full items-center justify-center gap-2.5 px-1",
+        "flex h-full w-full items-center justify-center gap-2.5 px-1",
         title.length > 12 ? "text-body-sm" : "text-body"
       )}
     >
@@ -108,7 +108,8 @@ export function SidebarBrand({
           alt={logoOnly ? title : ""}
           className={cn(
             "shrink-0",
-            logoOnly ? "h-14 w-full max-w-[280px] sm:h-16 sm:max-w-[300px]" : "h-8 w-auto max-w-[120px]"
+            // Fixed box — both theme PNGs are normalized to the same canvas so sizes match.
+            logoOnly ? "h-12 w-[220px] sm:h-14 sm:w-[260px]" : "h-8 w-[120px]"
           )}
         />
       ) : showLogo ? (

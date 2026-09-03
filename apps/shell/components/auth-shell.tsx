@@ -21,19 +21,19 @@ function PortalBrandLogo({
   testId?: string;
 }) {
   return (
-    <span className={cn("grid place-items-center justify-items-center", className)} data-testid={testId}>
+    <span className={cn("relative grid place-items-center", className)} data-testid={testId}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={LOGO_LIGHT}
         alt="ELIO Portal"
-        className="elio-brand-logo-light col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+        className="elio-brand-logo-light absolute inset-0 m-auto h-full w-full object-contain object-center"
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={LOGO_DARK}
         alt=""
         aria-hidden
-        className="elio-brand-logo-dark col-start-1 row-start-1 h-full w-auto max-w-full object-contain"
+        className="elio-brand-logo-dark absolute inset-0 m-auto h-full w-full object-contain object-center"
       />
     </span>
   );
@@ -58,7 +58,7 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
 
         <div className="relative">
           <PortalBrandLogo
-            className="h-14 w-full max-w-[320px] justify-start sm:h-16 sm:max-w-[360px]"
+            className="h-14 w-[280px] sm:h-16 sm:w-[320px]"
             testId="auth-brand-logo"
           />
           <h1 className="mt-8 max-w-md text-display text-(--color-text-primary)">One platform for your whole practice.</h1>
@@ -78,7 +78,7 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
 
         <div className={cn("relative w-full", wide ? "max-w-2xl" : "max-w-[440px]")}>
           <div className="mb-8 flex justify-center lg:hidden">
-            <PortalBrandLogo className="h-12 w-full max-w-[280px]" testId="auth-brand-logo-mobile" />
+            <PortalBrandLogo className="h-12 w-[260px]" testId="auth-brand-logo-mobile" />
           </div>
 
           {(headline || description) && (

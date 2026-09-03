@@ -176,6 +176,37 @@ export class DentallyClient {
   }
 
   /**
+   * Fetch a single list page (for Inngest per-page steps). Returns `done: true`
+   * when this is the last page (empty, short page, or page >= total_pages).
+   */
+  async getListPage<TItem>(
+    path: string,
+    listKey: string,
+    params: Record<string, string | number | undefined>,
+    page: number,
+    opts: { perPage?: number } = {}
+  ): Promise<{ items: TItem[]; done: boolean; page: number }> {
+    const perPage = opts.perPage ?? 100;
+    const data = await this.get<Record<string, unknown>>(path, {
+      ...params,
+      per_page: perPage,
+      page,
+    });
+    const items = (data[listKey] as TItem[] | undefined) ?? [];
+    if (items.length === 0) return { items, done: true, page };
+
+    const meta = (data.meta ?? {}) as { total_pages?: number; total?: number };
+    const totalPages = meta.total_pages;
+    let done = false;
+    if (totalPages !== undefined) {
+      done = page >= totalPages;
+    } else {
+      done = items.length < perPage;
+    }
+    return { items, done, page };
+  }
+
+  /**
    * Generic paginator: walks every page of a Dentally list endpoint, calling
    * `onPage` with each page's items so callers can stream-process without
    * holding the whole practice's history in memory at once.
@@ -197,24 +228,12 @@ export class DentallyClient {
     let fetched = 0;
 
     while (page <= maxPages) {
-      const data = await this.get<Record<string, unknown>>(path, {
-        ...params,
-        per_page: perPage,
-        page,
-      });
-      const items = (data[listKey] as TItem[] | undefined) ?? [];
+      const { items, done } = await this.getListPage<TItem>(path, listKey, params, page, { perPage });
       if (items.length === 0) break;
 
       await onPage(items);
       fetched += items.length;
-
-      const meta = (data.meta ?? {}) as { total_pages?: number; total?: number };
-      const totalPages = meta.total_pages;
-      if (totalPages !== undefined) {
-        if (page >= totalPages) break;
-      } else if (items.length < perPage) {
-        break; // short page = last page (meta only reports `total`, e.g. patients)
-      }
+      if (done) break;
       page++;
     }
 

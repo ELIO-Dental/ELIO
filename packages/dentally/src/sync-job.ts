@@ -1,10 +1,8 @@
-// Shared Dentally sync job runner — used by Inngest and local dev fallback (Phase A.5).
-
 import {
   DENTALLY_SYNC_PHASES,
   mergeSyncCounts,
   syncPracticeDentallyData,
-  syncPracticeDentallyPhase,
+  syncPracticeDentallyPhasePage,
   type SyncPhaseResult,
   type SyncResult,
 } from "./sync";
@@ -60,9 +58,9 @@ export type DentallySyncStepRunner = {
 };
 
 /**
- * Production path: one Inngest step per Dentally resource so a full practice
- * sync can exceed a single serverless invocation (the bug that failed the
- * 16m monolith step on 2026-09-03).
+ * Production path: one Inngest step per Dentally *list page* (not whole resource).
+ * Whole-phase steps still hit Vercel FUNCTION_INVOCATION_TIMEOUT (~300s) on large
+ * practices — confirmed live 2026-09-03 after create-sync-run succeeded.
  */
 export async function runDentallySyncJobWithSteps(
   step: DentallySyncStepRunner,
@@ -78,8 +76,18 @@ export async function runDentallySyncJobWithSteps(
   try {
     const phases: SyncPhaseResult[] = [];
     for (const phase of DENTALLY_SYNC_PHASES) {
-      const part = await step.run(`sync-${phase}`, () => syncPracticeDentallyPhase(practiceId, phase));
-      phases.push(part);
+      let page = 1;
+      let done = false;
+      // Hard cap pages so a buggy Dentally meta loop cannot spawn unbounded steps.
+      for (let guard = 0; !done && guard < 1000; guard++) {
+        const currentPage = page;
+        const part = await step.run(`sync-${phase}-p${currentPage}`, () =>
+          syncPracticeDentallyPhasePage(practiceId, phase, currentPage)
+        );
+        phases.push({ counts: part.counts, errors: part.errors });
+        done = Boolean(part.done);
+        page = Number(part.nextPage) || currentPage + 1;
+      }
     }
 
     const result: SyncResult = {

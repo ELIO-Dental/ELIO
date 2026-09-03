@@ -143,151 +143,264 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function syncPatientsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
+const PHASE_LIST: Record<
+  DentallySyncPhase,
+  { path: string; listKey: string; perPage: number }
+> = {
+  // Invoices are heavier (derive treatments) — smaller pages keep steps under Vercel 300s.
+  patients: { path: "/patients", listKey: "patients", perPage: 100 },
+  appointments: { path: "/appointments", listKey: "appointments", perPage: 100 },
+  invoices: { path: "/invoices", listKey: "invoices", perPage: 25 },
+  payments: { path: "/payments", listKey: "payments", perPage: 100 },
+  accounts: { path: "/accounts", listKey: "accounts", perPage: 100 },
+  payment_plans: { path: "/payment_plans", listKey: "payment_plans", perPage: 100 },
+};
+
+async function upsertPatientsPage(practiceId: string, patients: DentallyPatientRaw[]): Promise<SyncPhaseResult> {
   const counts = { ...EMPTY_SYNC_COUNTS };
   const errors: SyncError[] = [];
-  await client.paginate<DentallyPatientRaw>("/patients", "patients", {}, async (patients) => {
-    for (const raw of patients) {
+  for (const raw of patients) {
+    try {
+      const data = normalizePatient(raw);
+      await prisma.patient.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, ...data },
+        update: data,
+      });
+      counts.patients++;
+    } catch (err) {
+      errors.push({ resource: "patient", dentallyId: String(raw.id), message: errMsg(err) });
+    }
+  }
+  return { counts, errors };
+}
+
+async function upsertAppointmentsPage(practiceId: string, appointments: DentallyAppointmentRaw[]): Promise<SyncPhaseResult> {
+  const counts = { ...EMPTY_SYNC_COUNTS };
+  const errors: SyncError[] = [];
+  for (const raw of appointments) {
+    try {
+      const { dentallyPatientId, ...data } = normalizeAppointment(raw);
+      const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+      await prisma.appointment.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, patientId, ...data },
+        update: { patientId, ...data },
+      });
+      counts.appointments++;
+    } catch (err) {
+      errors.push({ resource: "appointment", dentallyId: String(raw.id), message: errMsg(err) });
+    }
+  }
+  return { counts, errors };
+}
+
+async function upsertInvoicesPage(practiceId: string, invoices: DentallyInvoiceRaw[]): Promise<SyncPhaseResult> {
+  const counts = { ...EMPTY_SYNC_COUNTS };
+  const errors: SyncError[] = [];
+  for (const raw of invoices) {
+    try {
+      const { dentallyPatientId, ...data } = normalizeInvoice(raw);
+      const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+      await prisma.invoice.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, patientId, ...data },
+        update: { patientId, ...data },
+      });
+      counts.invoices++;
+    } catch (err) {
+      errors.push({ resource: "invoice", dentallyId: String(raw.id), message: errMsg(err) });
+      continue;
+    }
+
+    for (const t of normalizeTreatmentsFromInvoice(raw)) {
       try {
-        const data = normalizePatient(raw);
-        await prisma.patient.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, ...data },
-          update: data,
+        const { dentallyPatientId: tPatientId, ...tData } = t;
+        const patientId = await resolvePatientId(practiceId, tPatientId);
+        const dentistId = await resolveDentistId(practiceId, tData.dentallyPractitionerId);
+        await prisma.treatment.upsert({
+          where: { practiceId_dentallyId: { practiceId, dentallyId: tData.dentallyId } },
+          create: { practiceId, patientId, dentistId, ...tData },
+          update: { patientId, dentistId, ...tData },
         });
-        counts.patients++;
+        counts.treatments++;
       } catch (err) {
-        errors.push({ resource: "patient", dentallyId: String(raw.id), message: errMsg(err) });
+        errors.push({ resource: "treatment", dentallyId: t.dentallyId, message: errMsg(err) });
       }
     }
-  });
+  }
   return { counts, errors };
+}
+
+async function upsertPaymentsPage(practiceId: string, payments: DentallyPaymentRaw[]): Promise<SyncPhaseResult> {
+  const counts = { ...EMPTY_SYNC_COUNTS };
+  const errors: SyncError[] = [];
+  for (const raw of payments) {
+    try {
+      const { dentallyPatientId, ...data } = normalizePayment(raw);
+      const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+      await prisma.dentallyPayment.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, patientId, ...data },
+        update: { patientId, ...data },
+      });
+      counts.payments++;
+    } catch (err) {
+      errors.push({ resource: "payment", dentallyId: String(raw.id), message: errMsg(err) });
+    }
+  }
+  return { counts, errors };
+}
+
+async function upsertAccountsPage(practiceId: string, accounts: DentallyAccountRaw[]): Promise<SyncPhaseResult> {
+  const counts = { ...EMPTY_SYNC_COUNTS };
+  const errors: SyncError[] = [];
+  for (const raw of accounts) {
+    try {
+      const { dentallyPatientId, ...data } = normalizeAccount(raw);
+      const patientId = await resolvePatientId(practiceId, dentallyPatientId);
+      await prisma.dentallyAccount.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, patientId, ...data },
+        update: { patientId, ...data },
+      });
+      counts.accounts++;
+    } catch (err) {
+      errors.push({ resource: "account", dentallyId: String(raw.id), message: errMsg(err) });
+    }
+  }
+  return { counts, errors };
+}
+
+async function upsertPaymentPlansPage(practiceId: string, plans: DentallyPaymentPlanRaw[]): Promise<SyncPhaseResult> {
+  const counts = { ...EMPTY_SYNC_COUNTS };
+  const errors: SyncError[] = [];
+  for (const raw of plans) {
+    try {
+      const data = normalizePaymentPlan(raw);
+      await prisma.dentallyPaymentPlan.upsert({
+        where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
+        create: { practiceId, ...data },
+        update: data,
+      });
+      counts.paymentPlans++;
+    } catch (err) {
+      errors.push({ resource: "payment_plan", dentallyId: String(raw.id), message: errMsg(err) });
+    }
+  }
+  return { counts, errors };
+}
+
+async function upsertPhasePage(
+  practiceId: string,
+  phase: DentallySyncPhase,
+  items: unknown[]
+): Promise<SyncPhaseResult> {
+  switch (phase) {
+    case "patients":
+      return upsertPatientsPage(practiceId, items as DentallyPatientRaw[]);
+    case "appointments":
+      return upsertAppointmentsPage(practiceId, items as DentallyAppointmentRaw[]);
+    case "invoices":
+      return upsertInvoicesPage(practiceId, items as DentallyInvoiceRaw[]);
+    case "payments":
+      return upsertPaymentsPage(practiceId, items as DentallyPaymentRaw[]);
+    case "accounts":
+      return upsertAccountsPage(practiceId, items as DentallyAccountRaw[]);
+    case "payment_plans":
+      return upsertPaymentPlansPage(practiceId, items as DentallyPaymentPlanRaw[]);
+    default: {
+      const _exhaustive: never = phase;
+      throw new Error(`Unknown Dentally sync phase: ${_exhaustive}`);
+    }
+  }
+}
+
+async function syncPatientsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
+  const parts: SyncPhaseResult[] = [];
+  await client.paginate<DentallyPatientRaw>("/patients", "patients", {}, async (patients) => {
+    parts.push(await upsertPatientsPage(practiceId, patients));
+  });
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncAppointmentsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
-  const counts = { ...EMPTY_SYNC_COUNTS };
-  const errors: SyncError[] = [];
+  const parts: SyncPhaseResult[] = [];
   await client.paginate<DentallyAppointmentRaw>("/appointments", "appointments", {}, async (appointments) => {
-    for (const raw of appointments) {
-      try {
-        const { dentallyPatientId, ...data } = normalizeAppointment(raw);
-        const patientId = await resolvePatientId(practiceId, dentallyPatientId);
-        await prisma.appointment.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, patientId, ...data },
-          update: { patientId, ...data },
-        });
-        counts.appointments++;
-      } catch (err) {
-        errors.push({ resource: "appointment", dentallyId: String(raw.id), message: errMsg(err) });
-      }
-    }
+    parts.push(await upsertAppointmentsPage(practiceId, appointments));
   });
-  return { counts, errors };
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncInvoicesPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
-  const counts = { ...EMPTY_SYNC_COUNTS };
-  const errors: SyncError[] = [];
-  await client.paginate<DentallyInvoiceRaw>("/invoices", "invoices", {}, async (invoices) => {
-    for (const raw of invoices) {
-      try {
-        const { dentallyPatientId, ...data } = normalizeInvoice(raw);
-        const patientId = await resolvePatientId(practiceId, dentallyPatientId);
-        await prisma.invoice.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, patientId, ...data },
-          update: { patientId, ...data },
-        });
-        counts.invoices++;
-      } catch (err) {
-        errors.push({ resource: "invoice", dentallyId: String(raw.id), message: errMsg(err) });
-        continue;
-      }
-
-      for (const t of normalizeTreatmentsFromInvoice(raw)) {
-        try {
-          const { dentallyPatientId: tPatientId, ...tData } = t;
-          const patientId = await resolvePatientId(practiceId, tPatientId);
-          const dentistId = await resolveDentistId(practiceId, tData.dentallyPractitionerId);
-          await prisma.treatment.upsert({
-            where: { practiceId_dentallyId: { practiceId, dentallyId: tData.dentallyId } },
-            create: { practiceId, patientId, dentistId, ...tData },
-            update: { patientId, dentistId, ...tData },
-          });
-          counts.treatments++;
-        } catch (err) {
-          errors.push({ resource: "treatment", dentallyId: t.dentallyId, message: errMsg(err) });
-        }
-      }
-    }
-  });
-  return { counts, errors };
+  const parts: SyncPhaseResult[] = [];
+  await client.paginate<DentallyInvoiceRaw>(
+    "/invoices",
+    "invoices",
+    {},
+    async (invoices) => {
+      parts.push(await upsertInvoicesPage(practiceId, invoices));
+    },
+    { perPage: PHASE_LIST.invoices.perPage }
+  );
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncPaymentsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
-  const counts = { ...EMPTY_SYNC_COUNTS };
-  const errors: SyncError[] = [];
+  const parts: SyncPhaseResult[] = [];
   await client.paginate<DentallyPaymentRaw>("/payments", "payments", {}, async (payments) => {
-    for (const raw of payments) {
-      try {
-        const { dentallyPatientId, ...data } = normalizePayment(raw);
-        const patientId = await resolvePatientId(practiceId, dentallyPatientId);
-        await prisma.dentallyPayment.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, patientId, ...data },
-          update: { patientId, ...data },
-        });
-        counts.payments++;
-      } catch (err) {
-        errors.push({ resource: "payment", dentallyId: String(raw.id), message: errMsg(err) });
-      }
-    }
+    parts.push(await upsertPaymentsPage(practiceId, payments));
   });
-  return { counts, errors };
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncAccountsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
-  const counts = { ...EMPTY_SYNC_COUNTS };
-  const errors: SyncError[] = [];
+  const parts: SyncPhaseResult[] = [];
   await client.paginate<DentallyAccountRaw>("/accounts", "accounts", {}, async (accounts) => {
-    for (const raw of accounts) {
-      try {
-        const { dentallyPatientId, ...data } = normalizeAccount(raw);
-        const patientId = await resolvePatientId(practiceId, dentallyPatientId);
-        await prisma.dentallyAccount.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, patientId, ...data },
-          update: { patientId, ...data },
-        });
-        counts.accounts++;
-      } catch (err) {
-        errors.push({ resource: "account", dentallyId: String(raw.id), message: errMsg(err) });
-      }
-    }
+    parts.push(await upsertAccountsPage(practiceId, accounts));
   });
-  return { counts, errors };
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncPaymentPlansPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
-  const counts = { ...EMPTY_SYNC_COUNTS };
-  const errors: SyncError[] = [];
+  const parts: SyncPhaseResult[] = [];
   await client.paginate<DentallyPaymentPlanRaw>("/payment_plans", "payment_plans", {}, async (plans) => {
-    for (const raw of plans) {
-      try {
-        const data = normalizePaymentPlan(raw);
-        await prisma.dentallyPaymentPlan.upsert({
-          where: { practiceId_dentallyId: { practiceId, dentallyId: data.dentallyId } },
-          create: { practiceId, ...data },
-          update: data,
-        });
-        counts.paymentPlans++;
-      } catch (err) {
-        errors.push({ resource: "payment_plan", dentallyId: String(raw.id), message: errMsg(err) });
-      }
-    }
+    parts.push(await upsertPaymentPlansPage(practiceId, plans));
   });
-  return { counts, errors };
+  return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
+}
+
+export interface SyncPhasePageResult extends SyncPhaseResult {
+  page: number;
+  done: boolean;
+  nextPage: number;
+}
+
+/**
+ * One Dentally list page for a resource — sized so each Inngest step stays under
+ * Vercel `maxDuration` (production failed when an entire phase ran in one step).
+ */
+export async function syncPracticeDentallyPhasePage(
+  practiceId: string,
+  phase: DentallySyncPhase,
+  page: number,
+  client?: DentallyClient
+): Promise<SyncPhasePageResult> {
+  const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
+  const cfg = PHASE_LIST[phase];
+  const { items, done } = await dentallyClient.getListPage<unknown>(cfg.path, cfg.listKey, {}, page, {
+    perPage: cfg.perPage,
+  });
+  if (items.length === 0) {
+    return { counts: { ...EMPTY_SYNC_COUNTS }, errors: [], page, done: true, nextPage: page };
+  }
+  const part = await upsertPhasePage(practiceId, phase, items);
+  return {
+    ...part,
+    page,
+    done,
+    nextPage: done ? page : page + 1,
+  };
 }
 
 /** One resource phase — used as a single Inngest `step.run` unit of work. */
