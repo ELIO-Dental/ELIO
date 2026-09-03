@@ -57,7 +57,7 @@ test("full signup completes end-to-end with a throwaway test practice, no manual
   await expect(page.getByTestId("launcher-grid")).toBeVisible();
   await expect(page.getByTestId("portal-brand")).toBeVisible();
   await expect(page.getByTestId("portal-brand")).toContainText("ELIO Portal");
-  await expect(page.getByTestId("portal-brand").locator('img[src="/brand/elio-portal.png"]')).toBeVisible();
+  await expect(page.getByTestId("portal-brand").locator('img[src*="/brand/elio-portal"]')).toBeVisible();
 
   // Real DB assertions — not just "the page navigated somewhere."
   const user = await prisma.user.findUniqueOrThrow({ where: { email: TEST_EMAIL }, include: { practice: true } });

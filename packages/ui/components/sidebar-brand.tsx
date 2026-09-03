@@ -2,6 +2,7 @@
 
 import { cn } from "../lib/cn";
 import { Sparkles } from "lucide-react";
+import { useIsDark } from "../hooks/use-is-dark";
 
 export interface SidebarBrandProps {
   title: string;
@@ -11,8 +12,10 @@ export interface SidebarBrandProps {
   shortLabel?: string;
   /** Show ELIO portal star mark beside the wordmark. */
   showLogo?: boolean;
-  /** Optional logo image URL (Portal brand or practice logo). */
+  /** Optional logo image URL (Portal brand or practice logo) — light / default. */
   logoUrl?: string;
+  /** Dark-theme wordmark (white text). Falls back to logoUrl. */
+  logoDarkUrl?: string;
   /** When true with logoUrl, hide the text title (logo already includes wordmark). */
   logoOnly?: boolean;
   /** Collapsed mark image (square favicon) — falls back to logoUrl. */
@@ -27,17 +30,20 @@ export function SidebarBrand({
   shortLabel,
   showLogo = false,
   logoUrl,
+  logoDarkUrl,
   logoOnly = false,
   collapsedLogoUrl,
 }: SidebarBrandProps) {
+  const isDark = useIsDark();
   const abbreviated = (shortLabel ?? (title.replace(/[^A-Z]/g, "").slice(0, 2) || title.charAt(0))).toUpperCase();
-  const markUrl = collapsedLogoUrl ?? logoUrl;
+  const activeLogo = isDark && logoDarkUrl ? logoDarkUrl : logoUrl;
+  const markUrl = collapsedLogoUrl ?? activeLogo;
 
   if (collapsed) {
     return (
       <span
         title={title}
-        className="flex size-10 items-center justify-center overflow-hidden rounded-(--radius-md) bg-black text-caption font-bold text-(--color-primary-600)"
+        className="flex size-11 items-center justify-center overflow-hidden rounded-(--radius-md) text-caption font-bold text-(--color-primary-600)"
       >
         {markUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -55,18 +61,18 @@ export function SidebarBrand({
     <span
       data-testid={testId}
       className={cn(
-        "flex w-full items-center justify-center gap-2.5",
+        "flex w-full items-center justify-center gap-2.5 px-1",
         title.length > 12 ? "text-body-sm" : "text-body"
       )}
     >
-      {logoUrl ? (
+      {activeLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={logoUrl}
+          src={activeLogo}
           alt={logoOnly ? title : ""}
           className={cn(
-            "shrink-0 object-contain",
-            logoOnly ? "h-9 w-auto max-w-[180px]" : "h-8 w-auto max-w-[120px]"
+            "shrink-0 object-contain object-left",
+            logoOnly ? "h-11 w-auto max-w-[min(100%,240px)] sm:h-12 sm:max-w-[260px]" : "h-8 w-auto max-w-[120px]"
           )}
         />
       ) : showLogo ? (

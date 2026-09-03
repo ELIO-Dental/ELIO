@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { NoiseOverlay, cn, ThemeToggle } from "@elio/ui";
+import { NoiseOverlay, cn, ThemeToggle, useIsDark } from "@elio/ui";
 
 export interface AuthShellProps {
   headline?: string;
@@ -10,8 +10,14 @@ export interface AuthShellProps {
   children: React.ReactNode;
 }
 
+const LOGO_LIGHT = "/brand/elio-portal.png";
+const LOGO_DARK = "/brand/elio-portal-dark.png";
+
 /** Premium split auth chrome — brand panel + centered form area. UI only. */
 export function AuthShell({ headline, description, wide, children }: AuthShellProps) {
+  const isDark = useIsDark();
+  const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
+
   return (
     <div className="relative flex min-h-screen bg-(--color-bg)">
       <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end sm:right-6 sm:top-6">
@@ -30,9 +36,9 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brand/elio-portal.png"
+            src={logoSrc}
             alt="ELIO Portal"
-            className="h-10 w-auto max-w-[220px] object-contain"
+            className="h-12 w-auto max-w-[280px] object-contain object-left sm:h-14 sm:max-w-[320px]"
             data-testid="auth-brand-logo"
           />
           <h1 className="mt-8 max-w-md text-display text-(--color-text-primary)">One platform for your whole practice.</h1>
@@ -54,9 +60,9 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
           <div className="mb-8 flex justify-center lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/elio-portal.png"
+              src={logoSrc}
               alt="ELIO Portal"
-              className="h-9 w-auto max-w-[200px] object-contain"
+              className="h-11 w-auto max-w-[240px] object-contain"
               data-testid="auth-brand-logo-mobile"
             />
           </div>

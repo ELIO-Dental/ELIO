@@ -131,6 +131,7 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
             testId="portal-brand"
             shortLabel="EP"
             logoUrl="/brand/elio-portal.png"
+            logoDarkUrl="/brand/elio-portal-dark.png"
             collapsedLogoUrl="/icons/icon-192.png"
             logoOnly
           />
