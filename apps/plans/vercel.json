@@ -1,19 +1,19 @@
 {
   "crons": [
     {
-      "path": "/api/cron/create-charges",
+      "path": "/plans/api/cron/create-charges",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/reconcile-payments",
+      "path": "/plans/api/cron/reconcile-payments",
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/cron/dentally-sync",
+      "path": "/plans/api/cron/dentally-sync",
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/cron/gc-sync",
+      "path": "/plans/api/cron/gc-sync",
       "schedule": "0 8 * * *"
     }
   ]
