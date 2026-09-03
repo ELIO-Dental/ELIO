@@ -55,7 +55,9 @@ test("full signup completes end-to-end with a throwaway test practice, no manual
   // longer wait, not a hope that the retry always saves it).
   await page.waitForURL(/\/launcher$/, { timeout: 60_000 });
   await expect(page.getByTestId("launcher-grid")).toBeVisible();
-  await expect(page.getByTestId("portal-brand")).toHaveText("ELIO PORTAL");
+  await expect(page.getByTestId("portal-brand")).toBeVisible();
+  await expect(page.getByTestId("portal-brand")).toContainText("ELIO Portal");
+  await expect(page.getByTestId("portal-brand").locator('img[src="/brand/elio-portal.png"]')).toBeVisible();
 
   // Real DB assertions — not just "the page navigated somewhere."
   const user = await prisma.user.findUniqueOrThrow({ where: { email: TEST_EMAIL }, include: { practice: true } });

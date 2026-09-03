@@ -65,7 +65,16 @@ const PUBLIC_PATH_PREFIXES = [
 ];
 
 function isPwaAsset(pathname: string): boolean {
-  return pathname === "/sw.js" || pathname.startsWith("/icons/") || pathname === "/manifest.webmanifest" || pathname === "/offline.html" || pathname.endsWith("/offline.html");
+  return (
+    pathname === "/sw.js" ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/brand/") ||
+    pathname === "/favicon.png" ||
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/offline.html" ||
+    pathname.endsWith("/offline.html")
+  );
 }
 
 function isPublicPath(pathname: string): boolean {
@@ -139,6 +148,6 @@ export default auth((req: NextRequest & { auth?: unknown }) => {
 export const config = {
   // Protect everything except static assets, Next internals, and API auth routes.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password|api/inngest|api/cron).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|brand/|sw\\.js|icons/|offline\\.html|api/auth|api/forgot-password|api/reset-password|api/inngest|api/cron).*)",
   ],
 };

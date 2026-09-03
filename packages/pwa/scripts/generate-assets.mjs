@@ -1,23 +1,43 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const assetsDir = path.join(root, "assets");
 
+/** Resolve sharp from this package or the monorepo (Next.js ships it). */
+function loadSharp() {
+  try {
+    return require("sharp");
+  } catch {
+    return require(path.join(root, "../../node_modules/sharp"));
+  }
+}
+
 const APPS = [
-  { publicDir: path.join(root, "../../apps/shell/public"), cacheName: "elio-portal", offlineUrl: "/offline.html", appName: "ELIO Portal" },
-  { publicDir: path.join(root, "../../apps/pay/public"), cacheName: "elio-pay", offlineUrl: "/pay/offline.html", appName: "ElioPay" },
-  { publicDir: path.join(root, "../../apps/plans/public"), cacheName: "elio-plans", offlineUrl: "/plans/offline.html", appName: "ElioPlans" },
-  { publicDir: path.join(root, "../../apps/flow/public"), cacheName: "elio-flow", offlineUrl: "/flow/offline.html", appName: "ElioFlow" },
-  { publicDir: path.join(root, "../../apps/admin/public"), cacheName: "elio-admin", offlineUrl: "/offline.html", appName: "ELIO Admin" },
+  {
+    id: "portal",
+    publicDir: path.join(root, "../../apps/shell/public"),
+    appDir: path.join(root, "../../apps/shell/app"),
+    cacheName: "elio-portal-v2",
+    offlineUrl: "/offline.html",
+    appName: "ELIO Portal",
+    /** Prefer client favicon mark when present; fall back to solid brand tile. */
+    iconSource: path.join(assetsDir, "portal-favicon.png"),
+  },
+  { id: "pay", publicDir: path.join(root, "../../apps/pay/public"), cacheName: "elio-pay-v1", offlineUrl: "/pay/offline.html", appName: "ElioPay" },
+  { id: "plans", publicDir: path.join(root, "../../apps/plans/public"), cacheName: "elio-plans-v1", offlineUrl: "/plans/offline.html", appName: "ElioPlans" },
+  { id: "flow", publicDir: path.join(root, "../../apps/flow/public"), cacheName: "elio-flow-v1", offlineUrl: "/flow/offline.html", appName: "ElioFlow" },
+  { id: "admin", publicDir: path.join(root, "../../apps/admin/public"), cacheName: "elio-admin-v1", offlineUrl: "/offline.html", appName: "ELIO Admin" },
 ];
 
 const PRIMARY = { r: 109, g: 62, b: 245 };
 
-function writePng(size, filePath, maskable = false) {
+function writeSolidPng(size, filePath, maskable = false) {
   const png = new PNG({ width: size, height: size });
   const pad = maskable ? Math.floor(size * 0.1) : 0;
 
@@ -36,9 +56,40 @@ function writePng(size, filePath, maskable = false) {
   fs.writeFileSync(filePath, PNG.sync.write(png));
 }
 
+async function writeResizedPng(sharp, sourcePath, size, filePath, { maskable = false } = {}) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  if (!maskable) {
+    await sharp(sourcePath)
+      .resize(size, size, { fit: "cover", position: "centre" })
+      .png()
+      .toFile(filePath);
+    return;
+  }
+
+  // Maskable: keep ~20% safe zone on black (matches portal favicon background).
+  const inner = Math.round(size * 0.8);
+  const pad = Math.round((size - inner) / 2);
+  const resized = await sharp(sourcePath)
+    .resize(inner, inner, { fit: "cover", position: "centre" })
+    .png()
+    .toBuffer();
+
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 255 },
+    },
+  })
+    .composite([{ input: resized, top: pad, left: pad }])
+    .png()
+    .toFile(filePath);
+}
+
 function writeServiceWorker(publicDir, cacheName, offlineUrl = "/offline") {
   const sw = `/* ELIO PWA service worker — desktop-first, auth-safe caching */
-const CACHE = "${cacheName}-v1";
+const CACHE = "${cacheName}";
 const OFFLINE_URL = "${offlineUrl}";
 
 self.addEventListener("install", (event) => {
@@ -95,13 +146,50 @@ self.addEventListener("fetch", (event) => {
   fs.writeFileSync(path.join(publicDir, "sw.js"), sw);
 }
 
-function copyIcons(publicDir) {
-  const iconsDir = path.join(publicDir, "icons");
+async function copyIcons(app) {
+  const iconsDir = path.join(app.publicDir, "icons");
   fs.mkdirSync(iconsDir, { recursive: true });
-  fs.copyFileSync(path.join(assetsDir, "icon.svg"), path.join(iconsDir, "icon.svg"));
-  writePng(192, path.join(iconsDir, "icon-192.png"));
-  writePng(512, path.join(iconsDir, "icon-512.png"));
-  writePng(512, path.join(iconsDir, "icon-maskable-512.png"), true);
+
+  // Drop previous generated icons so stale solid tiles cannot linger.
+  for (const name of ["icon-192.png", "icon-512.png", "icon-maskable-512.png", "icon.svg", "apple-touch-icon.png"]) {
+    const prev = path.join(iconsDir, name);
+    if (fs.existsSync(prev)) fs.unlinkSync(prev);
+  }
+
+  const source = app.iconSource && fs.existsSync(app.iconSource) ? app.iconSource : null;
+  if (source) {
+    const sharp = loadSharp();
+    await writeResizedPng(sharp, source, 192, path.join(iconsDir, "icon-192.png"));
+    await writeResizedPng(sharp, source, 512, path.join(iconsDir, "icon-512.png"));
+    await writeResizedPng(sharp, source, 512, path.join(iconsDir, "icon-maskable-512.png"), { maskable: true });
+    await writeResizedPng(sharp, source, 180, path.join(iconsDir, "apple-touch-icon.png"));
+
+    // Next.js app-dir metadata icons (Shell / portal only).
+    if (app.appDir) {
+      fs.mkdirSync(app.appDir, { recursive: true });
+      await writeResizedPng(sharp, source, 32, path.join(app.appDir, "icon.png"));
+      await writeResizedPng(sharp, source, 180, path.join(app.appDir, "apple-icon.png"));
+      // Keep a public favicon.png in sync with the source mark (browsers + metadata).
+      await writeResizedPng(sharp, source, 48, path.join(app.publicDir, "favicon.png"));
+      // Real multi-size ICO for legacy tabs.
+      await sharp(source)
+        .resize(32, 32)
+        .toFile(path.join(app.publicDir, "favicon.ico"));
+    }
+
+    // Lightweight SVG placeholder pointing browsers at the PNG mark (manifest still lists SVG optionally).
+    fs.writeFileSync(
+      path.join(iconsDir, "icon.svg"),
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><image href="/icons/icon-512.png" width="512" height="512"/></svg>\n`
+    );
+    console.log("  icons from", path.relative(root, source));
+  } else {
+    fs.copyFileSync(path.join(assetsDir, "icon.svg"), path.join(iconsDir, "icon.svg"));
+    writeSolidPng(192, path.join(iconsDir, "icon-192.png"));
+    writeSolidPng(512, path.join(iconsDir, "icon-512.png"));
+    writeSolidPng(512, path.join(iconsDir, "icon-maskable-512.png"), true);
+    console.log("  icons solid fallback");
+  }
 }
 
 function writeOfflineHtml(publicDir, appName) {
@@ -131,9 +219,16 @@ function writeOfflineHtml(publicDir, appName) {
   fs.writeFileSync(path.join(publicDir, "offline.html"), html);
 }
 
-for (const app of APPS) {
-  copyIcons(app.publicDir);
-  writeOfflineHtml(app.publicDir, app.appName);
-  writeServiceWorker(app.publicDir, app.cacheName, app.offlineUrl);
-  console.log("PWA assets →", path.relative(root, app.publicDir));
+async function main() {
+  for (const app of APPS) {
+    await copyIcons(app);
+    writeOfflineHtml(app.publicDir, app.appName);
+    writeServiceWorker(app.publicDir, app.cacheName, app.offlineUrl);
+    console.log("PWA assets →", path.relative(root, app.publicDir));
+  }
 }
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

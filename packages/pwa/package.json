@@ -18,6 +18,7 @@
   "devDependencies": {
     "@types/react": "^19.2.18",
     "pngjs": "^7.0.0",
+    "sharp": "^0.34.2",
     "typescript": "^5.7.0"
   }
 }

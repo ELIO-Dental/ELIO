@@ -124,7 +124,17 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
         activeModuleId="flow"
-        launcher={<SidebarBrand collapsed={collapsed} title="ELIO PORTAL" testId="portal-brand" shortLabel="EP" showLogo />}
+        launcher={
+          <SidebarBrand
+            collapsed={collapsed}
+            title="ELIO Portal"
+            testId="portal-brand"
+            shortLabel="EP"
+            logoUrl="/brand/elio-portal.png"
+            collapsedLogoUrl="/icons/icon-192.png"
+            logoOnly
+          />
+        }
         footer={
           <div className="space-y-2">
             <PwaSidebarInstall config={portalPwa} collapsed={collapsed} />

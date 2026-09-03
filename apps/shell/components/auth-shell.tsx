@@ -28,7 +28,13 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
         </div>
 
         <div className="relative">
-          <p className="text-body font-bold tracking-[0.24em] text-(--color-text-primary)">ELIO PORTAL</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/elio-portal.png"
+            alt="ELIO Portal"
+            className="h-10 w-auto max-w-[220px] object-contain"
+            data-testid="auth-brand-logo"
+          />
           <h1 className="mt-8 max-w-md text-display text-(--color-text-primary)">One platform for your whole practice.</h1>
           <p className="mt-4 max-w-sm text-body leading-relaxed text-(--color-text-secondary)">
             Payroll, patient plans, and workflow — secure, connected, and built for modern dental teams.
@@ -45,8 +51,14 @@ export function AuthShell({ headline, description, wide, children }: AuthShellPr
         </div>
 
         <div className={cn("relative w-full", wide ? "max-w-2xl" : "max-w-[440px]")}>
-          <div className="mb-8 text-center lg:hidden">
-            <p className="text-body font-bold tracking-[0.22em] text-(--color-text-primary)">ELIO PORTAL</p>
+          <div className="mb-8 flex justify-center lg:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/elio-portal.png"
+              alt="ELIO Portal"
+              className="h-9 w-auto max-w-[200px] object-contain"
+              data-testid="auth-brand-logo-mobile"
+            />
           </div>
 
           {(headline || description) && (

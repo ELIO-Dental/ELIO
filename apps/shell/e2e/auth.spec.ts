@@ -34,7 +34,9 @@ test("successful login lands on the launcher", async ({ page }) => {
   await page.getByTestId("login-submit").click();
   await page.waitForURL(/\/launcher$/, { timeout: 30_000 });
   await expect(page.getByTestId("launcher-grid")).toBeVisible();
-  await expect(page.getByTestId("portal-brand")).toHaveText("ELIO PORTAL");
+  await expect(page.getByTestId("portal-brand")).toBeVisible();
+  await expect(page.getByTestId("portal-brand")).toContainText("ELIO Portal");
+  await expect(page.getByTestId("portal-brand").locator('img[src="/brand/elio-portal.png"]')).toBeVisible();
 });
 
 test("wrong password shows a clear error", async ({ page }) => {
