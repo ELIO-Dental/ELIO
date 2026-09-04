@@ -7,6 +7,8 @@ export interface ShellLayoutProps {
   userEmail?: string;
   canEditSettings?: boolean;
   brandTitle?: string;
+  /** Practice logo when uploaded in Plans settings; otherwise sidebar shows text title only. */
+  brandLogoUrl?: string;
   faviconUrl?: string;
   children: React.ReactNode;
 }
@@ -16,6 +18,7 @@ export function ShellLayout({
   userEmail,
   canEditSettings,
   brandTitle = "ELIO PLANS",
+  brandLogoUrl,
   faviconUrl,
   children,
 }: ShellLayoutProps) {
@@ -24,7 +27,14 @@ export function ShellLayout({
     : PLANS_MODULE_NAV.filter((item) => item.id !== "dentally");
 
   return (
-    <ModuleAppLayout brandTitle={brandTitle} moduleId="plans" navItems={navItems} userEmail={userEmail} pwaAppId="plans">
+    <ModuleAppLayout
+      brandTitle={brandTitle}
+      brandLogoUrl={brandLogoUrl}
+      moduleId="plans"
+      navItems={navItems}
+      userEmail={userEmail}
+      pwaAppId="plans"
+    >
       <PlansBrandingHead brandName={brandTitle} faviconUrl={faviconUrl} />
       {children}
     </ModuleAppLayout>

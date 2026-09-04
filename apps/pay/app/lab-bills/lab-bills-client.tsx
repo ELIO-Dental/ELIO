@@ -29,6 +29,7 @@ import {
   TablePagination,
   useClientTablePagination,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { Eye, LayoutGrid, List, Loader2, Trash2, Upload } from "lucide-react";
 import {
@@ -74,6 +75,7 @@ export function LabBillsClient({
   const [search, setSearch] = React.useState("");
   const [viewMode, setViewMode] = React.useState<"list" | "matrix">("list");
   const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<LabBillListItem | null>(null);
 
   const filtered = React.useMemo(
     () =>
@@ -434,10 +436,7 @@ export function LabBillsClient({
                         variant="ghost"
                         className="text-(--color-danger)"
                         loading={pendingId === b.id}
-                        onClick={() => {
-                          if (!confirm("Delete this lab bill?")) return;
-                          void mutate(b.id, () => fetch(`/pay/api/lab-bills/${b.id}`, { method: "DELETE" }), "Lab bill deleted");
-                        }}
+                        onClick={() => setDeleteTarget(b)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -449,6 +448,26 @@ export function LabBillsClient({
           )}
         </TablePanel>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete lab bill?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await mutate(
+            deleteTarget.id,
+            () => fetch(`/pay/api/lab-bills/${deleteTarget.id}`, { method: "DELETE" }),
+            "Lab bill deleted"
+          );
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

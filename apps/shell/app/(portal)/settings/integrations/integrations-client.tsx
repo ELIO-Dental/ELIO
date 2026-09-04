@@ -11,6 +11,7 @@ import {
   Input,
   Label,
   useSkeleton,
+  toast,
 } from "@elio/ui";
 import { RefreshCw } from "lucide-react";
 
@@ -153,9 +154,12 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
       if (!res.ok) throw new Error(data.error ?? `Save failed (${res.status})`);
       setApiKey("");
       setKeySaved(true);
+      toast.success("API key saved");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save API key");
+      const msg = err instanceof Error ? err.message : "Failed to save API key";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSavingKey(false);
     }
@@ -173,6 +177,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
       }
       // Optimistic UI: Inngest creates the RUNNING row only after the first step.
       setAwaitingStart(true);
+      toast.success("Sync queued");
       setStatus((prev) =>
         prev
           ? {
@@ -197,7 +202,9 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
       });
     } catch (err) {
       setAwaitingStart(false);
-      setError(err instanceof Error ? err.message : "Sync failed");
+      const msg = err instanceof Error ? err.message : "Sync failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSyncing(false);
     }
@@ -206,7 +213,16 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   async function onTestConnection() {
     setTesting(true);
     try {
-      await load(true);
+      const next = await load(true);
+      if (!next) {
+        toast.error("Connection test failed");
+        return;
+      }
+      if (next.connectionOk === true) {
+        toast.success("Connection test succeeded");
+      } else {
+        toast.error(next.connectionError ?? "Connection test failed");
+      }
     } finally {
       setTesting(false);
     }

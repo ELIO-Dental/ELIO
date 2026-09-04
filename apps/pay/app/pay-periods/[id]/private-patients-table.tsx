@@ -213,7 +213,7 @@ export function PrivatePatientsTable({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-(--radius-md) border border-(--color-border-subtle)">
-          <table className="w-full text-caption">
+          <table className="w-full min-w-[720px] text-caption">
             <thead>
               <tr className="border-b border-(--color-border-subtle) bg-(--color-surface-dim)">
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Patient</th>

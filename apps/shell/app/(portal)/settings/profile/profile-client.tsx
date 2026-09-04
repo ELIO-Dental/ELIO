@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@elio/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, toast } from "@elio/ui";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = React.useState("");
@@ -17,11 +17,15 @@ export function ChangePasswordForm() {
     setSuccess(false);
 
     if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+      const msg = "New password must be at least 8 characters.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+      const msg = "New passwords do not match.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -36,10 +40,14 @@ export function ChangePasswordForm() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       if (data?.error?.code === "WRONG_PASSWORD") {
-        setError("Your current password is incorrect.");
+        const msg = "Your current password is incorrect.";
+        setError(msg);
+        toast.error(msg);
         return;
       }
-      setError("Could not update password. Please try again.");
+      const msg = "Could not update password. Please try again.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -47,6 +55,7 @@ export function ChangePasswordForm() {
     setNewPassword("");
     setConfirmPassword("");
     setSuccess(true);
+    toast.success("Your password has been updated.");
   }
 
   return (

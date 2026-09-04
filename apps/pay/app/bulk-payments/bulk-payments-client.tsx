@@ -21,6 +21,7 @@ import {
   Skeleton,
   TableRefreshButton,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { Building2, Check, Download, Pencil, Plus, Trash2, X } from "lucide-react";
 import { aggregateStarlingPayments, type UnpaidBillRow } from "@/lib/bulk-payment";
@@ -61,6 +62,7 @@ export function BulkPaymentsClient() {
   const [savingEntity, setSavingEntity] = React.useState(false);
   const [addingEntity, setAddingEntity] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<{ type: "lab" | "supplier"; id: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const hasLoadedOnce = React.useRef(false);
 
@@ -146,7 +148,6 @@ export function BulkPaymentsClient() {
   }
 
   async function deleteEntity(type: "lab" | "supplier", id: string) {
-    if (!confirm(`Delete this ${type}?`)) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/pay/api/saved-entities?type=${type}&id=${id}`, { method: "DELETE" });
@@ -376,7 +377,7 @@ export function BulkPaymentsClient() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => deleteEntity(type, entity.id)}
+                            onClick={() => setDeleteTarget({ type, id: entity.id })}
                             loading={deletingId === entity.id}
                             aria-label="Delete"
                           >
@@ -475,6 +476,22 @@ export function BulkPaymentsClient() {
           {renderUnpaidTable("supplier", unpaidSupplierInvoices, selectedSupplier)}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title={`Delete this ${deleteTarget?.type ?? "entity"}?`}
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteEntity(deleteTarget.type, deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

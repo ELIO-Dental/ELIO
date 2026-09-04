@@ -29,6 +29,7 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  toast,
 } from "@elio/ui";
 import { Users } from "lucide-react";
 
@@ -134,7 +135,7 @@ export function TeamClient({
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<Role>("STAFF");
   const [inviting, setInviting] = React.useState(false);
-  const [inviteMsg, setInviteMsg] = React.useState<string | null>(null);
+  const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
   const [mfaToggle, setMfaToggle] = React.useState(initialRequireMfaForAllStaff);
   const [mfaPending, setMfaPending] = React.useState(false);
@@ -169,7 +170,6 @@ export function TeamClient({
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviting(true);
-    setInviteMsg(null);
     try {
       const res = await fetch("/api/team/users", {
         method: "POST",
@@ -178,14 +178,18 @@ export function TeamClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setInviteMsg(data?.error?.code === "EMAIL_IN_USE" ? "That email is already in another practice." : "Could not send invite.");
+        toast.error(
+          data?.error?.code === "EMAIL_IN_USE"
+            ? "That email is already in another practice."
+            : "Could not send invite."
+        );
         return;
       }
-      setInviteMsg(`Invite sent to ${inviteEmail}.`);
+      toast.success(`Invite sent to ${inviteEmail}.`);
       setInviteEmail("");
       refetch();
     } catch {
-      setInviteMsg("Could not send invite.");
+      toast.error("Could not send invite.");
     } finally {
       setInviting(false);
     }
@@ -193,14 +197,33 @@ export function TeamClient({
 
   async function updateUser(id: string, patch: { role?: Role; active?: boolean }) {
     const prev = users;
+    setUpdatingId(id);
     setUsers((u) => u?.map((x) => (x.id === id ? { ...x, ...patch } : x)) ?? u);
-    const res = await fetch(`/api/team/users/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) {
-      setUsers(prev); // roll back on failure
+    try {
+      const res = await fetch(`/api/team/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        setUsers(prev);
+        toast.error(patch.active === false ? "Could not deactivate user." : patch.active === true ? "Could not reactivate user." : "Could not update role.");
+        return;
+      }
+      toast.success(
+        patch.role
+          ? "Role updated."
+          : patch.active === false
+            ? "User deactivated."
+            : patch.active === true
+              ? "User reactivated."
+              : "User updated."
+      );
+    } catch {
+      setUsers(prev);
+      toast.error("Could not update user.");
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -259,7 +282,6 @@ export function TeamClient({
                 Send invite
               </Button>
             </form>
-            {inviteMsg && <p className="mt-2 text-body-sm text-(--color-text-secondary)">{inviteMsg}</p>}
           </CardContent>
         </Card>
       )}
@@ -311,7 +333,14 @@ export function TeamClient({
           ) : !users || users.length === 0 ? (
             <EmptyState icon={Users} title="No users yet" description="Invite your first team member above." />
           ) : (
-            <TeamUsersTable users={users} canManage={canManage} currentUserId={currentUserId} onUpdate={updateUser} onRefresh={refetch} />
+            <TeamUsersTable
+              users={users}
+              canManage={canManage}
+              currentUserId={currentUserId}
+              updatingId={updatingId}
+              onUpdate={updateUser}
+              onRefresh={refetch}
+            />
           )}
         </CardContent>
       </Card>
@@ -323,12 +352,14 @@ function TeamUsersTable({
   users,
   canManage,
   currentUserId,
+  updatingId,
   onUpdate,
   onRefresh,
 }: {
   users: TeamUser[];
   canManage: boolean;
   currentUserId: string;
+  updatingId: string | null;
   onUpdate: (id: string, patch: { role?: Role; active?: boolean }) => void;
   onRefresh: () => void;
 }) {
@@ -359,7 +390,11 @@ function TeamUsersTable({
               <TableCell>{u.email}</TableCell>
               <TableCell>
                 {canManage ? (
-                  <Select value={u.role} onValueChange={(v) => onUpdate(u.id, { role: v as Role })}>
+                  <Select
+                    value={u.role}
+                    onValueChange={(v) => onUpdate(u.id, { role: v as Role })}
+                    disabled={updatingId === u.id}
+                  >
                     <SelectTrigger className="h-8 w-32" data-testid={`role-select-${u.email}`}>
                       <SelectValue />
                     </SelectTrigger>
@@ -387,6 +422,7 @@ function TeamUsersTable({
                     variant="secondary"
                     size="sm"
                     disabled={u.id === currentUserId}
+                    loading={updatingId === u.id}
                     onClick={() => onUpdate(u.id, { active: !u.active })}
                     data-testid={`deactivate-${u.email}`}
                   >

@@ -27,6 +27,7 @@ import {
   Textarea,
   formatMoneyGBP,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 
 type PlanInclusion = {
@@ -135,6 +136,7 @@ export function PlansManager({
   const [effectiveDate, setEffectiveDate] = React.useState("");
   const [priceProcessing, setPriceProcessing] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<PlanRow | null>(null);
   const [priceResult, setPriceResult] = React.useState<{
     message: string;
     totalPatients: number;
@@ -200,7 +202,6 @@ export function PlansManager({
 
   async function handleDelete(plan: PlanRow) {
     if (plan.memberCount > 0) return;
-    if (!confirm(`Delete plan "${plan.name}"? This cannot be undone.`)) return;
     setDeletingId(plan.id);
     try {
       const res = await fetch(`/plans/api/plans/${plan.id}`, { method: "DELETE" });
@@ -345,7 +346,7 @@ export function PlansManager({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => void handleDelete(plan)}
+                          onClick={() => setDeleteTarget(plan)}
                           disabled={plan.memberCount > 0}
                           loading={deletingId === plan.id}
                           aria-label={`Delete ${plan.name}`}
@@ -751,6 +752,22 @@ export function PlansManager({
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title={`Delete plan "${deleteTarget?.name ?? ""}"?`}
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
     </>
   );
 }

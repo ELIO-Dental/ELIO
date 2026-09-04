@@ -26,6 +26,7 @@ import {
   SelectValue,
   Textarea,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { slugifyTitle } from "@/lib/guides-utils";
 
@@ -68,6 +69,7 @@ export function GuideManager({
   const [form, setForm] = React.useState(EMPTY_FORM);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [deleteTargetId, setDeleteTargetId] = React.useState<string | null>(null);
   const [seeding, setSeeding] = React.useState(false);
 
   const selected = articles.find((a) => a.id === selectedId) ?? null;
@@ -130,7 +132,6 @@ export function GuideManager({
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this guide article?")) return;
     setDeleting(true);
     try {
       const res = await fetch(`/plans/api/guides/${id}`, { method: "DELETE" });
@@ -236,7 +237,7 @@ export function GuideManager({
                         variant="ghost"
                         size="sm"
                         loading={deleting}
-                        onClick={() => void handleDelete(selected.id)}
+                        onClick={() => setDeleteTargetId(selected.id)}
                       >
                         <Trash2 className="size-4 text-red-600" />
                       </Button>
@@ -305,6 +306,22 @@ export function GuideManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+        title="Delete this guide article?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteTargetId) return;
+          await handleDelete(deleteTargetId);
+          setDeleteTargetId(null);
+        }}
+      />
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Badge } from "@elio/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Badge, toast } from "@elio/ui";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = React.useState("");
@@ -18,11 +18,15 @@ export function ChangePasswordForm() {
     setSuccess(false);
 
     if (newPassword.length < 10) {
-      setError("New password must be at least 10 characters.");
+      const msg = "New password must be at least 10 characters.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+      const msg = "New passwords do not match.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -37,10 +41,14 @@ export function ChangePasswordForm() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       if (data?.error?.code === "WRONG_PASSWORD") {
-        setError("Your current password is incorrect.");
+        const msg = "Your current password is incorrect.";
+        setError(msg);
+        toast.error(msg);
         return;
       }
-      setError("Could not update password. Please try again.");
+      const msg = "Could not update password. Please try again.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -48,6 +56,7 @@ export function ChangePasswordForm() {
     setNewPassword("");
     setConfirmPassword("");
     setSuccess(true);
+    toast.success("Password updated");
   }
 
   return (
@@ -123,7 +132,9 @@ export function MfaEnrollmentCard({ mfaEnabled, email }: { mfaEnabled: boolean; 
     const res = await fetch("/api/settings/mfa/begin", { method: "POST" });
     setLoading(false);
     if (!res.ok) {
-      setError("Could not start authenticator setup. Try again.");
+      const msg = "Could not start authenticator setup. Try again.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     const data = await res.json();
@@ -144,13 +155,16 @@ export function MfaEnrollmentCard({ mfaEnabled, email }: { mfaEnabled: boolean; 
     });
     setLoading(false);
     if (!res.ok) {
-      setError("Invalid code — check your authenticator app and try again.");
+      const msg = "Invalid code — check your authenticator app and try again.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setSuccess(true);
     setSecret(null);
     setOtpauthUrl(null);
     setCode("");
+    toast.success("Authenticator enrolled");
     router.refresh();
   }
 

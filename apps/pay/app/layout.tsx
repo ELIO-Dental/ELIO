@@ -4,6 +4,7 @@ import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, Them
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth, isModuleLicensed } from "@elio/auth";
 import { ShellLayout } from "@/components/shell-layout";
+import { getPaySettings } from "@/lib/pay-settings-service";
 import "./globals.css";
 
 const pwa = getPwaConfig("pay");
@@ -48,6 +49,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     await redirectToLauncher("unlicensed=pay");
   }
 
+  const paySettings = await getPaySettings(session.practiceId);
+  const brandLogoUrl = paySettings.clinic_logo_url?.trim() || undefined;
+
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
@@ -55,7 +59,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ThemeProvider>
         <PwaProvider config={pwa}>
         <NavigationProgress />
-        <ShellLayout userEmail={session?.user?.email ?? undefined} isOwner={session?.role === "OWNER"}>
+        <ShellLayout
+          userEmail={session?.user?.email ?? undefined}
+          isOwner={session?.role === "OWNER"}
+          brandLogoUrl={brandLogoUrl}
+        >
           <PageTransition>{children}</PageTransition>
         </ShellLayout>
         <Toaster />

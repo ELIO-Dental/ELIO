@@ -232,9 +232,21 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
                 if (!file) return;
                 const form = new FormData();
                 form.append("file", file);
-                const res = await fetch("/pay/api/settings/logo", { method: "POST", body: form });
-                const data = await res.json();
-                if (res.ok && data.url) update("clinic_logo_url", data.url);
+                try {
+                  const res = await fetch("/pay/api/settings/logo", { method: "POST", body: form });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok || !data.url) {
+                    toast.error(typeof data.error === "string" ? data.error : "Logo upload failed");
+                    return;
+                  }
+                  update("clinic_logo_url", data.url);
+                  toast.success("Logo uploaded");
+                  router.refresh();
+                } catch {
+                  toast.error("Logo upload failed");
+                } finally {
+                  e.target.value = "";
+                }
               }}
             />
             <p className="mt-1 text-xs text-(--color-text-secondary)">PNG, JPG, SVG, or WebP. Max 2MB.</p>

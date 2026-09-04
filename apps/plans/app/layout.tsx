@@ -65,7 +65,8 @@ export default async function RootLayout({
         <ShellLayout
           userEmail={session?.user?.email ?? undefined}
           canEditSettings={can({ role: session.role as Role }, "plans:edit-settings")}
-          brandTitle={branding.brandName || "ELIO PLANS"}
+          brandTitle={branding.brandName?.trim() || "ELIO PLANS"}
+          brandLogoUrl={branding.logoUrl?.trim() || undefined}
           faviconUrl={branding.faviconUrl || undefined}
         >
           <PageTransition>{children}</PageTransition>

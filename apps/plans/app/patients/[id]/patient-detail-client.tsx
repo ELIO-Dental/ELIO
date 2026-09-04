@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -25,6 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -128,6 +130,14 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
   terms_signed: "T&C signed",
 };
 
+type AppointmentRow = {
+  id: string;
+  startsAt: string | null;
+  reason: string | null;
+  state: string | null;
+  durationMinutes?: number | null;
+};
+
 export function PatientDetailClient({
   detail,
   canInvite,
@@ -149,13 +159,9 @@ export function PatientDetailClient({
   const [redeemOpen, setRedeemOpen] = React.useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = React.useState("");
   const [redeeming, setRedeeming] = React.useState(false);
-  const [appointments, setAppointments] = React.useState<Array<{
-    id: string;
-    startsAt: string | null;
-    reason: string | null;
-    state: string | null;
-    durationMinutes?: number | null;
-  }> | null>(null);
+  const [appointments, setAppointments] = React.useState<AppointmentRow[] | null>(null);
+  const [appointmentsLoading, setAppointmentsLoading] = React.useState(false);
+  const [appointmentsError, setAppointmentsError] = React.useState<string | null>(null);
   const [paymentTrail, setPaymentTrail] = React.useState<{
     trail: Array<{
       id: string;
@@ -201,25 +207,38 @@ export function PatientDetailClient({
   const activeMandate = detail.mandates.find((m) => m.status === "ACTIVE") ?? detail.mandates[0];
   const activeEnrolment = detail.patientPlans.find((pp) => pp.status === "ACTIVE") ?? detail.patientPlans[0];
 
-  async function loadAppointments() {
-    if (appointments !== null) return appointments;
-    const res = await fetch(`/plans/api/patients/${detail.id}/appointments`);
-    const data = await res.json().catch(() => ({}));
-    const list = (data.appointments ?? []) as NonNullable<typeof appointments>;
-    setAppointments(list);
-    return list;
+  async function loadAppointments(force = false) {
+    if (!force && appointments !== null && !appointmentsError) return appointments;
+    setAppointmentsLoading(true);
+    setAppointmentsError(null);
+    try {
+      const res = await fetch(`/plans/api/patients/${detail.id}/appointments`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to load appointments");
+      }
+      const list = (data.appointments ?? []) as AppointmentRow[];
+      setAppointments(list);
+      return list;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load appointments";
+      setAppointmentsError(message);
+      return null;
+    } finally {
+      setAppointmentsLoading(false);
+    }
   }
 
   async function openRedeemDialog() {
     setRedeemOpen(true);
     setSelectedAppointmentId("");
-    await loadAppointments();
+    await loadAppointments(appointmentsError != null);
   }
 
   async function handleCreateRedeem() {
     if (!selectedAppointmentId || !activeEnrolment) return;
-    const apptList = appointments ?? (await loadAppointments());
-    const appt = apptList?.find((a) => a.id === selectedAppointmentId);
+    const apptList = appointments ?? (await loadAppointments()) ?? [];
+    const appt = apptList.find((a) => a.id === selectedAppointmentId);
     if (!appt) return;
 
     const { itemType, itemName } = itemTypeFromAppointmentReason(appt.reason);
@@ -370,11 +389,8 @@ export function PatientDetailClient({
   }
 
   React.useEffect(() => {
-    if (tab === "Appointments" && appointments === null) {
-      void fetch(`/plans/api/patients/${detail.id}/appointments`)
-        .then((r) => r.json())
-        .then((data) => setAppointments(data.appointments ?? []))
-        .catch(() => setAppointments([]));
+    if (tab === "Appointments" && appointments === null && !appointmentsLoading && !appointmentsError) {
+      void loadAppointments();
     }
     if (tab === "Payments" && paymentTrail === null) {
       void fetch(`/plans/api/patients/${detail.id}/payment-trail`)
@@ -404,7 +420,7 @@ export function PatientDetailClient({
         )
         .catch(() => setCorrespondence({ emails: [], documentAcceptances: [] }));
     }
-  }, [tab, detail.id, appointments, paymentTrail, notes, correspondence]);
+  }, [tab, detail.id, appointments, appointmentsLoading, appointmentsError, paymentTrail, notes, correspondence]);
 
   return (
     <div className="space-y-6">
@@ -503,17 +519,19 @@ export function PatientDetailClient({
       </div>
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-hidden">
           <DialogHeader>
             <DialogTitle>Cancel membership</DialogTitle>
             <DialogDescription>
               This will mark the patient as cancelled in ELIO. You can optionally cancel their Direct Debit in GoCardless too.
             </DialogDescription>
           </DialogHeader>
-          <label className="flex items-center gap-2 text-body-sm">
-            <input type="checkbox" checked={cancelDd} onChange={(e) => setCancelDd(e.target.checked)} />
-            Cancel Direct Debit in GoCardless
-          </label>
+          <DialogBody>
+            <label className="flex items-center gap-2 text-body-sm">
+              <input type="checkbox" checked={cancelDd} onChange={(e) => setCancelDd(e.target.checked)} />
+              Cancel Direct Debit in GoCardless
+            </label>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setCancelOpen(false)}>
               Keep membership
@@ -533,15 +551,15 @@ export function PatientDetailClient({
       </Dialog>
 
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
-        <DialogContent>
+        <DialogContent className="overflow-hidden">
           <DialogHeader>
             <DialogTitle>Link GoCardless mandate</DialogTitle>
             <DialogDescription>Paste the mandate ID from GoCardless (starts with MD).</DialogDescription>
           </DialogHeader>
-          <div>
+          <DialogBody>
             <Label htmlFor="mandate-id">Mandate ID</Label>
             <Input id="mandate-id" value={mandateIdInput} onChange={(e) => setMandateIdInput(e.target.value)} placeholder="MD00..." />
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setLinkOpen(false)}>
               Cancel
@@ -564,21 +582,32 @@ export function PatientDetailClient({
           if (!open) setSelectedAppointmentId("");
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg overflow-hidden">
           <DialogHeader>
             <DialogTitle>New redeem</DialogTitle>
             <DialogDescription>Select a completed Dentally appointment to redeem against this plan.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             {!detail.patient.dentallyId ? (
               <p className="rounded-(--radius-lg) border border-(--color-warning)/40 bg-(--color-warning)/10 p-3 text-body-sm text-(--color-text-primary)">
                 This patient is not linked to Dentally. Redeems can only be created from Dentally appointments.
               </p>
-            ) : appointments === null ? (
-              <p className="text-body-sm text-(--color-text-secondary)">Loading appointments…</p>
+            ) : appointmentsLoading || (appointments === null && !appointmentsError) ? (
+              <div className="space-y-2" aria-busy="true" aria-label="Loading appointments">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : appointmentsError ? (
+              <div className="space-y-3 rounded-(--radius-lg) border border-(--color-danger)/30 bg-(--color-danger)/5 p-3">
+                <p className="text-body-sm text-(--color-danger)">{appointmentsError}</p>
+                <Button variant="secondary" size="sm" onClick={() => void loadAppointments(true)}>
+                  Retry
+                </Button>
+              </div>
             ) : redeemableAppointments.length === 0 ? (
               <p className="text-body-sm text-(--color-text-secondary)">
-                No completed appointments found in Dentally. Record and complete the appointment in Dentally first.
+                No completed appointments found in Dentally. Record and complete the appointment in Dentally first, then sync will show it here.
               </p>
             ) : (
               <>
@@ -618,7 +647,7 @@ export function PatientDetailClient({
                 })()}
               </>
             )}
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setRedeemOpen(false)}>
               Cancel
@@ -783,10 +812,26 @@ export function PatientDetailClient({
             <CardTitle>Appointments (Dentally)</CardTitle>
           </CardHeader>
           <CardContent>
-            {appointments === null ? (
-              <p className="text-body-sm text-(--color-text-secondary)">Loading appointments…</p>
-            ) : appointments.length === 0 ? (
-              <EmptyState title="No appointments" description="No upcoming or past appointments found in Dentally." className="py-8" />
+            {appointmentsLoading || (appointments === null && !appointmentsError) ? (
+              <div className="space-y-3" aria-busy="true" aria-label="Loading appointments">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-3/4" />
+              </div>
+            ) : appointmentsError ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <p className="text-body-sm text-(--color-danger)">{appointmentsError}</p>
+                <Button variant="secondary" size="sm" onClick={() => void loadAppointments(true)}>
+                  Retry
+                </Button>
+              </div>
+            ) : appointments && appointments.length === 0 ? (
+              <EmptyState
+                title="No appointments"
+                description="No upcoming or past appointments found. Appointments sync from Dentally once this patient is linked and has bookings."
+                className="py-8"
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -798,7 +843,7 @@ export function PatientDetailClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {appointments.map((a) => (
+                  {(appointments ?? []).map((a) => (
                     <TableRow key={a.id}>
                       <TableCell>{formatWhen(a.startsAt)}</TableCell>
                       <TableCell>{a.durationMinutes ? `${a.durationMinutes} min` : "—"}</TableCell>

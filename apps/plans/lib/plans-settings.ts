@@ -125,14 +125,14 @@ export async function setPlanSettings(practiceId: string, updates: Record<string
 export async function getBrandingSettings(practiceId: string) {
   const settings = await getAllPlanSettings(practiceId);
   return {
-    brandName: settings[SettingKeys.BRAND_NAME] || "Aura Plans",
+    brandName: settings[SettingKeys.BRAND_NAME] || "ELIO PLANS",
     tagline: settings[SettingKeys.BRAND_TAGLINE] || "Your patients, your plan",
     logoUrl: settings[SettingKeys.BRAND_LOGO_URL] || "",
     faviconUrl: settings[SettingKeys.BRAND_FAVICON_URL] || "",
     primaryColor: settings[SettingKeys.BRAND_PRIMARY_COLOR] || "#0891b2",
     secondaryColor: settings[SettingKeys.BRAND_SECONDARY_COLOR] || "#8b5cf6",
     accentColor: settings[SettingKeys.BRAND_ACCENT_COLOR] || "#06b6d4",
-    emailSenderName: settings[SettingKeys.BRAND_EMAIL_SENDER_NAME] || "Aura Plans",
+    emailSenderName: settings[SettingKeys.BRAND_EMAIL_SENDER_NAME] || "ELIO Plans",
     customDomain: settings[SettingKeys.BRAND_CUSTOM_DOMAIN] || "",
   };
 }

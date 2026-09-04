@@ -22,6 +22,7 @@ import {
   TablePagination,
   useClientTablePagination,
   Skeleton,
+  toast,
 } from "@elio/ui";
 
 interface ReconMismatch {
@@ -71,12 +72,20 @@ export function ReconciliationRunner({ defaultPeriod }: { defaultPeriod: string 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Reconciliation failed");
+        const message = data.error ?? "Reconciliation failed";
+        setError(message);
+        toast.error(message);
         return;
       }
-      setResult(data as ReconResult);
+      const next = data as ReconResult;
+      setResult(next);
+      toast.success("Reconciliation complete", {
+        description: `${next.counts.mismatches} mismatch${next.counts.mismatches === 1 ? "" : "es"}`,
+      });
     } catch {
-      setError("Reconciliation failed — network error");
+      const message = "Reconciliation failed — network error";
+      setError(message);
+      toast.error(message);
     } finally {
       setRunning(false);
     }

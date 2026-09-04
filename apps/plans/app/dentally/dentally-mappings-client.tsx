@@ -36,6 +36,7 @@ import {
   useClientTablePagination,
   formatMoneyGBP,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { Link2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
@@ -82,6 +83,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = React.useState<string | null>(null);
   const [reassigning, setReassigning] = React.useState(false);
 
   const [dentallyPlanName, setDentallyPlanName] = React.useState("");
@@ -145,7 +147,6 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this mapping?")) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/plans/api/dentally/mappings/${id}`, { method: "DELETE" });
@@ -317,11 +318,27 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
               mappings={mappings}
               canManage={canManage}
               deletingId={deletingId}
-              onDelete={handleDelete}
+              onDelete={(id) => setDeleteTargetId(id)}
             />
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+        title="Delete this mapping?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteTargetId) return;
+          await handleDelete(deleteTargetId);
+          setDeleteTargetId(null);
+        }}
+      />
     </div>
   );
 }
