@@ -15,6 +15,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  toast,
 } from "@elio/ui";
 
 interface ConsultOption {
@@ -28,32 +29,37 @@ export function ScheduleReminderForm({ consults }: { consults: ConsultOption[] }
   const [dueAt, setDueAt] = React.useState("");
   const [channel, setChannel] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!consultId || !dueAt) {
-      setError("Choose a consult and a due date");
+      toast.error("Choose a consult and a due date");
       return;
     }
     setSubmitting(true);
-    setError(null);
-    // basePath is "/flow" — fetch() is never auto-prefixed by Next.
-    const res = await fetch("/flow/api/reminders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ consultId, dueAt, channel: channel.trim() || undefined }),
-    });
-    setSubmitting(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to schedule reminder");
-      return;
+    try {
+      // basePath is "/flow" — fetch() is never auto-prefixed by Next.
+      const res = await fetch("/flow/api/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consultId, dueAt, channel: channel.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to schedule reminder");
+      }
+      setConsultId("");
+      setDueAt("");
+      setChannel("");
+      toast.success("Reminder scheduled");
+      router.refresh();
+    } catch (err) {
+      toast.error("Couldn't schedule reminder", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
     }
-    setConsultId("");
-    setDueAt("");
-    setChannel("");
-    router.refresh();
   }
 
   if (consults.length === 0) {
@@ -100,7 +106,6 @@ export function ScheduleReminderForm({ consults }: { consults: ConsultOption[] }
             <Input id="channel" placeholder="e.g. call, SMS, email" value={channel} onChange={(e) => setChannel(e.target.value)} />
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Schedule reminder
             </Button>

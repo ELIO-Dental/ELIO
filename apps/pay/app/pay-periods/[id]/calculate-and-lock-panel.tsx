@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Label } from "@elio/ui";
+import { Button, Input, Label, toast } from "@elio/ui";
 import type { Dentist } from "@elio/db";
 
 /**
@@ -43,9 +43,12 @@ export function CalculateAndLockPanel({
     setRunning(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Calculation failed");
+      const msg = data.error ?? "Calculation failed";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success("Calculation complete");
     router.refresh();
   }
 

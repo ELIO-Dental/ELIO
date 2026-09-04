@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Input, Label, Button, toast, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, TablePanel, TableToolbar, Skeleton } from "@elio/ui";
+import { Input, Label, Button, toast, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState, TablePanel, TableToolbar } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
 
 export interface ConversionReport {
@@ -85,63 +85,52 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
         </Button>
       </div>
 
-      {loading ? (
-        <>
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-(--radius-lg)" />
-            ))}
-          </div>
-          <Skeleton className="mt-8 h-64 w-full rounded-(--radius-lg)" />
-        </>
-      ) : (
-        <>
-      <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <FlowStatCard label="Total consultations" value={report.totalConsultations} />
-        <FlowStatCard label="Attended" value={report.attended} />
-        <FlowStatCard label="Converted" value={report.converted} />
-        <FlowStatCard label="Conversion rate" value={report.conversionRate} suffix="%" />
-        <FlowStatCard label="Stuck (thinking)" value={report.stuck} />
-        <FlowStatCard label="Declined" value={report.declined} />
-        <FlowStatCard label="Avg plan value" value={report.averagePlanValuePence} money />
-        <FlowStatCard
-          label="Avg days to convert"
-          value={report.avgDaysToConvert ?? 0}
-          suffix={report.avgDaysToConvert === null ? "" : "d"}
-        />
-      </div>
+      <div className={`relative mt-8${loading ? " pointer-events-none opacity-60" : ""}`}>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <FlowStatCard label="Total consultations" value={report.totalConsultations} />
+          <FlowStatCard label="Attended" value={report.attended} />
+          <FlowStatCard label="Converted" value={report.converted} />
+          <FlowStatCard label="Conversion rate" value={report.conversionRate} suffix="%" />
+          <FlowStatCard label="Stuck (thinking)" value={report.stuck} />
+          <FlowStatCard label="Declined" value={report.declined} />
+          <FlowStatCard label="Avg plan value" value={report.averagePlanValuePence} money />
+          <FlowStatCard
+            label="Avg days to convert"
+            value={report.avgDaysToConvert ?? 0}
+            suffix={report.avgDaysToConvert === null ? "" : "d"}
+          />
+        </div>
 
-      <TablePanel
-        className="mt-8"
-        toolbar={<TableToolbar title="By practitioner" onRefresh={refreshReport} />}
-      >
-        {report.byDentist.length === 0 ? (
-          <EmptyState title="No consults recorded yet" description="Practitioner breakdown will appear once consults are logged." className="py-12" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Practitioner</TableHead>
-                <TableHead>Consultations</TableHead>
-                <TableHead>Converted</TableHead>
-                <TableHead>Conversion rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.byDentist.map((row) => (
-                <TableRow key={row.dentistId ?? "unassigned"}>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell className="text-(--color-text-secondary)">{row.totalConsultations}</TableCell>
-                  <TableCell className="text-(--color-text-secondary)">{row.converted}</TableCell>
-                  <TableCell className="text-(--color-text-secondary)">{row.conversionRate}%</TableCell>
+        <TablePanel
+          className="mt-8"
+          toolbar={<TableToolbar title="By practitioner" onRefresh={refreshReport} />}
+        >
+          {report.byDentist.length === 0 ? (
+            <EmptyState title="No consults recorded yet" description="Practitioner breakdown will appear once consults are logged." className="py-12" />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Practitioner</TableHead>
+                  <TableHead>Consultations</TableHead>
+                  <TableHead>Converted</TableHead>
+                  <TableHead>Conversion rate</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </TablePanel>
-        </>
-      )}
+              </TableHeader>
+              <TableBody>
+                {report.byDentist.map((row) => (
+                  <TableRow key={row.dentistId ?? "unassigned"}>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell className="text-(--color-text-secondary)">{row.totalConsultations}</TableCell>
+                    <TableCell className="text-(--color-text-secondary)">{row.converted}</TableCell>
+                    <TableCell className="text-(--color-text-secondary)">{row.conversionRate}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TablePanel>
+      </div>
     </div>
   );
 }

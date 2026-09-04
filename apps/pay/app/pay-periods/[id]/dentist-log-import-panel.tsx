@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileSpreadsheet, Loader2, Upload } from "lucide-react";
-import { formatMoneyGBPOrDash } from "@elio/ui";
+import { formatMoneyGBPOrDash, toast } from "@elio/ui";
 import {
   formatDentistLogImportSummary,
   parseDentistLogJson,
@@ -59,13 +59,17 @@ export function DentistLogImportPanel({
         summary?: DentistLogCompareSummary;
       };
       if (!res.ok) throw new Error(data.error ?? "Import failed");
-      setMessage(data.message ?? "Log imported");
+      const successMsg = data.message ?? "Log imported";
+      setMessage(successMsg);
+      toast.success(successMsg);
       setSummary(data.summary ?? null);
       setShowPaste(false);
       setCsv("");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      const msg = err instanceof Error ? err.message : "Import failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPending(false);
     }
@@ -77,7 +81,9 @@ export function DentistLogImportPanel({
   };
 
   const onGoogleSheets = () => {
-    setError("Google Sheets import requires GOOGLE_SERVICE_ACCOUNT_JSON — use CSV upload or paste for now.");
+    const msg = "Google Sheets import requires GOOGLE_SERVICE_ACCOUNT_JSON — use CSV upload or paste for now.";
+    setError(msg);
+    toast.error(msg);
   };
 
   return (

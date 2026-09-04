@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
+import { Button, Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Card, CardContent, CardHeader, CardTitle, toast } from "@elio/ui";
 
 export function NewDentistForm() {
   const router = useRouter();
@@ -36,9 +36,12 @@ export function NewDentistForm() {
     setSubmitting(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to create dentist");
+      const msg = data.error ?? "Failed to create dentist";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success("Dentist added");
     (e.target as HTMLFormElement).reset();
     router.refresh();
   }

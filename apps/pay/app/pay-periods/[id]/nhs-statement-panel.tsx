@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CheckCircle2, FileText, Loader2, Plus, X } from "lucide-react";
-import { formatMoneyGBPOrDash } from "@elio/ui";
+import { formatMoneyGBPOrDash, toast } from "@elio/ui";
 
 export interface NhsDentistOption {
   id: string;
@@ -74,7 +74,9 @@ export function NhsStatementPanel({
       };
       if (!res.ok) throw new Error(data.error ?? "NHS statement processing failed");
 
-      setMessage(data.message ?? "NHS statement applied");
+      const successMsg = data.message ?? "NHS statement applied";
+      setMessage(successMsg);
+      toast.success(successMsg);
       setUpdates(data.updates ?? []);
       if (data.period?.start) setPeriodStart(data.period.start);
       if (data.period?.end) setPeriodEnd(data.period.end);
@@ -82,7 +84,9 @@ export function NhsStatementPanel({
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "NHS statement processing failed");
+      const msg = err instanceof Error ? err.message : "NHS statement processing failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPending(false);
     }

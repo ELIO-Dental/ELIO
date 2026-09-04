@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
-import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination } from "@elio/ui";
+import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination, toast } from "@elio/ui";
 import { privatePatientsFooterTotals } from "@/lib/private-patients-table-format";
 
 export interface PrivatePatientRow {
@@ -71,16 +71,19 @@ export function PrivatePatientsTable({
   }, [router]);
 
   const mutate = useCallback(
-    async (lineId: string, fn: () => Promise<Response>) => {
+    async (lineId: string, fn: () => Promise<Response>, successMsg?: string) => {
       setPendingId(lineId);
       setError(null);
       try {
         const res = await fn();
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         if (!res.ok) throw new Error(data.error ?? "Request failed");
+        if (successMsg) toast.success(successMsg);
         refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Request failed");
+        const msg = err instanceof Error ? err.message : "Request failed";
+        setError(msg);
+        toast.error(msg);
       } finally {
         setPendingId(null);
       }
@@ -89,7 +92,7 @@ export function PrivatePatientsTable({
   );
 
   const updateLine = useCallback(
-    (lineId: string, updates: Record<string, unknown>, options?: { optimistic?: boolean }) => {
+    (lineId: string, updates: Record<string, unknown>, options?: { optimistic?: boolean; successMsg?: string }) => {
       if (options?.optimistic !== false) {
         setLines((prev) =>
           prev.map((line) => {
@@ -125,37 +128,47 @@ export function PrivatePatientsTable({
         );
       }
 
-      void mutate(lineId, () =>
-        fetch(apiBase, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payslipEntryId, lineItemId: lineId, updates }),
-        })
+      void mutate(
+        lineId,
+        () =>
+          fetch(apiBase, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payslipEntryId, lineItemId: lineId, updates }),
+          }),
+        options?.successMsg
       );
     },
     [apiBase, mutate, payslipEntryId]
   );
 
   const addPatient = () => {
-    void mutate("new", async () => {
-      const res = await fetch(apiBase, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          payslipEntryId,
-          patient: { name: "", date: new Date().toISOString().slice(0, 10), amount: 0, status: "paid", finance: false },
-        }),
-      });
-      return res;
-    });
+    void mutate(
+      "new",
+      async () => {
+        const res = await fetch(apiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payslipEntryId,
+            patient: { name: "", date: new Date().toISOString().slice(0, 10), amount: 0, status: "paid", finance: false },
+          }),
+        });
+        return res;
+      },
+      "Patient added"
+    );
   };
 
   const deleteLine = (lineId: string) => {
     setLines((prev) => prev.filter((l) => l.id !== lineId));
-    void mutate(lineId, () =>
-      fetch(`${apiBase}?payslipEntryId=${encodeURIComponent(payslipEntryId)}&lineItemId=${encodeURIComponent(lineId)}`, {
-        method: "DELETE",
-      })
+    void mutate(
+      lineId,
+      () =>
+        fetch(`${apiBase}?payslipEntryId=${encodeURIComponent(payslipEntryId)}&lineItemId=${encodeURIComponent(lineId)}`, {
+          method: "DELETE",
+        }),
+      "Patient deleted"
     );
   };
 
@@ -302,7 +315,7 @@ export function PrivatePatientsTable({
                           className="rounded border-0 bg-(--color-surface-dim) px-1 py-0.5 text-[10px] font-medium outline-none"
                           value={line.paymentStatus ?? "paid"}
                           disabled={busy}
-                          onChange={(e) => updateLine(line.id, { status: e.target.value })}
+                          onChange={(e) => updateLine(line.id, { status: e.target.value }, { successMsg: "Patient updated" })}
                         >
                           <option value="paid">PAID</option>
                           <option value="partial">PARTIAL</option>
@@ -323,7 +336,7 @@ export function PrivatePatientsTable({
                           className="size-4 rounded"
                           checked={line.isFinance}
                           disabled={busy}
-                          onChange={(e) => updateLine(line.id, { finance: e.target.checked })}
+                          onChange={(e) => updateLine(line.id, { finance: e.target.checked }, { successMsg: "Patient updated" })}
                         />
                       )}
                     </td>
@@ -364,7 +377,7 @@ export function PrivatePatientsTable({
                               title="Mark as resolved"
                               className="text-(--color-success)"
                               disabled={busy}
-                              onClick={() => updateLine(line.id, { resolved: true })}
+                              onClick={() => updateLine(line.id, { resolved: true }, { successMsg: "Marked resolved" })}
                             >
                               <CheckCircle2 className="size-3" />
                             </button>

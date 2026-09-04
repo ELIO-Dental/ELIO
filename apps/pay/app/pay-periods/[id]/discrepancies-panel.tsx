@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { formatMoneyGBPOrDash } from "@elio/ui";
+import { formatMoneyGBPOrDash, toast } from "@elio/ui";
 import {
   discrepancyAmountForBreakdown,
   discrepancyTypeBadgeClass,
@@ -53,9 +53,12 @@ export function DiscrepanciesPanel({
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         if (!res.ok) throw new Error(data.error ?? "Failed to save discrepancies");
         setDiscrepancies(next);
+        toast.success("Discrepancies saved");
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save discrepancies");
+        const msg = err instanceof Error ? err.message : "Failed to save discrepancies";
+        setError(msg);
+        toast.error(msg);
       } finally {
         setPending(false);
       }
@@ -97,9 +100,12 @@ export function DiscrepanciesPanel({
       if (!entryRes.ok) throw new Error(entryData.error ?? "Failed to resolve discrepancy");
 
       setDiscrepancies(next);
+      toast.success("Added to breakdown");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add to breakdown");
+      const msg = err instanceof Error ? err.message : "Failed to add to breakdown";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPending(false);
     }

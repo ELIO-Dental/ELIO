@@ -30,6 +30,7 @@ export function RemindersList({ initialRows }: { initialRows: ReminderRow[] }) {
       // basePath is "/flow" — fetch() is never auto-prefixed by Next.
       const res = await fetch(`/flow/api/reminders/${id}`, { method: "PATCH" });
       if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? "Failed to mark sent");
+      toast.success("Reminder marked sent");
       router.refresh();
     } catch (err) {
       setRows(prevRows);

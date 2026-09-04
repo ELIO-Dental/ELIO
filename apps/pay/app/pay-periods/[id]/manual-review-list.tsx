@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, formatMoneyGBPOrDash } from "@elio/ui";
+import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, formatMoneyGBPOrDash, toast } from "@elio/ui";
 
 export interface ReviewLine {
   id: string;
@@ -40,12 +40,17 @@ export function ManualReviewList({ lines, dentists }: { lines: ReviewLine[]; den
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setErrors((e) => ({ ...e, [lineId]: data.error ?? "Failed to save — please retry." }));
+        const msg = data.error ?? "Failed to save — please retry.";
+        setErrors((e) => ({ ...e, [lineId]: msg }));
+        toast.error(msg);
         return;
       }
+      toast.success("Match confirmed");
       router.refresh();
     } catch {
-      setErrors((e) => ({ ...e, [lineId]: "Network error — please retry." }));
+      const msg = "Network error — please retry.";
+      setErrors((e) => ({ ...e, [lineId]: msg }));
+      toast.error(msg);
     } finally {
       setSubmitting(null);
     }

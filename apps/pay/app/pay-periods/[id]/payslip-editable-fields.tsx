@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { Button, toast } from "@elio/ui";
 import {
   parsePayslipAdjustments,
   parsePayslipLabBills,
@@ -118,9 +119,12 @@ export function PayslipEditableFields({
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Save failed");
       setMessage("Payslip updated");
+      toast.success("Payslip updated");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      const msg = err instanceof Error ? err.message : "Save failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPending(false);
     }
@@ -140,15 +144,10 @@ export function PayslipEditableFields({
             Therapy, superannuation, lab bills, and manual adjustments while the period is in draft
           </p>
         </div>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => void save()}
-          className="flex items-center gap-1.5 rounded-(--radius-md) bg-(--color-brand) px-3 py-1.5 text-caption font-semibold text-white disabled:opacity-50"
-        >
-          {pending ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+        <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
+          <Save className="size-3" />
           Save changes
-        </button>
+        </Button>
       </div>
 
       {error ? <p className="mb-3 text-caption text-(--color-danger)">{error}</p> : null}

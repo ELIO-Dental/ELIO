@@ -81,12 +81,14 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [refreshing, setRefreshing] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [reassigning, setReassigning] = React.useState(false);
 
   const [dentallyPlanName, setDentallyPlanName] = React.useState("");
   const [planModelId, setPlanModelId] = React.useState("");
 
   const load = React.useCallback(async (opts?: { soft?: boolean }) => {
+    // Soft refresh keeps the table mounted; only the first load shows skeletons.
     if (opts?.soft) setRefreshing(true);
     else setLoading(true);
     try {
@@ -108,8 +110,8 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
       console.error(error);
       toast.error("Failed to load Dentally mappings");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (opts?.soft) setRefreshing(false);
+      else setLoading(false);
     }
   }, [canManage]);
 
@@ -135,7 +137,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
       setDialogOpen(false);
       setDentallyPlanName("");
       setPlanModelId("");
-      await load();
+      await load({ soft: true });
       router.refresh();
     } finally {
       setSaving(false);
@@ -144,14 +146,19 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
 
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this mapping?")) return;
-    const res = await fetch(`/plans/api/dentally/mappings/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.error("Failed to delete mapping");
-      return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/plans/api/dentally/mappings/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Failed to delete mapping");
+        return;
+      }
+      toast.success("Mapping deleted");
+      await load({ soft: true });
+      router.refresh();
+    } finally {
+      setDeletingId(null);
     }
-    toast.success("Mapping deleted");
-    await load();
-    router.refresh();
   }
 
   async function handleReassign() {
@@ -306,7 +313,12 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
               className="py-12"
             />
           ) : (
-            <MappingsTable mappings={mappings} canManage={canManage} onDelete={handleDelete} />
+            <MappingsTable
+              mappings={mappings}
+              canManage={canManage}
+              deletingId={deletingId}
+              onDelete={handleDelete}
+            />
           )}
         </CardContent>
       </Card>
@@ -317,10 +329,12 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
 function MappingsTable({
   mappings,
   canManage,
+  deletingId,
   onDelete,
 }: {
   mappings: PlanMapping[];
   canManage: boolean;
+  deletingId: string | null;
   onDelete: (id: string) => void;
 }) {
   const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(mappings, 25);
@@ -353,7 +367,13 @@ function MappingsTable({
               </TableCell>
               {canManage && (
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => onDelete(m.id)} aria-label="Delete mapping">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    loading={deletingId === m.id}
+                    onClick={() => onDelete(m.id)}
+                    aria-label="Delete mapping"
+                  >
                     <Trash2 className="size-4 text-(--color-danger)" />
                   </Button>
                 </TableCell>

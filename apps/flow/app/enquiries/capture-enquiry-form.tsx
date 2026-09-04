@@ -15,6 +15,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  toast,
 } from "@elio/ui";
 
 interface CorePatient {
@@ -31,31 +32,36 @@ export function CaptureEnquiryForm({ patients }: { patients: CorePatient[] }) {
   const [patientId, setPatientId] = React.useState<string>(UNLINKED);
   const [source, setSource] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
-    // basePath is "/flow" — raw fetch() calls are NOT auto-prefixed by Next,
-    // only Link/router navigation is (this exact bug was found twice before).
-    const res = await fetch("/flow/api/enquiries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patientId: patientId === UNLINKED ? undefined : patientId,
-        source: source.trim() || undefined,
-      }),
-    });
-    setSubmitting(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to capture enquiry");
-      return;
+    try {
+      // basePath is "/flow" — raw fetch() calls are NOT auto-prefixed by Next,
+      // only Link/router navigation is (this exact bug was found twice before).
+      const res = await fetch("/flow/api/enquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: patientId === UNLINKED ? undefined : patientId,
+          source: source.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to capture enquiry");
+      }
+      setPatientId(UNLINKED);
+      setSource("");
+      toast.success("Enquiry captured");
+      router.refresh();
+    } catch (err) {
+      toast.error("Couldn't capture enquiry", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
     }
-    setPatientId(UNLINKED);
-    setSource("");
-    router.refresh();
   }
 
   return (
@@ -91,7 +97,6 @@ export function CaptureEnquiryForm({ patients }: { patients: CorePatient[] }) {
             />
           </div>
           <div>
-            {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
             <Button type="submit" loading={submitting}>
               Capture enquiry
             </Button>

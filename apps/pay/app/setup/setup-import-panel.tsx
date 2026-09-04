@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@elio/ui";
-import { Download, Loader2, Upload } from "lucide-react";
+import { Button, Card, CardContent, CardHeader, CardTitle, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, toast } from "@elio/ui";
+import { Download, Upload } from "lucide-react";
 
 type ImportType = "labs" | "suppliers" | "dentists" | "settings";
 type ImportMode = "create" | "upsert" | "replace";
@@ -46,8 +46,11 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Preview failed");
       setPreview(data);
+      toast.success("Preview ready");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed");
+      const msg = err instanceof Error ? err.message : "Preview failed";
+      setError(msg);
+      toast.error(msg);
       setPreview(null);
     } finally {
       setPending(false);
@@ -68,9 +71,12 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
       setResult(data);
       setPreview(null);
       setCsv("");
+      toast.success(`Import complete — created ${data.created}, updated ${data.updated}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      const msg = err instanceof Error ? err.message : "Import failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPending(false);
     }
@@ -150,11 +156,10 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => void runPreview()} disabled={!csv.trim() || pending}>
+          <Button size="sm" variant="outline" onClick={() => void runPreview()} loading={pending} disabled={!csv.trim()}>
             Preview
           </Button>
-          <Button size="sm" onClick={() => void runImport()} disabled={!csv.trim() || pending}>
-            {pending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+          <Button size="sm" onClick={() => void runImport()} loading={pending} disabled={!csv.trim()}>
             Import
           </Button>
         </div>

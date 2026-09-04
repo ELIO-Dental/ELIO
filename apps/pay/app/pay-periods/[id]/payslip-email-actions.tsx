@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AlertCircle, Download, Mail } from "lucide-react";
-import { Button } from "@elio/ui";
+import { Button, toast } from "@elio/ui";
 
 /** Per-payslip PDF download + email actions (legacy Y3.8). */
 export function PayslipEmailActions({
@@ -27,12 +27,18 @@ export function PayslipEmailActions({
       const res = await fetch(`/pay/api/payslips/${payslipEntryId}/send-email`, { method: "POST" });
       const data = (await res.json()) as { message?: string; error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Failed to send email");
+        const msg = data.error ?? "Failed to send email";
+        setError(msg);
+        toast.error(msg);
         return;
       }
-      setMessage(data.message ?? "Email sent");
+      const successMsg = data.message ?? "Email sent";
+      setMessage(successMsg);
+      toast.success(successMsg);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send email");
+      const msg = err instanceof Error ? err.message : "Failed to send email";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSending(false);
     }

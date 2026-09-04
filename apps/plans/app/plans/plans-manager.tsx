@@ -134,6 +134,7 @@ export function PlansManager({
   const [newPrice, setNewPrice] = React.useState("");
   const [effectiveDate, setEffectiveDate] = React.useState("");
   const [priceProcessing, setPriceProcessing] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [priceResult, setPriceResult] = React.useState<{
     message: string;
     totalPatients: number;
@@ -200,14 +201,19 @@ export function PlansManager({
   async function handleDelete(plan: PlanRow) {
     if (plan.memberCount > 0) return;
     if (!confirm(`Delete plan "${plan.name}"? This cannot be undone.`)) return;
-    const res = await fetch(`/plans/api/plans/${plan.id}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(data.error ?? "Failed to delete plan");
-      return;
+    setDeletingId(plan.id);
+    try {
+      const res = await fetch(`/plans/api/plans/${plan.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to delete plan");
+        return;
+      }
+      toast.success("Plan deleted");
+      router.refresh();
+    } finally {
+      setDeletingId(null);
     }
-    toast.success("Plan deleted");
-    router.refresh();
   }
 
   function openPriceIncrease(plan: PlanRow) {
@@ -247,6 +253,7 @@ export function PlansManager({
         toast.error(data.error ?? "Failed to process price increase");
         return;
       }
+      toast.success(data.message ?? "Price increase applied");
       setPriceResult({
         message: data.message,
         totalPatients: data.totalPatients,
@@ -340,6 +347,7 @@ export function PlansManager({
                           size="sm"
                           onClick={() => void handleDelete(plan)}
                           disabled={plan.memberCount > 0}
+                          loading={deletingId === plan.id}
                           aria-label={`Delete ${plan.name}`}
                         >
                           <Trash2 className="size-4" />

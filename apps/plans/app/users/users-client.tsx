@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   Skeleton,
@@ -22,6 +23,7 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  toast,
 } from "@elio/ui";
 import { Users as UsersIcon } from "lucide-react";
 
@@ -51,10 +53,14 @@ async function fetchUsers(): Promise<PracticeUser[]> {
  * so the same shape is reused rather than reinvented). Read/write access
  * gated by `canManage` (team:manage) — non-managers see a read-only table. */
 export function UsersClient({ currentUserId, canManage }: { currentUserId: string; canManage: boolean }) {
+  const router = useRouter();
   const [users, setUsers] = React.useState<PracticeUser[] | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
   const showSkeleton = useSkeleton(loading);
+  const usersRef = React.useRef(users);
+  usersRef.current = users;
 
   // F.4 Final QA (2026-08-29): eslint(react-hooks/set-state-in-effect) flags
   // synchronous setState reachable from an effect's body, even through an
@@ -62,13 +68,16 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   // team-client.tsx's identical comment for the full rationale. `refetch`
   // (also used by the "Retry" button below) keeps the old eager behavior;
   // the effect instead only calls the plain async fetch directly.
-  const refetch = React.useCallback(() => {
-    setLoading(true);
+  const refetch = React.useCallback((opts?: { soft?: boolean }) => {
+    const soft = opts?.soft && usersRef.current !== null;
+    if (!soft) setLoading(true);
     setError(null);
     fetchUsers()
       .then((u) => setUsers(u))
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!soft) setLoading(false);
+      });
   }, []);
 
   React.useEffect(() => {
@@ -80,19 +89,34 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
 
   async function updateUser(id: string, patch: { role?: Role; active?: boolean }) {
     const prev = users;
+    setPendingId(id);
     setUsers((u) => u?.map((x) => (x.id === id ? { ...x, ...patch } : x)) ?? u);
-    const res = await fetch("/plans/api/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...patch }),
-    });
-    if (!res.ok) setUsers(prev); // roll back on failure
+    try {
+      const res = await fetch("/plans/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      if (!res.ok) {
+        setUsers(prev);
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Failed to update user");
+        return;
+      }
+      toast.success(patch.active === false ? "User deactivated" : patch.active === true ? "User reactivated" : "Role updated");
+      router.refresh();
+    } catch {
+      setUsers(prev);
+      toast.error("Failed to update user");
+    } finally {
+      setPendingId(null);
+    }
   }
 
   if (error) {
     return (
       <div className="rounded-(--radius-lg) border border-(--color-border)">
-        <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: refetch }} />
+        <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: () => refetch() }} />
       </div>
     );
   }
@@ -116,7 +140,14 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   }
 
   return (
-    <PlansUsersTable users={users} canManage={canManage} currentUserId={currentUserId} onUpdate={updateUser} onRefresh={refetch} />
+    <PlansUsersTable
+      users={users}
+      canManage={canManage}
+      currentUserId={currentUserId}
+      pendingId={pendingId}
+      onUpdate={updateUser}
+      onRefresh={() => refetch({ soft: true })}
+    />
   );
 }
 
@@ -124,12 +155,14 @@ function PlansUsersTable({
   users,
   canManage,
   currentUserId,
+  pendingId,
   onUpdate,
   onRefresh,
 }: {
   users: PracticeUser[];
   canManage: boolean;
   currentUserId: string;
+  pendingId: string | null;
   onUpdate: (id: string, patch: { role?: Role; active?: boolean }) => void;
   onRefresh: () => void;
 }) {
@@ -160,7 +193,11 @@ function PlansUsersTable({
               <TableCell>{u.email}</TableCell>
               <TableCell>
                 {canManage ? (
-                  <Select value={u.role} onValueChange={(v) => onUpdate(u.id, { role: v as Role })}>
+                  <Select
+                    value={u.role}
+                    disabled={pendingId === u.id}
+                    onValueChange={(v) => onUpdate(u.id, { role: v as Role })}
+                  >
                     <SelectTrigger className="h-8 w-32">
                       <SelectValue />
                     </SelectTrigger>
@@ -188,6 +225,7 @@ function PlansUsersTable({
                     variant="secondary"
                     size="sm"
                     disabled={u.id === currentUserId}
+                    loading={pendingId === u.id}
                     onClick={() => onUpdate(u.id, { active: !u.active })}
                   >
                     {u.active ? "Deactivate" : "Reactivate"}

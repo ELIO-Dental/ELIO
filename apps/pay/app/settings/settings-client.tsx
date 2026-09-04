@@ -10,8 +10,9 @@ import {
   CardTitle,
   Input,
   Label,
+  toast,
 } from "@elio/ui";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { type PaySettings, syncTherapyRates } from "@/lib/pay-settings";
 
 function DentallyApiKeyPanel() {
@@ -50,9 +51,12 @@ function DentallyApiKeyPanel() {
       if (!res.ok) throw new Error(data.error ?? "Failed to save API key");
       setApiKey("");
       setMessage("API key saved. Run a connection test to verify.");
+      toast.success("API key saved");
       await loadStatus();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to save API key");
+      const msg = err instanceof Error ? err.message : "Failed to save API key";
+      setMessage(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -66,9 +70,14 @@ function DentallyApiKeyPanel() {
       const data = await res.json();
       if (res.ok) {
         setStatus(data);
-        setMessage(data.connectionOk ? "Connection successful." : data.connectionError ?? "Connection failed.");
+        const msg = data.connectionOk ? "Connection successful." : data.connectionError ?? "Connection failed.";
+        setMessage(msg);
+        if (data.connectionOk) toast.success("Connection successful");
+        else toast.error(msg);
       } else {
-        setMessage(data.error ?? "Connection test failed");
+        const msg = data.error ?? "Connection test failed";
+        setMessage(msg);
+        toast.error(msg);
       }
     } finally {
       setTesting(false);
@@ -163,15 +172,19 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setMessage({ type: "error", text: data?.error ?? "Could not save settings." });
+        const text = data?.error ?? "Could not save settings.";
+        setMessage({ type: "error", text });
+        toast.error(text);
         return;
       }
       const data = await res.json();
       if (data.settings) setSettings(data.settings);
       setMessage({ type: "success", text: "Settings saved." });
+      toast.success("Settings saved");
       router.refresh();
     } catch {
       setMessage({ type: "error", text: "Could not save settings." });
+      toast.error("Could not save settings.");
     } finally {
       setSaving(false);
     }

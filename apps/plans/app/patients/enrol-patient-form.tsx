@@ -15,6 +15,7 @@ import {
   SelectContent,
   SelectItem,
   formatMoneyGBP,
+  toast,
 } from "@elio/ui";
 import { ParentMemberSelect, validateFreeChildParent, type ParentMemberOption } from "./parent-member-select";
 import { isFreeChildPlan } from "@/lib/patient-list-filters";
@@ -70,27 +71,33 @@ export function EnrolPatientForm({
     setSubmitting(true);
     setError(null);
     setSignupUrl(null);
-    const res = await fetch("/plans/api/enrolments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patientId,
-        planId,
-        ...(parentPatientId ? { parentPatientId } : {}),
-      }),
-    });
-    setSubmitting(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to enrol patient");
-      return;
+    try {
+      const res = await fetch("/plans/api/enrolments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId,
+          planId,
+          ...(parentPatientId ? { parentPatientId } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = data.error ?? "Failed to enrol patient";
+        toast.error(message);
+        setError(message);
+        return;
+      }
+      const data = await res.json();
+      setPatientId("");
+      setPlanId("");
+      setParentPatientId("");
+      setSignupUrl(data.signupUrl);
+      toast.success("Patient enrolled");
+      router.refresh();
+    } finally {
+      setSubmitting(false);
     }
-    const data = await res.json();
-    setPatientId("");
-    setPlanId("");
-    setParentPatientId("");
-    setSignupUrl(data.signupUrl);
-    router.refresh();
   }
 
   if (patients.length === 0) {

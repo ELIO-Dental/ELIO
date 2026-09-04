@@ -13,6 +13,7 @@ import {
   formatMoneyGBP,
   Button,
   Input,
+  toast,
 } from "@elio/ui";
 import { Pencil } from "lucide-react";
 
@@ -53,9 +54,12 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
         throw new Error(data.error ?? "Failed to save");
       }
       setEditingId(null);
+      toast.success("Dentist updated");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

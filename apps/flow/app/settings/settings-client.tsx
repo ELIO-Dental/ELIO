@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   Card,
@@ -22,6 +23,7 @@ export function FlowSettingsClient({
   initialSettings: FlowSettings;
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [settings, setSettings] = React.useState(initialSettings);
   const [saving, setSaving] = React.useState(false);
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
@@ -68,6 +70,7 @@ export function FlowSettingsClient({
       if (!res.ok) throw new Error(body.error ?? "Failed to save settings");
       setSettings(body.settings);
       toast.success("Settings saved");
+      router.refresh();
     } catch (err) {
       toast.error("Couldn't save settings", {
         description: err instanceof Error ? err.message : "Please try again.",

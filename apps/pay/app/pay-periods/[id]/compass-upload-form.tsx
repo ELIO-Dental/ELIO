@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@elio/ui";
+import { Button, toast } from "@elio/ui";
 
 /**
  * Compass upload — THEME_GUIDELINE.md §5.14 spec (drag-over, determinate progress, success
@@ -34,20 +34,27 @@ export function CompassUploadForm({ payPeriodId }: { payPeriodId: string }) {
       if (xhr.status >= 200 && xhr.status < 300) {
         setStatus("success");
         const { result } = JSON.parse(xhr.responseText);
-        setMessage(`Parsed ${result.linesCreated} line(s) — ${result.confidentCount} confident, ${result.needsReviewCount} need review.`);
+        const successMsg = `Parsed ${result.linesCreated} line(s) — ${result.confidentCount} confident, ${result.needsReviewCount} need review.`;
+        setMessage(successMsg);
+        toast.success(successMsg);
         router.refresh();
       } else {
         setStatus("error");
+        let errMsg = "Upload failed";
         try {
-          setMessage(JSON.parse(xhr.responseText).error ?? "Upload failed");
+          errMsg = JSON.parse(xhr.responseText).error ?? "Upload failed";
         } catch {
-          setMessage("Upload failed");
+          /* keep default */
         }
+        setMessage(errMsg);
+        toast.error(errMsg);
       }
     };
     xhr.onerror = () => {
       setStatus("error");
-      setMessage("Network error — please retry.");
+      const errMsg = "Network error — please retry.";
+      setMessage(errMsg);
+      toast.error(errMsg);
     };
     xhr.send(formData);
   }

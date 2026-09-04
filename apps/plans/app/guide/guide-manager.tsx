@@ -67,6 +67,7 @@ export function GuideManager({
   const [editing, setEditing] = React.useState<GuideArticleRow | null>(null);
   const [form, setForm] = React.useState(EMPTY_FORM);
   const [saving, setSaving] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
   const [seeding, setSeeding] = React.useState(false);
 
   const selected = articles.find((a) => a.id === selectedId) ?? null;
@@ -130,14 +131,19 @@ export function GuideManager({
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this guide article?")) return;
-    const res = await fetch(`/plans/api/guides/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.error("Failed to delete article");
-      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/plans/api/guides/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Failed to delete article");
+        return;
+      }
+      toast.success("Article deleted");
+      if (selectedId === id) setSelectedId(null);
+      router.refresh();
+    } finally {
+      setDeleting(false);
     }
-    toast.success("Article deleted");
-    if (selectedId === id) setSelectedId(null);
-    router.refresh();
   }
 
   async function handleSeed() {
@@ -226,7 +232,12 @@ export function GuideManager({
                       <Button variant="ghost" size="sm" onClick={() => openEdit(selected)}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => void handleDelete(selected.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        loading={deleting}
+                        onClick={() => void handleDelete(selected.id)}
+                      >
                         <Trash2 className="size-4 text-red-600" />
                       </Button>
                     </div>

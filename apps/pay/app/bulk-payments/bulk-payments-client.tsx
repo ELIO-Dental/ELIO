@@ -20,8 +20,9 @@ import {
   useClientTablePagination,
   Skeleton,
   TableRefreshButton,
+  toast,
 } from "@elio/ui";
-import { Building2, Check, Download, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Building2, Check, Download, Pencil, Plus, Trash2, X } from "lucide-react";
 import { aggregateStarlingPayments, type UnpaidBillRow } from "@/lib/bulk-payment";
 
 interface SavedEntity {
@@ -56,10 +57,16 @@ export function BulkPaymentsClient() {
   const [showAddEntity, setShowAddEntity] = React.useState<"lab" | "supplier" | null>(null);
   const [newEntity, setNewEntity] = React.useState<EntityForm>(emptyForm());
   const [marking, setMarking] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
+  const [savingEntity, setSavingEntity] = React.useState(false);
+  const [addingEntity, setAddingEntity] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const hasLoadedOnce = React.useRef(false);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const load = React.useCallback(async (opts?: { soft?: boolean }) => {
+    const soft = Boolean(opts?.soft) && hasLoadedOnce.current;
+    if (!soft) setLoading(true);
     setError(null);
     try {
       const [entitiesRes, unpaidRes] = await Promise.all([
@@ -76,6 +83,7 @@ export function BulkPaymentsClient() {
         setUnpaidLabBills(data.lab_bills ?? []);
         setUnpaidSupplierInvoices(data.supplier_invoices ?? []);
       }
+      hasLoadedOnce.current = true;
     } catch {
       setError("Failed to load bulk payment data");
     } finally {
@@ -88,49 +96,99 @@ export function BulkPaymentsClient() {
   }, [load]);
 
   async function saveEntity(type: "lab" | "supplier", id: string) {
-    await fetch("/pay/api/saved-entities", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, id, ...editForm }),
-    });
-    setEditingEntity(null);
-    await load();
-    router.refresh();
+    setSavingEntity(true);
+    try {
+      const res = await fetch("/pay/api/saved-entities", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id, ...editForm }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to save");
+        return;
+      }
+      setEditingEntity(null);
+      toast.success("Saved");
+      await load({ soft: true });
+      router.refresh();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSavingEntity(false);
+    }
   }
 
   async function addEntity(type: "lab" | "supplier") {
     if (!newEntity.name.trim()) return;
-    await fetch("/pay/api/saved-entities", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, ...newEntity }),
-    });
-    setNewEntity(emptyForm());
-    setShowAddEntity(null);
-    await load();
-    router.refresh();
+    setAddingEntity(true);
+    try {
+      const res = await fetch("/pay/api/saved-entities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, ...newEntity }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to add");
+        return;
+      }
+      setNewEntity(emptyForm());
+      setShowAddEntity(null);
+      toast.success(type === "lab" ? "Lab added" : "Supplier added");
+      await load({ soft: true });
+      router.refresh();
+    } catch {
+      toast.error("Failed to add");
+    } finally {
+      setAddingEntity(false);
+    }
   }
 
   async function deleteEntity(type: "lab" | "supplier", id: string) {
     if (!confirm(`Delete this ${type}?`)) return;
-    await fetch(`/pay/api/saved-entities?type=${type}&id=${id}`, { method: "DELETE" });
-    await load();
-    router.refresh();
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/pay/api/saved-entities?type=${type}&id=${id}`, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to delete");
+        return;
+      }
+      toast.success("Deleted");
+      await load({ soft: true });
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function markPaid(type: "lab" | "supplier", ids: string[]) {
     if (ids.length === 0) return;
     setMarking(true);
-    await fetch("/pay/api/bulk-payment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_paid", type, ids }),
-    });
-    if (type === "lab") setSelectedLab(new Set());
-    else setSelectedSupplier(new Set());
-    setMarking(false);
-    await load();
-    router.refresh();
+    try {
+      const res = await fetch("/pay/api/bulk-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_paid", type, ids }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to mark paid");
+        return;
+      }
+      if (type === "lab") setSelectedLab(new Set());
+      else setSelectedSupplier(new Set());
+      toast.success("Marked as paid");
+      await load({ soft: true });
+      router.refresh();
+    } catch {
+      toast.error("Failed to mark paid");
+    } finally {
+      setMarking(false);
+    }
   }
 
   async function generateCsv() {
@@ -139,18 +197,24 @@ export function BulkPaymentsClient() {
       ...unpaidSupplierInvoices.filter((b) => selectedSupplier.has(b.id)),
     ];
     if (selectedBills.length === 0) {
-      alert("Please select bills to include in the bulk payment.");
+      toast.error("Please select bills to include in the bulk payment.");
       return;
     }
 
-    const payments = aggregateStarlingPayments(selectedBills);
-    const res = await fetch("/pay/api/bulk-payment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "generate_csv", payments }),
-    });
+    setExporting(true);
+    try {
+      const payments = aggregateStarlingPayments(selectedBills);
+      const res = await fetch("/pay/api/bulk-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate_csv", payments }),
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(data.error ?? "Failed to generate CSV");
+        return;
+      }
       const data = await res.json();
       const blob = new Blob([data.csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
@@ -159,6 +223,11 @@ export function BulkPaymentsClient() {
       a.download = `bulk-payment-${new Date().toISOString().substring(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.success("CSV downloaded");
+    } catch {
+      toast.error("Failed to generate CSV");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -209,7 +278,7 @@ export function BulkPaymentsClient() {
     return (
       <TablePanel
         toolbar={
-          <TableToolbar title={`${label} bank details`} onRefresh={load}>
+          <TableToolbar title={`${label} bank details`} onRefresh={() => void load({ soft: true })}>
             <Button size="sm" variant="outline" onClick={() => setShowAddEntity(type)}>
               <Plus className="mr-1 h-4 w-4" />
               Add {type === "lab" ? "lab" : "supplier"}
@@ -247,7 +316,7 @@ export function BulkPaymentsClient() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => addEntity(type)} aria-label="Save">
+                      <Button size="sm" variant="ghost" onClick={() => addEntity(type)} loading={addingEntity} aria-label="Save">
                         <Check className="h-4 w-4 text-(--color-success)" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setShowAddEntity(null)} aria-label="Cancel">
@@ -292,7 +361,7 @@ export function BulkPaymentsClient() {
                     <TableCell>
                       {isEditing ? (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => saveEntity(type, entity.id)} aria-label="Save">
+                          <Button size="sm" variant="ghost" onClick={() => saveEntity(type, entity.id)} loading={savingEntity} aria-label="Save">
                             <Check className="h-4 w-4 text-(--color-success)" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditingEntity(null)} aria-label="Cancel">
@@ -304,7 +373,13 @@ export function BulkPaymentsClient() {
                           <Button size="sm" variant="ghost" onClick={() => startEdit(type, entity)} aria-label="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => deleteEntity(type, entity.id)} aria-label="Delete">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteEntity(type, entity.id)}
+                            loading={deletingId === entity.id}
+                            aria-label="Delete"
+                          >
                             <Trash2 className="h-4 w-4 text-(--color-danger)" />
                           </Button>
                         </div>
@@ -373,12 +448,12 @@ export function BulkPaymentsClient() {
         </div>
 
         {activeTab === "unpaid" && hasSelection && (
-          <Button onClick={() => void generateCsv()} data-testid="bulk-export-starling-csv">
+          <Button onClick={() => void generateCsv()} loading={exporting} data-testid="bulk-export-starling-csv">
             <Download className="mr-2 h-4 w-4" />
             Export Starling CSV
           </Button>
         )}
-        <TableRefreshButton onRefresh={load} aria-label="Refresh bulk payments" />
+        <TableRefreshButton onRefresh={() => void load({ soft: true })} aria-label="Refresh bulk payments" />
       </div>
 
       {error && <p className="text-sm text-(--color-danger)">{error}</p>}
@@ -445,8 +520,8 @@ function UnpaidBillsTable({
             {selected.size > 0 && ` — ${selected.size} selected: ${formatMoneyGBP(selectedTotalPence)}`}
           </p>
           {selected.size > 0 && (
-            <Button size="sm" onClick={() => onMarkPaid(Array.from(selected))} disabled={marking}>
-              {marking ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+            <Button size="sm" onClick={() => onMarkPaid(Array.from(selected))} loading={marking}>
+              <Check className="mr-1 h-4 w-4" />
               Mark {selected.size} paid
             </Button>
           )}

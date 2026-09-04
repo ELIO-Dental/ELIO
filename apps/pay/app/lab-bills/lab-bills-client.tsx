@@ -28,6 +28,7 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  toast,
 } from "@elio/ui";
 import { Eye, LayoutGrid, List, Loader2, Trash2, Upload } from "lucide-react";
 import {
@@ -100,16 +101,19 @@ export function LabBillsClient({
     [payFilter, filterLab, filterDentistId, search, filterYear, filterMonth, viewMode]
   );
 
-  const mutate = async (id: string, fn: () => Promise<Response>) => {
+  const mutate = async (id: string, fn: () => Promise<Response>, successMsg?: string) => {
     setPendingId(id);
     setError(null);
     try {
       const res = await fn();
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Request failed");
+      if (successMsg) toast.success(successMsg);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      const msg = err instanceof Error ? err.message : "Request failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPendingId(null);
     }
@@ -138,9 +142,12 @@ export function LabBillsClient({
     setSubmitting(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to create lab bill");
+      const msg = data.error ?? "Failed to create lab bill";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success("Lab bill added");
     (e.target as HTMLFormElement).reset();
     setFormDentistId("__none__");
     setFormSavedLabId("__none__");
@@ -152,7 +159,7 @@ export function LabBillsClient({
     form.append("file", file);
     form.append("labBillId", bill.id);
     form.append("entity_name", bill.labName ?? "lab");
-    await mutate(bill.id, () => fetch("/pay/api/lab-bills/upload", { method: "POST", body: form }));
+    await mutate(bill.id, () => fetch("/pay/api/lab-bills/upload", { method: "POST", body: form }), "File uploaded");
   };
 
   return (
@@ -396,16 +403,21 @@ export function LabBillsClient({
                       )}
                     </TableCell>
                     <TableCell>
-                      <button
+                      <Button
                         type="button"
-                        disabled={pendingId === b.id}
+                        size="sm"
+                        variant="ghost"
+                        loading={pendingId === b.id}
                         onClick={() =>
-                          void mutate(b.id, () =>
-                            fetch(`/pay/api/lab-bills/${b.id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ paid: !b.paid }),
-                            })
+                          void mutate(
+                            b.id,
+                            () =>
+                              fetch(`/pay/api/lab-bills/${b.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ paid: !b.paid }),
+                              }),
+                            b.paid ? "Marked unpaid" : "Marked paid"
                           )
                         }
                         className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
@@ -413,20 +425,22 @@ export function LabBillsClient({
                         }`}
                       >
                         {b.paid ? "Paid" : "Unpaid"}
-                      </button>
+                      </Button>
                     </TableCell>
                     <TableCell>
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="ghost"
                         className="text-(--color-danger)"
-                        disabled={pendingId === b.id}
+                        loading={pendingId === b.id}
                         onClick={() => {
                           if (!confirm("Delete this lab bill?")) return;
-                          void mutate(b.id, () => fetch(`/pay/api/lab-bills/${b.id}`, { method: "DELETE" }));
+                          void mutate(b.id, () => fetch(`/pay/api/lab-bills/${b.id}`, { method: "DELETE" }), "Lab bill deleted");
                         }}
                       >
                         <Trash2 className="size-4" />
-                      </button>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

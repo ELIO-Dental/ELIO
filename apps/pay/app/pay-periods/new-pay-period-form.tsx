@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
+import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle, toast } from "@elio/ui";
 
 export function NewPayPeriodForm() {
   const router = useRouter();
@@ -27,9 +27,12 @@ export function NewPayPeriodForm() {
     setSubmitting(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to create pay period");
+      const msg = data.error ?? "Failed to create pay period";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success("Pay period created");
     (e.target as HTMLFormElement).reset();
     router.refresh();
   }

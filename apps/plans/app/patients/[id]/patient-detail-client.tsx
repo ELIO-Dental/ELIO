@@ -141,7 +141,7 @@ export function PatientDetailClient({
 }) {
   const router = useRouter();
   const [tab, setTab] = React.useState<TabId>("Overview");
-  const [loading, setLoading] = React.useState(false);
+  const [pendingAction, setPendingAction] = React.useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelDd, setCancelDd] = React.useState(true);
   const [linkOpen, setLinkOpen] = React.useState(false);
@@ -261,7 +261,7 @@ export function PatientDetailClient({
   const redeemableAppointments = (appointments ?? []).filter((a) => isRedeemableAppointmentState(a.state));
 
   async function runAction(path: string, successMessage: string, body?: Record<string, unknown>) {
-    setLoading(true);
+    setPendingAction(path);
     try {
       const res = await fetch(`/plans/api/patients/${detail.id}/${path}`, {
         method: "POST",
@@ -295,7 +295,7 @@ export function PatientDetailClient({
       router.refresh();
       return data;
     } finally {
-      setLoading(false);
+      setPendingAction(null);
     }
   }
 
@@ -315,7 +315,7 @@ export function PatientDetailClient({
 
   async function handleLinkMandate() {
     if (!mandateIdInput.trim()) return;
-    setLoading(true);
+    setPendingAction("link-mandate");
     try {
       const res = await fetch(`/plans/api/patients/${detail.id}/link-mandate`, {
         method: "POST",
@@ -332,7 +332,7 @@ export function PatientDetailClient({
       setMandateIdInput("");
       router.refresh();
     } finally {
-      setLoading(false);
+      setPendingAction(null);
     }
   }
 
@@ -439,7 +439,7 @@ export function PatientDetailClient({
               <Button
                 variant="secondary"
                 size="sm"
-                loading={loading}
+                loading={pendingAction === "invite"}
                 onClick={() => runAction("invite", "Invite link created", { sendEmail: true })}
               >
                 Send invite
@@ -447,20 +447,30 @@ export function PatientDetailClient({
             )}
             {canEdit && (
               <>
-                <Button variant="secondary" size="sm" loading={loading} onClick={() => void handleSetupDd()}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={pendingAction === "setup-dd"}
+                  onClick={() => void handleSetupDd()}
+                >
                   Setup DD
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setLinkOpen(true)}>
                   Link mandate
                 </Button>
-                <Button variant="secondary" size="sm" loading={loading} onClick={() => runAction("check-gc", "GoCardless checked")}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={pendingAction === "check-gc"}
+                  onClick={() => runAction("check-gc", "GoCardless checked")}
+                >
                   Check GC
                 </Button>
                 {detail.status === "PAUSED" && (
                   <Button
                     variant="secondary"
                     size="sm"
-                    loading={loading}
+                    loading={pendingAction === "pause"}
                     onClick={() => runAction("pause", "Membership resumed", { action: "resume" })}
                   >
                     Resume
@@ -470,7 +480,7 @@ export function PatientDetailClient({
                   <Button
                     variant="secondary"
                     size="sm"
-                    loading={loading}
+                    loading={pendingAction === "pause"}
                     onClick={() => runAction("pause", "Membership paused", { action: "pause" })}
                   >
                     Pause
@@ -510,7 +520,7 @@ export function PatientDetailClient({
             </Button>
             <Button
               variant="destructive"
-              loading={loading}
+              loading={pendingAction === "cancel"}
               onClick={async () => {
                 await runAction("cancel", "Membership cancelled", { cancelDirectDebit: cancelDd });
                 setCancelOpen(false);
@@ -536,7 +546,11 @@ export function PatientDetailClient({
             <Button variant="secondary" onClick={() => setLinkOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => void handleLinkMandate()} loading={loading} disabled={!mandateIdInput.trim()}>
+            <Button
+              onClick={() => void handleLinkMandate()}
+              loading={pendingAction === "link-mandate"}
+              disabled={!mandateIdInput.trim()}
+            >
               Link mandate
             </Button>
           </DialogFooter>

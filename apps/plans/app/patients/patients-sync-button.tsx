@@ -25,6 +25,7 @@ export function PatientsSyncButton({ onComplete }: { onComplete?: (result: Patie
         return;
       }
 
+      toast.success("Patients synced from Dentally");
       onComplete?.(data);
       router.refresh();
     } catch {

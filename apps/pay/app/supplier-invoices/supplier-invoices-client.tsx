@@ -28,6 +28,7 @@ import {
   TableToolbar,
   TablePagination,
   useClientTablePagination,
+  toast,
 } from "@elio/ui";
 
 interface SupplierOption {
@@ -75,9 +76,12 @@ export function SupplierInvoicesClient({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Update failed");
+      toast.success(invoice.paid ? "Marked unpaid" : "Marked paid");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      const msg = err instanceof Error ? err.message : "Update failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setPendingId(null);
     }
@@ -105,9 +109,12 @@ export function SupplierInvoicesClient({
     setSubmitting(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to create supplier invoice");
+      const msg = data.error ?? "Failed to create supplier invoice";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success("Supplier invoice added");
     (e.target as HTMLFormElement).reset();
     setFormSupplierId(NO_SUPPLIER);
     router.refresh();
@@ -211,9 +218,11 @@ export function SupplierInvoicesClient({
                   <TableCell>{i.description ?? "—"}</TableCell>
                   <TableCellMoney>{formatMoneyGBP(i.amountPence)}</TableCellMoney>
                   <TableCell>
-                    <button
+                    <Button
                       type="button"
-                      disabled={pendingId === i.id}
+                      size="sm"
+                      variant="ghost"
+                      loading={pendingId === i.id}
                       onClick={() => void togglePaid(i)}
                       className={`rounded-full px-2.5 py-0.5 text-caption font-medium ${
                         i.paid
@@ -222,7 +231,7 @@ export function SupplierInvoicesClient({
                       }`}
                     >
                       {i.paid ? "Paid" : "Unpaid"}
-                    </button>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
