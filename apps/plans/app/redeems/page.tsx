@@ -17,6 +17,7 @@ import {
   parseTablePage,
 } from "@elio/ui";
 import { RedeemActions } from "./redeem-actions";
+import { RedeemsFilterBar } from "./redeems-filter-bar";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   PENDING_APPROVAL: "warning",
@@ -25,15 +26,19 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral
   PARTIALLY_EARNED: "info",
 };
 
+const FILTER_STATUSES = new Set(["PENDING_APPROVAL", "APPROVED", "REJECTED"]);
+
 export default async function RedeemsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   const session = await requireLicensedSession();
-  const { page, skip, pageSize } = parseTablePage(await searchParams);
+  const params = await searchParams;
+  const { page, skip, pageSize } = parseTablePage(params);
+  const statusFilter = params.status && FILTER_STATUSES.has(params.status) ? params.status : undefined;
 
-  const allRedeems = await listRedeems(session.practiceId);
+  const allRedeems = await listRedeems(session.practiceId, statusFilter);
   const totalCount = allRedeems.length;
   const redeems = allRedeems.slice(skip, skip + pageSize);
 
@@ -45,15 +50,25 @@ export default async function RedeemsPage({
       />
 
       <div className="mt-8">
-        {totalCount === 0 ? (
-          <TablePanel toolbar={<TableToolbar title="Redemption requests" />}>
-            <EmptyState title="No redeems yet" description="Redemption requests will appear here." className="py-12" />
-          </TablePanel>
-        ) : (
-          <TablePanel
-            toolbar={<TableToolbar title="Redemption requests" />}
-            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
-          >
+        <TablePanel
+          toolbar={
+            <TableToolbar title="Redemption requests">
+              <RedeemsFilterBar />
+            </TableToolbar>
+          }
+          footer={totalCount > 0 ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} /> : undefined}
+        >
+          {totalCount === 0 ? (
+            <EmptyState
+              title={statusFilter ? "No redeems match" : "No redeems yet"}
+              description={
+                statusFilter
+                  ? "Try another status filter, or clear the filter to see all requests."
+                  : "Redemption requests will appear here."
+              }
+              className="py-12"
+            />
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -94,8 +109,8 @@ export default async function RedeemsPage({
                 })}
               </TableBody>
             </Table>
-          </TablePanel>
-        )}
+          )}
+        </TablePanel>
       </div>
     </PageContent>
   );

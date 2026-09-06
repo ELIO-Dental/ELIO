@@ -19,6 +19,7 @@ import {
 } from "@elio/ui";
 import { FilterBar } from "@/components/filter-bar";
 import { EnrolPatientForm } from "./enrol-patient-form";
+import { AddPatientForm } from "./add-patient-form";
 import { PatientsDentallyTools } from "./patients-dentally-tools";
 import { PatientsListToolbar } from "./patients-list-toolbar";
 import { buildPlanPatientListWhere, derivePatientDisplayStatus } from "@/lib/patient-list-filters";
@@ -98,7 +99,13 @@ export default async function PatientsPage({
         </div>
       )}
 
-      <div className="mt-8">
+      <div className={`mt-8 ${canInvite ? "grid gap-6 lg:grid-cols-2" : ""}`}>
+        {canInvite && (
+          <AddPatientForm
+            plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
+            parentMembers={parentMembers}
+          />
+        )}
         <EnrolPatientForm
           patients={unenrolledPatients.map((p) => ({
             id: p.id,

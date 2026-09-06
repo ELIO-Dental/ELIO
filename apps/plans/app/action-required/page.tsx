@@ -15,7 +15,7 @@ export default async function ActionRequiredPage() {
   const practiceId = session.practiceId;
   const period = currentBillingPeriod();
 
-  const [pendingRedeems, failedPayments, unsignedRequests, reconciliation] = await Promise.all([
+  const [pendingRedeems, failedPayments, unsignedRequests, invitedPatients, reconciliation] = await Promise.all([
     listRedeems(practiceId, "PENDING_APPROVAL"),
     prisma.planPayment.findMany({
       where: { practiceId, status: { in: ["FAILED", "CHARGED_BACK"] } },
@@ -29,6 +29,12 @@ export default async function ActionRequiredPage() {
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    prisma.planPatient.findMany({
+      where: { practiceId, status: "INVITED" },
+      include: { patient: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
     // Reconciliation has no persisted "needs review" table — it's an on-demand
     // comparison (see reconciliation/reconciliation-runner.tsx). Reuse the same
     // service function so this queue reflects live mismatches, not duplicated logic.
@@ -36,7 +42,11 @@ export default async function ActionRequiredPage() {
   ]);
 
   const totalCount =
-    pendingRedeems.length + failedPayments.length + unsignedRequests.length + (reconciliation?.mismatches.length ?? 0);
+    pendingRedeems.length +
+    failedPayments.length +
+    unsignedRequests.length +
+    invitedPatients.length +
+    (reconciliation?.mismatches.length ?? 0);
 
   return (
     <PageContent>
@@ -50,11 +60,42 @@ export default async function ActionRequiredPage() {
           <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
             <ActionRequiredEmptyState
               title="Nothing needs attention"
-              description="Pending redemptions, failed payments, unsigned documents, and reconciliation mismatches will show up here."
+              description="Pending invitations, redemptions, failed payments, unsigned documents, and reconciliation mismatches will show up here."
             />
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-6">
+            {invitedPatients.length > 0 && (
+              <Card>
+                <CardHeader className="flex items-center justify-between">
+                  <CardTitle>Invited patients awaiting signup ({invitedPatients.length})</CardTitle>
+                  <Link href="/patients?status=INVITED">
+                    <Button variant="secondary" size="sm">View in Patients</Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y divide-(--color-border-subtle)">
+                    {invitedPatients.slice(0, 8).map((pp) => {
+                      const name =
+                        [pp.patient.firstName, pp.patient.lastName].filter(Boolean).join(" ") ||
+                        "Unknown patient";
+                      return (
+                        <li key={pp.id} className="flex items-center justify-between py-3">
+                          <Link
+                            href={`/patients/${pp.id}`}
+                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
+                          >
+                            {name}
+                          </Link>
+                          <Badge variant="neutral">INVITED</Badge>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
             {pendingRedeems.length > 0 && (
               <Card>
                 <CardHeader className="flex items-center justify-between">

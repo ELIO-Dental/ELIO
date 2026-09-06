@@ -12,6 +12,7 @@ import {
   Button,
   Input,
   Label,
+  Badge,
   Skeleton,
   useSkeleton,
   formatMoneyGBP,
@@ -322,20 +323,120 @@ function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void })
 }
 
 function TermsStep({ token, data, onNext }: { token: string; data: SignupData; onNext: () => void }) {
+  const [signMode, setSignMode] = React.useState<"type" | "draw">("type");
   const [signedName, setSignedName] = React.useState("");
+  const [hasDrawn, setHasDrawn] = React.useState(false);
   const [agreed, setAgreed] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = React.useRef(false);
+  const lastPointRef = React.useRef<{ x: number; y: number } | null>(null);
+
+  const initCanvas = React.useCallback((canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return;
+    canvasRef.current = canvas;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#d1d5db";
+    ctx.lineWidth = 1;
+    ctx.moveTo(20, rect.height - 40);
+    ctx.lineTo(rect.width - 20, rect.height - 40);
+    ctx.stroke();
+
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "14px sans-serif";
+    ctx.fillText("Sign here", 20, rect.height - 20);
+
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }, []);
+
+  React.useEffect(() => {
+    if (signMode === "draw" && canvasRef.current) {
+      initCanvas(canvasRef.current);
+      setHasDrawn(false);
+    }
+  }, [signMode, initCanvas]);
+
+  const getPoint = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      const touch = e.touches[0];
+      if (!touch) return null;
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const startDrawing = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    const point = getPoint(e);
+    if (!point) return;
+    isDrawingRef.current = true;
+    lastPointRef.current = point;
+    setHasDrawn(true);
+  };
+
+  const draw = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    if (!isDrawingRef.current || !lastPointRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const point = getPoint(e);
+    if (!point) return;
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    lastPointRef.current = point;
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+    lastPointRef.current = null;
+  };
+
+  const clearSignature = () => {
+    setHasDrawn(false);
+    if (canvasRef.current) initCanvas(canvasRef.current);
+  };
+
+  const canSubmit =
+    Boolean(data.document) &&
+    agreed &&
+    (signMode === "type" ? Boolean(signedName.trim()) : hasDrawn);
+
   const submit = async () => {
-    if (!signedName.trim() || !agreed) return;
+    if (!canSubmit) return;
+    const signatureData =
+      signMode === "draw" ? canvasRef.current?.toDataURL("image/png") ?? null : signedName.trim();
+    if (!signatureData) return;
+
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch(`/plans/api/public/signup/${token}/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signatureData: signedName.trim() }),
+        body: JSON.stringify({ signatureData }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -371,15 +472,49 @@ function TermsStep({ token, data, onNext }: { token: string; data: SignupData; o
               />
               I have read and agree to the {data.document.title}.
             </label>
-            <div>
-              <Label htmlFor="signup-signature">Type your full name to sign</Label>
-              <Input
-                id="signup-signature"
-                value={signedName}
-                onChange={(e) => setSignedName(e.target.value)}
-                placeholder={`${data.patient.firstName} ${data.patient.lastName}`.trim()}
-              />
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setSignMode("type")}>
+                <Badge variant={signMode === "type" ? "primary" : "neutral"}>Type name</Badge>
+              </button>
+              <button type="button" onClick={() => setSignMode("draw")}>
+                <Badge variant={signMode === "draw" ? "primary" : "neutral"}>Draw</Badge>
+              </button>
             </div>
+
+            {signMode === "type" ? (
+              <div>
+                <Label htmlFor="signup-signature">Type your full name to sign</Label>
+                <Input
+                  id="signup-signature"
+                  value={signedName}
+                  onChange={(e) => setSignedName(e.target.value)}
+                  placeholder={`${data.patient.firstName} ${data.patient.lastName}`.trim()}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Draw your signature</Label>
+                  <Button type="button" variant="secondary" size="sm" onClick={clearSignature}>
+                    Clear
+                  </Button>
+                </div>
+                <canvas
+                  ref={(el) => {
+                    if (el && el !== canvasRef.current) initCanvas(el);
+                  }}
+                  className="h-40 w-full touch-none rounded-(--radius-md) border border-(--color-border) bg-white"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              </div>
+            )}
           </>
         ) : (
           <p className="text-body-sm text-(--color-danger)">
@@ -394,12 +529,7 @@ function TermsStep({ token, data, onNext }: { token: string; data: SignupData; o
           </p>
         )}
 
-        <Button
-          className="w-full"
-          disabled={!data.document || !agreed || !signedName.trim()}
-          loading={submitting}
-          onClick={submit}
-        >
+        <Button className="w-full" disabled={!canSubmit} loading={submitting} onClick={submit}>
           Agree &amp; continue
         </Button>
       </CardContent>

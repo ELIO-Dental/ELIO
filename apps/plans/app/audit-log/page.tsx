@@ -16,6 +16,7 @@ import {
   parseTablePage,
 } from "@elio/ui";
 import { AuditLogEmptyState } from "@/components/audit-log-empty-state";
+import { AuditFilterBar } from "./audit-filter-bar";
 
 function moduleForAction(action: string): { label: string; variant: "info" | "neutral" } {
   if (action.startsWith("plans.")) return { label: "Plans", variant: "info" };
@@ -25,20 +26,24 @@ function moduleForAction(action: string): { label: string; variant: "info" | "ne
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; targetType?: string }>;
 }) {
   const session = await requireLicensedSession();
-  const { page, skip, pageSize } = parseTablePage(await searchParams);
+  const params = await searchParams;
+  const { page, skip, pageSize } = parseTablePage(params);
+  const targetType = params.targetType?.trim() || undefined;
 
   const db = scopedDb(session.practiceId);
+  const where = targetType ? { targetType } : {};
   const [logs, totalCount] = await Promise.all([
     db.auditLog.findMany({
+      where,
       include: { actor: { select: { email: true } } },
       orderBy: { createdAt: "desc" },
       skip,
       take: pageSize,
     }),
-    db.auditLog.count(),
+    db.auditLog.count({ where }),
   ]);
 
   return (
@@ -49,15 +54,25 @@ export default async function AuditLogPage({
       />
 
       <div className="mt-8">
-        {totalCount === 0 ? (
-          <TablePanel toolbar={<TableToolbar title="Audit entries" />}>
-            <AuditLogEmptyState title="No audit entries yet" description="Recorded actions will appear here." className="py-12" />
-          </TablePanel>
-        ) : (
-          <TablePanel
-            toolbar={<TableToolbar title="Audit entries" />}
-            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
-          >
+        <TablePanel
+          toolbar={
+            <TableToolbar title="Audit entries">
+              <AuditFilterBar />
+            </TableToolbar>
+          }
+          footer={totalCount > 0 ? <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} /> : undefined}
+        >
+          {totalCount === 0 ? (
+            <AuditLogEmptyState
+              title={targetType ? "No matching audit entries" : "No audit entries yet"}
+              description={
+                targetType
+                  ? "Try another entity type, or clear the filter to see all entries."
+                  : "Recorded actions will appear here."
+              }
+              className="py-12"
+            />
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -90,8 +105,8 @@ export default async function AuditLogPage({
                 })}
               </TableBody>
             </Table>
-          </TablePanel>
-        )}
+          )}
+        </TablePanel>
       </div>
     </PageContent>
   );

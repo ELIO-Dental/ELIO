@@ -1,7 +1,12 @@
 import { randomUUID } from "crypto";
 import { scopedDb, prisma, Prisma } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
-import { sendSignupCompleteEmail, sendPatientInviteEmail } from "./email";
+import {
+  sendSignupCompleteEmail,
+  sendPatientInviteEmail,
+  sendTermsSigningEmail,
+  sendDdSetupEmail,
+} from "./email";
 import { logPlanEmail } from "./patient-correspondence";
 import { BadRequestError } from "./api-error";
 import {
@@ -1522,7 +1527,15 @@ export async function syncPendingMandatesForPractice(practiceId: string): Promis
 
 const PLAN_PATIENT_DETAIL_INCLUDE = {
   patient: true,
-  planModel: { select: { id: true, name: true, monthlyPricePence: true, requiresAdultMembership: true } },
+  planModel: {
+    select: {
+      id: true,
+      name: true,
+      monthlyPricePence: true,
+      requiresAdultMembership: true,
+      gocardlessLink: true,
+    },
+  },
   parentPatient: {
     include: { patient: { select: { id: true, firstName: true, lastName: true } } },
   },
@@ -1535,12 +1548,14 @@ const PLAN_PATIENT_DETAIL_INCLUDE = {
   patientPlans: { orderBy: { createdAt: "desc" as const }, include: { plan: { select: { id: true, name: true } } } },
   signingRequests: {
     orderBy: { createdAt: "desc" as const },
-    include: { document: { select: { id: true, title: true, type: true, version: true } } },
+    include: {
+      document: { select: { id: true, title: true, type: true, version: true, content: true } },
+    },
     take: 20,
   },
   documentAcceptances: {
     orderBy: { acceptedAt: "desc" as const },
-    include: { document: { select: { id: true, title: true, type: true, version: true } } },
+    include: { document: { select: { id: true, title: true, type: true, version: true, content: true } } },
     take: 20,
   },
 } as const;
@@ -1686,6 +1701,207 @@ export async function resendPatientSignupInvite(
   }
 
   return { signupUrl, token: signingRequest.token, emailed: Boolean(options?.sendEmail && planPatient.patient.email) };
+}
+
+/** Email a T&C signing link (legacy send-terms) — creates/refreshes a PlanSigningRequest. */
+export async function sendPatientTermsSigningLink(
+  practiceId: string,
+  planPatientId: string,
+  options?: { sentById?: string },
+) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { planModel: true, patient: true },
+  });
+  if (!planPatient) throw new BadRequestError("Plan patient not found");
+  if (!planPatient.patient.email) throw new BadRequestError("Patient has no email address");
+
+  const document = await db.planDocument.findFirst({
+    where: { type: "TERMS_AND_CONDITIONS", isActive: true },
+    orderBy: { effectiveDate: "desc" },
+  });
+  if (!document) {
+    throw new BadRequestError(
+      "No active Terms & Conditions document — add one in Documents settings before sending",
+    );
+  }
+
+  const existing = await db.planSigningRequest.findFirst({
+    where: {
+      planPatientId,
+      documentId: document.id,
+      signedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + SIGNUP_TOKEN_MAX_AGE_MS);
+  const signingRequest = existing
+    ? await db.planSigningRequest.update({
+        where: { id: existing.id },
+        data: { token, expiresAt },
+      })
+    : await db.planSigningRequest.create({
+        data: {
+          practiceId,
+          planPatientId,
+          documentId: document.id,
+          token,
+          expiresAt,
+        },
+      });
+
+  const signupUrl = `/plans/signup/${signingRequest.token}`;
+  const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
+  const planName = planPatient.planModel?.name ?? "Membership Plan";
+  const practiceName = practice?.name ?? "your practice";
+  const patientName =
+    [planPatient.patient.firstName, planPatient.patient.lastName].filter(Boolean).join(" ") || "there";
+
+  const result = await sendTermsSigningEmail({
+    to: planPatient.patient.email,
+    patientName,
+    planName,
+    practiceName,
+    signingUrl: signupUrl,
+  });
+  await logPlanEmail({
+    practiceId,
+    planPatientId,
+    to: planPatient.patient.email,
+    subject: `Terms & Conditions — ${planName} — ${practiceName}`,
+    type: "terms",
+    status: result.success ? "sent" : "failed",
+    messageId: result.messageId ?? null,
+    sentById: options?.sentById ?? null,
+    error: result.error ?? null,
+  }).catch((e) => console.error("[plans] failed to log terms email:", e));
+
+  return {
+    signupUrl,
+    token: signingRequest.token,
+    emailSent: result.success,
+    error: result.error ?? null,
+  };
+}
+
+/** Email the plan's GoCardless DD payment-page link (legacy send-dd-link). */
+export async function sendPatientDdSetupLink(
+  practiceId: string,
+  planPatientId: string,
+  options?: { sentById?: string },
+) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { planModel: true, patient: true },
+  });
+  if (!planPatient) throw new BadRequestError("Plan patient not found");
+  if (!planPatient.patient.email) throw new BadRequestError("Patient has no email address");
+  if (!planPatient.planModel) throw new BadRequestError("Patient has no plan assigned");
+
+  const ddLink = planPatient.planModel.gocardlessLink?.trim() || null;
+  if (!ddLink) {
+    throw new BadRequestError(
+      `No GoCardless link configured for plan "${planPatient.planModel.name}" — set it on the plan first`,
+    );
+  }
+
+  const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
+  const planName = planPatient.planModel.name;
+  const practiceName = practice?.name ?? "your practice";
+  const patientName =
+    [planPatient.patient.firstName, planPatient.patient.lastName].filter(Boolean).join(" ") || "there";
+  const monthlyAmountFormatted = new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(planPatient.planModel.monthlyPricePence / 100);
+
+  const result = await sendDdSetupEmail({
+    to: planPatient.patient.email,
+    patientName,
+    planName,
+    practiceName,
+    monthlyAmountFormatted,
+    ddLink,
+  });
+  await logPlanEmail({
+    practiceId,
+    planPatientId,
+    to: planPatient.patient.email,
+    subject: `Set up your Direct Debit — ${planName} — ${practiceName}`,
+    type: "dd_setup",
+    status: result.success ? "sent" : "failed",
+    messageId: result.messageId ?? null,
+    sentById: options?.sentById ?? null,
+    error: result.error ?? null,
+  }).catch((e) => console.error("[plans] failed to log dd_setup email:", e));
+
+  return { emailSent: result.success, error: result.error ?? null, ddLink };
+}
+
+/** Create a core Patient not synced from Dentally (manual entry), optionally enrol on a plan. */
+export async function createManualPatient(
+  practiceId: string,
+  input: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    planId?: string;
+    parentPatientId?: string;
+  },
+) {
+  const db = scopedDb(practiceId);
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  if (!firstName || !lastName) throw new BadRequestError("First name and last name are required");
+
+  const email = input.email?.trim().toLowerCase() || null;
+  if (email) {
+    const existing = await db.patient.findFirst({
+      where: { email },
+    });
+    if (existing) {
+      throw new BadRequestError(
+        `${[existing.firstName, existing.lastName].filter(Boolean).join(" ") || "A patient"} already exists with that email`,
+      );
+    }
+  }
+
+  let dateOfBirth: Date | null = null;
+  if (input.dateOfBirth?.trim()) {
+    const parsed = new Date(input.dateOfBirth.trim());
+    if (Number.isNaN(parsed.getTime())) throw new BadRequestError("Invalid date of birth");
+    dateOfBirth = parsed;
+  }
+
+  const patient = await db.patient.create({
+    data: {
+      practiceId,
+      dentallyId: `manual:${randomUUID()}`,
+      firstName,
+      lastName,
+      email,
+      phone: input.phone?.trim() || null,
+      dateOfBirth,
+    },
+  });
+
+  if (!input.planId) {
+    return { patient, enrolment: null as Awaited<ReturnType<typeof enrolPatient>> | null };
+  }
+
+  const enrolment = await enrolPatient(practiceId, {
+    patientId: patient.id,
+    planId: input.planId,
+    parentPatientId: input.parentPatientId,
+  });
+  return { patient, enrolment };
 }
 
 /** Search GoCardless by patient email and link any active mandates (legacy check-gc). */

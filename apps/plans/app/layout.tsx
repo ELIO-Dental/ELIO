@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { PageTransition, Toaster, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
-import { auth } from "@elio/auth";
+import { auth, can } from "@elio/auth";
 import type { Role } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
-import { can } from "@/lib/session";
 import { getBrandingSettings } from "@/lib/plans-settings";
 import "./globals.css";
 
@@ -54,6 +53,18 @@ export default async function RootLayout({
   }
 
   const branding = await getBrandingSettings(session.practiceId);
+  const subject = { role: session.role as Role };
+  const canViewPayments =
+    can(subject, "plans:view-payments") || can(subject, "plans:view-payments:readonly");
+  const canEditSettings = can(subject, "plans:edit-settings");
+  const canViewActionRequired =
+    can(subject, "plans:invite-patients") ||
+    can(subject, "plans:view-payments") ||
+    can(subject, "plans:view-payments:readonly") ||
+    can(subject, "plans:resolve-mismatch");
+  const canViewAuditLog =
+    can(subject, "auditlog:view:all") || can(subject, "auditlog:view:own");
+  const canManageTeam = can(subject, "team:manage");
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -64,7 +75,11 @@ export default async function RootLayout({
         <NavigationProgress />
         <ShellLayout
           userEmail={session?.user?.email ?? undefined}
-          canEditSettings={can({ role: session.role as Role }, "plans:edit-settings")}
+          canViewPayments={canViewPayments}
+          canEditSettings={canEditSettings}
+          canViewActionRequired={canViewActionRequired}
+          canViewAuditLog={canViewAuditLog}
+          canManageTeam={canManageTeam}
           brandTitle={branding.brandName?.trim() || "ELIO PLANS"}
           brandLogoUrl={branding.logoUrl?.trim() || undefined}
           faviconUrl={branding.faviconUrl || undefined}

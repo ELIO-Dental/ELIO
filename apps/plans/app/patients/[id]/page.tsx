@@ -26,7 +26,15 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     status: detail.status,
     createdAt: detail.createdAt.toISOString(),
     patient: detail.patient,
-    planModel: detail.planModel,
+    planModel: detail.planModel
+      ? {
+          id: detail.planModel.id,
+          name: detail.planModel.name,
+          monthlyPricePence: detail.planModel.monthlyPricePence,
+          requiresAdultMembership: detail.planModel.requiresAdultMembership,
+          gocardlessLink: detail.planModel.gocardlessLink,
+        }
+      : null,
     parentPatient: detail.parentPatient
       ? {
           id: detail.parentPatient.id,
@@ -72,6 +80,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       expiresAt: s.expiresAt.toISOString(),
       signedAt: s.signedAt?.toISOString() ?? null,
       createdAt: s.createdAt.toISOString(),
+      signatureData: s.signatureData,
+      signatureIp: s.signatureIp,
       document: s.document,
     })),
     documentAcceptances: detail.documentAcceptances.map((a) => ({

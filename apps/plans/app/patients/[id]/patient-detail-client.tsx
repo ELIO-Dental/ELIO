@@ -56,6 +56,7 @@ type PlanPatientDetail = {
     name: string;
     monthlyPricePence: number;
     requiresAdultMembership: boolean;
+    gocardlessLink: string | null;
   } | null;
   parentPatient: {
     id: string;
@@ -91,12 +92,14 @@ type PlanPatientDetail = {
     expiresAt: string;
     signedAt: string | null;
     createdAt: string;
-    document: { title: string; type: string; version: string };
+    signatureData: string | null;
+    signatureIp: string | null;
+    document: { title: string; type: string; version: string; content: string };
   }>;
   documentAcceptances: Array<{
     id: string;
     acceptedAt: string;
-    document: { title: string; type: string; version: string };
+    document: { title: string; type: string; version: string; content: string };
   }>;
 };
 
@@ -128,6 +131,8 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
   payment_failed: "Payment failed",
   price_increase: "Price change",
   terms_signed: "T&C signed",
+  terms: "T&C request",
+  dd_setup: "DD setup",
 };
 
 type AppointmentRow = {
@@ -154,6 +159,16 @@ export function PatientDetailClient({
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelDd, setCancelDd] = React.useState(true);
+  const [pauseOpen, setPauseOpen] = React.useState(false);
+  const [pauseReason, setPauseReason] = React.useState("");
+  const [docViewer, setDocViewer] = React.useState<{
+    title: string;
+    version: string;
+    content: string;
+    signatureData?: string | null;
+    signatureIp?: string | null;
+    signedAt?: string | null;
+  } | null>(null);
   const [linkOpen, setLinkOpen] = React.useState(false);
   const [mandateIdInput, setMandateIdInput] = React.useState("");
   const [redeemOpen, setRedeemOpen] = React.useState(false);
@@ -294,6 +309,11 @@ export function PatientDetailClient({
       }
       if (path === "invite" && data.signupUrl) {
         toast.success(data.emailed ? "Invite emailed to patient" : successMessage, {
+          description: data.signupUrl,
+          duration: 10000,
+        });
+      } else if (path === "send-terms" && data.signupUrl) {
+        toast.success(data.emailSent ? "T&C link emailed" : "T&C link created", {
           description: data.signupUrl,
           duration: 10000,
         });
@@ -452,14 +472,39 @@ export function PatientDetailClient({
         {(canInvite || canEdit) && (
           <div className="flex flex-wrap gap-2">
             {canInvite && (
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={pendingAction === "invite"}
-                onClick={() => runAction("invite", "Invite link created", { sendEmail: true })}
-              >
-                Send invite
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={pendingAction === "invite"}
+                  onClick={() => runAction("invite", "Invite link created", { sendEmail: true })}
+                >
+                  Send invite
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={pendingAction === "send-terms"}
+                  onClick={() => runAction("send-terms", "Terms & Conditions emailed")}
+                  disabled={!detail.patient.email}
+                >
+                  Send T&amp;C
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={pendingAction === "send-dd-link"}
+                  onClick={() => runAction("send-dd-link", "Direct Debit link emailed")}
+                  disabled={!detail.patient.email || !detail.planModel?.gocardlessLink}
+                  title={
+                    !detail.planModel?.gocardlessLink
+                      ? "Configure a GoCardless link on the plan first"
+                      : undefined
+                  }
+                >
+                  Email DD link
+                </Button>
+              </>
             )}
             {canEdit && (
               <>
@@ -497,7 +542,10 @@ export function PatientDetailClient({
                     variant="secondary"
                     size="sm"
                     loading={pendingAction === "pause"}
-                    onClick={() => runAction("pause", "Membership paused", { action: "pause" })}
+                    onClick={() => {
+                      setPauseReason("");
+                      setPauseOpen(true);
+                    }}
                   >
                     Pause
                   </Button>
@@ -545,6 +593,96 @@ export function PatientDetailClient({
               }}
             >
               Cancel membership
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pauseOpen}
+        onOpenChange={(open) => {
+          setPauseOpen(open);
+          if (!open) setPauseReason("");
+        }}
+      >
+        <DialogContent className="overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Pause membership</DialogTitle>
+            <DialogDescription>
+              The patient will remain on the plan but billing and redeems are paused. You can add an optional reason for the audit log.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <Label htmlFor="pause-reason">Reason (optional)</Label>
+            <Textarea
+              id="pause-reason"
+              value={pauseReason}
+              onChange={(e) => setPauseReason(e.target.value)}
+              placeholder="e.g. Temporary financial hardship"
+              className="mt-1 min-h-24"
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setPauseOpen(false)}>
+              Keep active
+            </Button>
+            <Button
+              loading={pendingAction === "pause"}
+              onClick={async () => {
+                await runAction("pause", "Membership paused", {
+                  action: "pause",
+                  ...(pauseReason.trim() ? { reason: pauseReason.trim() } : {}),
+                });
+                setPauseOpen(false);
+                setPauseReason("");
+              }}
+            >
+              Pause membership
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={docViewer != null} onOpenChange={(open) => !open && setDocViewer(null)}>
+        <DialogContent className="max-w-2xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{docViewer?.title ?? "Document"}</DialogTitle>
+            <DialogDescription>
+              {docViewer?.version ? `Version ${docViewer.version}` : "Signed document"}
+              {docViewer?.signedAt ? ` · Signed ${formatWhen(docViewer.signedAt)}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="max-h-[60vh] space-y-4 overflow-y-auto">
+            {docViewer?.content ? (
+              <div
+                className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-bg-subtle) p-4 text-body-sm text-(--color-text-secondary)"
+                dangerouslySetInnerHTML={{ __html: docViewer.content }}
+              />
+            ) : (
+              <p className="text-body-sm text-(--color-text-secondary)">No document content.</p>
+            )}
+            {(docViewer?.signatureData || docViewer?.signatureIp) && (
+              <div className="space-y-2 rounded-(--radius-md) border border-(--color-border-subtle) p-4">
+                <p className="text-caption font-medium text-(--color-text-secondary)">Signature</p>
+                {docViewer.signatureData?.startsWith("data:image") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={docViewer.signatureData}
+                    alt="Patient signature"
+                    className="max-h-32 rounded-(--radius-sm) border border-(--color-border) bg-white"
+                  />
+                ) : docViewer.signatureData ? (
+                  <p className="text-body-sm text-(--color-text-primary)">{docViewer.signatureData}</p>
+                ) : null}
+                {docViewer.signatureIp ? (
+                  <p className="text-caption text-(--color-text-tertiary)">IP: {docViewer.signatureIp}</p>
+                ) : null}
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDocViewer(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -904,11 +1042,29 @@ export function PatientDetailClient({
               ) : (
                 <ul className="space-y-3 text-body-sm">
                   {detail.signingRequests.map((s) => (
-                    <li key={s.id}>
-                      <p className="font-medium">{s.document.title}</p>
-                      <p className="text-(--color-text-secondary)">
-                        {s.signedAt ? `Signed ${formatWhen(s.signedAt)}` : `Expires ${formatWhen(s.expiresAt)}`}
-                      </p>
+                    <li key={s.id} className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{s.document.title}</p>
+                        <p className="text-(--color-text-secondary)">
+                          {s.signedAt ? `Signed ${formatWhen(s.signedAt)}` : `Expires ${formatWhen(s.expiresAt)}`}
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setDocViewer({
+                            title: s.document.title,
+                            version: s.document.version,
+                            content: s.document.content,
+                            signatureData: s.signatureData,
+                            signatureIp: s.signatureIp,
+                            signedAt: s.signedAt,
+                          })
+                        }
+                      >
+                        View
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -925,9 +1081,24 @@ export function PatientDetailClient({
               ) : (
                 <ul className="space-y-3 text-body-sm">
                   {detail.documentAcceptances.map((a) => (
-                    <li key={a.id}>
-                      <p className="font-medium">{a.document.title}</p>
-                      <p className="text-(--color-text-secondary)">Accepted {formatWhen(a.acceptedAt)}</p>
+                    <li key={a.id} className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{a.document.title}</p>
+                        <p className="text-(--color-text-secondary)">Accepted {formatWhen(a.acceptedAt)}</p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setDocViewer({
+                            title: a.document.title,
+                            version: a.document.version,
+                            content: a.document.content,
+                          })
+                        }
+                      >
+                        View
+                      </Button>
                     </li>
                   ))}
                 </ul>

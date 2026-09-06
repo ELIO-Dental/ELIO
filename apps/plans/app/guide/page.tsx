@@ -8,7 +8,7 @@ export default async function GuidePage() {
   const session = await requireLicensedSession();
   const canEdit = can({ role: session.role as Role }, "plans:edit-settings");
 
-  const articles = await listGuideArticles(session.practiceId, { publishedOnly: true });
+  const articles = await listGuideArticles(session.practiceId, { publishedOnly: !canEdit });
 
   const rows = articles.map((a) => ({
     id: a.id,

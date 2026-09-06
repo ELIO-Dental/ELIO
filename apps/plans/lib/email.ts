@@ -111,3 +111,80 @@ export async function sendPriceIncreaseEmail(input: {
   }
   return { success: true, messageId: result.data?.id };
 }
+
+export async function sendTermsSigningEmail(input: {
+  to: string;
+  patientName: string;
+  planName: string;
+  practiceName: string;
+  signingUrl: string;
+}): Promise<EmailSendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
+  const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+  const fullUrl = input.signingUrl.startsWith("http") ? input.signingUrl : `${appOrigin}${input.signingUrl}`;
+  const subject = `Terms & Conditions — ${input.planName} — ${input.practiceName}`;
+
+  if (!input.to) return { success: false, error: "No recipient email" };
+
+  if (!apiKey) {
+    console.warn(`[plans] RESEND_API_KEY not set — terms email for ${input.to} not sent (${fullUrl})`);
+    return { success: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from,
+    to: input.to,
+    subject,
+    html: `<p>Hi ${input.patientName},</p>
+<p>As part of your enrolment in <strong>${input.planName}</strong> at ${input.practiceName}, please review and sign our Terms &amp; Conditions.</p>
+<p><a href="${fullUrl}">Review &amp; sign Terms &amp; Conditions</a></p>
+<p>This link expires in 7 days. If you have any questions, contact the practice.</p>`,
+  });
+  if (result.error) {
+    console.error(`[plans] terms email to ${input.to} failed:`, result.error);
+    return { success: false, error: result.error.message };
+  }
+  console.log(`[plans] terms email sent to ${input.to}, id=${result.data?.id}`);
+  return { success: true, messageId: result.data?.id };
+}
+
+export async function sendDdSetupEmail(input: {
+  to: string;
+  patientName: string;
+  planName: string;
+  practiceName: string;
+  monthlyAmountFormatted: string;
+  ddLink: string;
+}): Promise<EmailSendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
+  const subject = `Set up your Direct Debit — ${input.planName} — ${input.practiceName}`;
+
+  if (!input.to) return { success: false, error: "No recipient email" };
+
+  if (!apiKey) {
+    console.warn(`[plans] RESEND_API_KEY not set — DD setup email for ${input.to} not sent (${input.ddLink})`);
+    return { success: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from,
+    to: input.to,
+    subject,
+    html: `<p>Hi ${input.patientName},</p>
+<p>To complete your enrolment in <strong>${input.planName}</strong> at ${input.practiceName}, please set up your Direct Debit using the secure link below.</p>
+<p><strong>Plan:</strong> ${input.planName}<br/><strong>Monthly amount:</strong> ${input.monthlyAmountFormatted}</p>
+<p><a href="${input.ddLink}">Set up Direct Debit</a></p>
+<p>This is a secure GoCardless payment page. Your bank details are protected by the Direct Debit Guarantee.</p>
+<p>If you have any questions, contact the practice.</p>`,
+  });
+  if (result.error) {
+    console.error(`[plans] DD setup email to ${input.to} failed:`, result.error);
+    return { success: false, error: result.error.message };
+  }
+  console.log(`[plans] DD setup email sent to ${input.to}, id=${result.data?.id}`);
+  return { success: true, messageId: result.data?.id };
+}
