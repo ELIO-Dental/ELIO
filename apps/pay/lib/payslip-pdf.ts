@@ -5,7 +5,7 @@ import { financeFeesDeductionPence, therapyDeductionPence } from "./private-reve
 import { lineCountsTowardGross } from "./payment-flags";
 import { dentistHasNhs } from "./nhs-udas";
 import { resolveFinanceFeesForDeduction } from "./finance-fee";
-import { DEFAULT_PAY_SETTINGS } from "./pay-settings";
+import { defaultPaySettings } from "./pay-settings";
 
 export type PayslipPdfInput = PayslipEntry & {
   dentist: Dentist;
@@ -209,7 +209,7 @@ export async function generatePayslipPdf(payslip: PayslipPdfInput): Promise<{ bu
     }
 
     const financeSplit = payslip.financeFeeSplit ?? 5000;
-    const rateSettings = payslip.financeRateSettings ?? DEFAULT_PAY_SETTINGS;
+    const rateSettings = payslip.financeRateSettings ?? defaultPaySettings();
     const financePence = financeFeesDeductionPence(
       resolveFinanceFeesForDeduction(payslip.privateRevenueLineItems, rateSettings),
       financeSplit
