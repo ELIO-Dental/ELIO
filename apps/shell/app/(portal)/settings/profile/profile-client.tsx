@@ -1,7 +1,99 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, toast } from "@elio/ui";
+
+export function ProfileDetailsForm({
+  initialDisplayName,
+  initialEmail,
+}: {
+  initialDisplayName: string;
+  initialEmail: string;
+}) {
+  const router = useRouter();
+  const [displayName, setDisplayName] = React.useState(initialDisplayName);
+  const [email, setEmail] = React.useState(initialEmail);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setDisplayName(initialDisplayName);
+    setEmail(initialEmail);
+  }, [initialDisplayName, initialEmail]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: displayName.trim(),
+        email: email.trim().toLowerCase(),
+      }),
+    });
+    setLoading(false);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const code = data?.error?.code as string | undefined;
+      const msg =
+        code === "EMAIL_TAKEN"
+          ? "That email is already in use."
+          : code === "INVALID_EMAIL"
+            ? "Enter a valid email address."
+            : "Could not update profile. Please try again.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    toast.success("Profile updated.");
+    router.refresh();
+  }
+
+  return (
+    <Card className="border-(--color-border-subtle) shadow-(--shadow-sm)">
+      <CardHeader>
+        <CardTitle>Name & email</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="space-y-4" data-testid="profile-details-form">
+          <div className="space-y-2">
+            <Label htmlFor="display-name">Display name</Label>
+            <Input
+              id="display-name"
+              type="text"
+              autoComplete="name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={120}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="profile-email">Email</Label>
+            <Input
+              id="profile-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
+          <Button type="submit" loading={loading} data-testid="profile-details-submit">
+            Save profile
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = React.useState("");

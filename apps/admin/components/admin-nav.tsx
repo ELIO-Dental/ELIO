@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Building2, ChevronDown, LogOut, Settings, Shield } from "lucide-react";
+import { Building2, ChevronDown, LogOut, ScrollText, Settings, Shield } from "lucide-react";
 import { signOut } from "next-auth/react";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ const pwa = getPwaConfig("admin");
 
 const NAV_ITEMS: SidebarNavItem[] = [
   { id: "tenants", label: "Tenants", icon: Building2, href: "/" },
+  { id: "audit", label: "Audit", icon: ScrollText, href: "/audit" },
   { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
 ];
 
@@ -50,9 +51,11 @@ export function AdminNav({ userEmail, children }: { userEmail?: string; children
 
   const activeId = pathname.startsWith("/settings")
     ? "settings"
-    : pathname.startsWith("/tenants") || pathname === "/"
-      ? "tenants"
-      : "tenants";
+    : pathname.startsWith("/audit")
+      ? "audit"
+      : pathname.startsWith("/tenants") || pathname === "/"
+        ? "tenants"
+        : "tenants";
   const email = userEmail ?? "admin@elio.dev";
   const displayName = displayNameFromEmail(email);
 

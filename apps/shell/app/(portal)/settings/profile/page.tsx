@@ -3,7 +3,7 @@ import { prisma } from "@elio/db";
 import type { Role } from "@elio/db";
 import { auth } from "@/lib/auth";
 import { Avatar, Badge, Card, CardContent, CardHeader, CardTitle, PageContent, PageHeader } from "@elio/ui";
-import { ChangePasswordForm } from "./profile-client";
+import { ChangePasswordForm, ProfileDetailsForm } from "./profile-client";
 
 function roleLabel(role: Role): string {
   switch (role) {
@@ -31,11 +31,11 @@ function displayNameFromEmail(email: string): string {
     .join(" ");
 }
 
-function initialsFromEmail(email: string): string {
-  const local = email.split("@")[0] ?? "U";
-  const parts = local.split(/[._-]+/).filter(Boolean);
+function initialsFrom(name: string, email: string): string {
+  const source = name.trim() || email;
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
-  return local.slice(0, 2).toUpperCase();
+  return source.slice(0, 2).toUpperCase();
 }
 
 function formatDate(date: Date): string {
@@ -50,6 +50,7 @@ export default async function ProfileSettingsPage() {
     where: { id: session.userId },
     select: {
       email: true,
+      displayName: true,
       role: true,
       mfaEnabled: true,
       createdAt: true,
@@ -58,7 +59,7 @@ export default async function ProfileSettingsPage() {
   });
 
   const role = user.role as Role;
-  const displayName = displayNameFromEmail(user.email);
+  const displayName = user.displayName?.trim() || displayNameFromEmail(user.email);
 
   return (
     <PageContent width="md">
@@ -71,7 +72,7 @@ export default async function ProfileSettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-start gap-4">
-              <Avatar size="lg" initials={initialsFromEmail(user.email)} />
+              <Avatar size="lg" initials={initialsFrom(displayName, user.email)} />
               <div className="min-w-0 flex-1 space-y-4">
                 <div>
                   <p className="text-body font-semibold text-(--color-text-primary)">{displayName}</p>
@@ -103,6 +104,8 @@ export default async function ProfileSettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ProfileDetailsForm initialDisplayName={user.displayName?.trim() ?? ""} initialEmail={user.email} />
 
         <ChangePasswordForm />
       </div>

@@ -80,10 +80,36 @@ export function DentistLogImportPanel({
     await importCsv(text);
   };
 
-  const onGoogleSheets = () => {
-    const msg = "Google Sheets import requires GOOGLE_SERVICE_ACCOUNT_JSON — use CSV upload or paste for now.";
-    setError(msg);
-    toast.error(msg);
+  const onGoogleSheets = async () => {
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    setSummary(null);
+    try {
+      const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/google-sheets-takings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payslipEntryId, dentistName }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        summary?: DentistLogCompareSummary;
+        ok?: boolean;
+      };
+      if (!res.ok || data.ok === false) throw new Error(data.error ?? data.message ?? "Google Sheets import failed");
+      const successMsg = data.message ?? "Log imported from Google Sheets";
+      setMessage(successMsg);
+      toast.success(successMsg);
+      setSummary(data.summary ?? null);
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Google Sheets import failed";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -122,9 +148,9 @@ export function DentistLogImportPanel({
             type="button"
             className="flex items-center gap-1.5 rounded-(--radius-md) border border-(--color-success)/40 bg-(--color-success-bg) px-3 py-1.5 text-caption font-medium text-(--color-success) hover:opacity-90 disabled:opacity-50"
             disabled={pending}
-            onClick={onGoogleSheets}
+            onClick={() => void onGoogleSheets()}
           >
-            <FileSpreadsheet className="size-3" />
+            {pending ? <Loader2 className="size-3 animate-spin" /> : <FileSpreadsheet className="size-3" />}
             Google Sheets
           </button>
           <button

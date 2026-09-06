@@ -274,6 +274,8 @@ model Practice {
 model User {
   id             String  @id @default(cuid())
   email          String  @unique
+  /** Optional display name (AuraPay Account parity). */
+  displayName    String?
   hashedPassword String
   role           Role    @default(STAFF)
   active         Boolean @default(true)
@@ -620,14 +622,15 @@ model Dentist {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  hourEntries           HourEntry[]
-  compassStatementLines PayLine[]
-  payslipEntries        PayslipEntry[]
-  labBillEntries        LabBillEntry[]
-  treatments            Treatment[]
-  consults              Consult[]
-  paidInvoiceLineLogs   PaidInvoiceLineLog[]
-  rateHistory           DentistRateHistory[]
+  hourEntries             HourEntry[]
+  compassStatementLines   PayLine[]
+  payslipEntries          PayslipEntry[]
+  labBillEntries          LabBillEntry[]
+  supplierInvoiceEntries  SupplierInvoiceEntry[]
+  treatments              Treatment[]
+  consults                Consult[]
+  paidInvoiceLineLogs     PaidInvoiceLineLog[]
+  rateHistory             DentistRateHistory[]
 
   @@index([practiceId])
   @@index([practiceId, dentallyPractitionerId])
@@ -1002,22 +1005,28 @@ model LabBillEntry {
 }
 
 model SupplierInvoiceEntry {
-  id          String         @id @default(cuid())
-  practiceId  String
-  practice    Practice       @relation(fields: [practiceId], references: [id])
-  supplierId  String?
-  supplier    SavedSupplier? @relation(fields: [supplierId], references: [id])
-  amountPence Int
-  description String?
-  invoiceDate DateTime?
-  paid        Boolean   @default(false)
-  paidAt      DateTime?
+  id            String         @id @default(cuid())
+  practiceId    String
+  practice      Practice       @relation(fields: [practiceId], references: [id])
+  supplierId    String?
+  supplier      SavedSupplier? @relation(fields: [supplierId], references: [id])
+  dentistId     String?
+  dentist       Dentist?       @relation(fields: [dentistId], references: [id])
+  amountPence   Int
+  description   String?
+  invoiceNumber String?
+  fileUrl       String?
+  invoiceDate   DateTime?
+  paid          Boolean        @default(false)
+  paidAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([practiceId])
   @@index([supplierId])
+  @@index([dentistId])
+  @@index([invoiceDate])
   @@map("pay_supplier_invoice_entries")
 }
 

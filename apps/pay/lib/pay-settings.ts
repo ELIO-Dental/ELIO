@@ -29,6 +29,8 @@ export interface PaySettings {
   smtp_user: string;
   smtp_pass: string;
   email_from: string;
+  /** JSON map of dentist name → Google Sheets spreadsheet ID for private takings import. */
+  takings_spreadsheet_ids: string;
 }
 
 export type PaySettingsKey = keyof PaySettings;
@@ -61,6 +63,7 @@ export const PAY_SETTINGS_KEYS = [
   "smtp_user",
   "smtp_pass",
   "email_from",
+  "takings_spreadsheet_ids",
 ] as const satisfies readonly PaySettingsKey[];
 
 const DEFAULT_THERAPY_HOURLY = "35";
@@ -95,6 +98,7 @@ export function defaultPaySettings(practiceName = ""): PaySettings {
     smtp_user: "",
     smtp_pass: "",
     email_from: "",
+    takings_spreadsheet_ids: "",
   };
 }
 

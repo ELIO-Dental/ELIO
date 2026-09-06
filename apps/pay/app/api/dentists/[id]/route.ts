@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { scopedDb } from "@elio/db";
-import { updateDentist } from "@/lib/pay-service";
+import { deleteDentist, updateDentist } from "@/lib/pay-service";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import {
@@ -95,6 +95,46 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     return NextResponse.json({ dentist });
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return NextResponse.json({ error: err.message }, { status: 401 });
+    if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof Error && err.message === "Dentist not found") {
+      return NextResponse.json({ error: err.message }, { status: 404 });
+    }
+    return errorResponse(err);
+  }
+}
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requirePermission("pay:configure-splits");
+    const { id } = await params;
+    const db = scopedDb(session.practiceId);
+    const before = await db.dentist.findFirst({
+      where: { id, practiceId: session.practiceId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        nhsPerformerNumber: true,
+        dentallyPractitionerId: true,
+        userId: true,
+      },
+    });
+    if (!before) return NextResponse.json({ error: "Dentist not found" }, { status: 404 });
+
+    const result = await deleteDentist(session.practiceId, id);
+    await recordPayAudit(session, {
+      action: result.mode === "soft" ? "pay.dentist.soft_removed" : "pay.dentist.deleted",
+      targetType: "Dentist",
+      targetId: id,
+      metadata: {
+        mode: result.mode,
+        before,
+        after: result.mode === "soft" ? { name: result.dentist.name } : null,
+      },
+    });
+    return NextResponse.json({ ok: true, mode: result.mode });
   } catch (err) {
     if (err instanceof UnauthorizedError) return NextResponse.json({ error: err.message }, { status: 401 });
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });

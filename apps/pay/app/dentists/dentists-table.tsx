@@ -14,8 +14,9 @@ import {
   Button,
   Input,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 function bpToPercentLabel(bp: number | null): string {
   if (bp == null) return "practice";
@@ -45,6 +46,7 @@ interface DentistRow {
 export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
   const router = useRouter();
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [name, setName] = React.useState("");
   const [practitionerId, setPractitionerId] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [nhsPerformer, setNhsPerformer] = React.useState("");
@@ -55,6 +57,8 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
   const [financeSharePct, setFinanceSharePct] = React.useState("");
   const [therapyHourly, setTherapyHourly] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [removingId, setRemovingId] = React.useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = React.useState<DentistRow | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   async function saveDentist(dentistId: string, payType: string) {
@@ -62,6 +66,7 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
     setError(null);
     try {
       const body: Record<string, unknown> = {
+        name: name.trim() || undefined,
         dentallyPractitionerId: practitionerId.trim() || null,
         email: email.trim() || null,
         nhsPerformerNumber: nhsPerformer.trim() || null,
@@ -96,6 +101,26 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
     }
   }
 
+  async function confirmRemove() {
+    if (!removeTarget) return;
+    setRemovingId(removeTarget.id);
+    setError(null);
+    try {
+      const res = await fetch(`/pay/api/dentists/${removeTarget.id}`, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; mode?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to remove dentist");
+      toast.success(data.mode === "soft" ? "Dentist marked removed" : "Dentist deleted");
+      setRemoveTarget(null);
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to remove dentist";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   return (
     <>
       {error && <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p>}
@@ -111,13 +136,24 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
             <TableHead>Lab / finance share</TableHead>
             <TableHead>Therapy £/hr</TableHead>
             <TableHead>Hourly rate</TableHead>
-            <TableHead className="w-16" />
+            <TableHead className="w-24" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {dentists.map((d) => (
             <TableRow key={d.id}>
-              <TableCell>{d.name}</TableCell>
+              <TableCell>
+                {editingId === d.id ? (
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="text-sm"
+                    required
+                  />
+                ) : (
+                  d.name
+                )}
+              </TableCell>
               <TableCell>
                 {editingId === d.id ? (
                   <Input
@@ -257,34 +293,63 @@ export function DentistsTable({ dentists }: { dentists: DentistRow[] }) {
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={`Edit ${d.name}`}
-                    onClick={() => {
-                      setEditingId(d.id);
-                      setPractitionerId(d.dentallyPractitionerId ?? "");
-                      setEmail(d.email ?? "");
-                      setNhsPerformer(d.nhsPerformerNumber ?? "");
-                      setSplitPercent(d.privateSplitPercent != null ? String(d.privateSplitPercent) : "");
-                      setUdaRate(d.udaRatePence != null ? (d.udaRatePence / 100).toFixed(2) : "");
-                      setHourlyRate(d.hourlyRatePence != null ? (d.hourlyRatePence / 100).toFixed(2) : "");
-                      setLabSharePct(d.labShareBp != null ? (d.labShareBp / 100).toString() : "");
-                      setFinanceSharePct(d.financeShareBp != null ? (d.financeShareBp / 100).toString() : "");
-                      setTherapyHourly(
-                        d.therapyHourlyPence != null ? (d.therapyHourlyPence / 100).toFixed(2) : ""
-                      );
-                      setError(null);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Edit ${d.name}`}
+                      onClick={() => {
+                        setEditingId(d.id);
+                        setName(d.name);
+                        setPractitionerId(d.dentallyPractitionerId ?? "");
+                        setEmail(d.email ?? "");
+                        setNhsPerformer(d.nhsPerformerNumber ?? "");
+                        setSplitPercent(d.privateSplitPercent != null ? String(d.privateSplitPercent) : "");
+                        setUdaRate(d.udaRatePence != null ? (d.udaRatePence / 100).toFixed(2) : "");
+                        setHourlyRate(d.hourlyRatePence != null ? (d.hourlyRatePence / 100).toFixed(2) : "");
+                        setLabSharePct(d.labShareBp != null ? (d.labShareBp / 100).toString() : "");
+                        setFinanceSharePct(d.financeShareBp != null ? (d.financeShareBp / 100).toString() : "");
+                        setTherapyHourly(
+                          d.therapyHourlyPence != null ? (d.therapyHourlyPence / 100).toFixed(2) : ""
+                        );
+                        setError(null);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-(--color-danger)"
+                      aria-label={`Remove ${d.name}`}
+                      loading={removingId === d.id}
+                      onClick={() => setRemoveTarget(d)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null);
+        }}
+        title="Remove dentist?"
+        description={
+          removeTarget
+            ? `${removeTarget.name} will be soft-removed if they have payslips or bills, otherwise deleted permanently.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={() => void confirmRemove()}
+      />
     </>
   );
 }

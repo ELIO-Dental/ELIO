@@ -33,9 +33,18 @@ describe("pay settings (Y3.5)", () => {
 
   it("merges partial updates", () => {
     const base = defaultPaySettings();
-    const next = mergePaySettingsInput(base, { therapist_ids: "1,2,3", lab_bill_split: "0.6" });
+    const next = mergePaySettingsInput(base, {
+      therapist_ids: "1,2,3",
+      lab_bill_split: "0.6",
+      takings_spreadsheet_ids: '{"A":"1"}',
+    });
     expect(next.therapist_ids).toBe("1,2,3");
     expect(next.lab_bill_split).toBe("0.6");
+    expect(next.takings_spreadsheet_ids).toBe('{"A":"1"}');
+  });
+
+  it("defaults takings_spreadsheet_ids to empty string", () => {
+    expect(defaultPaySettings().takings_spreadsheet_ids).toBe("");
   });
 
   it("resolves therapist IDs and NHS amounts from settings", () => {

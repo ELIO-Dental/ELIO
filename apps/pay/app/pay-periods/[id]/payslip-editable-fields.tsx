@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Save, Trash2, Undo2 } from "lucide-react";
 import { Button, toast } from "@elio/ui";
 import {
   parsePayslipAdjustments,
@@ -20,6 +20,20 @@ function poundsToNumber(value: string): number {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : 0;
 }
+
+interface FormSnapshot {
+  therapyMins: string;
+  therapyRate: string;
+  superannuation: string;
+  grossPrivate: string;
+  financeFees: string;
+  notes: string;
+  nhsUdas: string;
+  labBills: PayslipLabBill[];
+  adjustments: PayslipAdjustment[];
+}
+
+const MAX_UNDO = 10;
 
 /** Editable draft payslip deductions (legacy Y2.9). */
 export function PayslipEditableFields({
@@ -68,8 +82,46 @@ export function PayslipEditableFields({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [undoStack, setUndoStack] = useState<FormSnapshot[]>([]);
+  const skipNextPropSync = useRef(false);
+
+  const captureSnapshot = (): FormSnapshot => ({
+    therapyMins,
+    therapyRate,
+    superannuation,
+    grossPrivate,
+    financeFees,
+    notes,
+    nhsUdas,
+    labBills: labBills.map((b) => ({ ...b })),
+    adjustments: adjustments.map((a) => ({ ...a })),
+  });
+
+  const pushUndo = () => {
+    setUndoStack((prev) => [...prev, captureSnapshot()].slice(-MAX_UNDO));
+  };
+
+  const undo = () => {
+    if (undoStack.length === 0) return;
+    const snapshot = undoStack[undoStack.length - 1]!;
+    setUndoStack((prev) => prev.slice(0, -1));
+    setTherapyMins(snapshot.therapyMins);
+    setTherapyRate(snapshot.therapyRate);
+    setSuperannuation(snapshot.superannuation);
+    setGrossPrivate(snapshot.grossPrivate);
+    setFinanceFees(snapshot.financeFees);
+    setNotes(snapshot.notes);
+    setNhsUdas(snapshot.nhsUdas);
+    setLabBills(snapshot.labBills.map((b) => ({ ...b })));
+    setAdjustments(snapshot.adjustments.map((a) => ({ ...a })));
+    toast.success("Change undone");
+  };
 
   useEffect(() => {
+    if (skipNextPropSync.current) {
+      skipNextPropSync.current = false;
+      return;
+    }
     setTherapyMins(therapyMinutes?.toString() ?? "");
     setTherapyRate(therapyRatePerMinute != null ? therapyRatePerMinute.toString() : "");
     setSuperannuation(penceToPounds(superannuationPence));
@@ -79,6 +131,7 @@ export function PayslipEditableFields({
     setNhsUdas(udas ?? "");
     setLabBills(parsePayslipLabBills(labBillsJson));
     setAdjustments(parsePayslipAdjustments(adjustmentsJson));
+    setUndoStack([]);
   }, [
     therapyMinutes,
     therapyRatePerMinute,
@@ -94,6 +147,7 @@ export function PayslipEditableFields({
   if (locked) return null;
 
   const save = async () => {
+    pushUndo();
     setPending(true);
     setError(null);
     setMessage(null);
@@ -135,6 +189,7 @@ export function PayslipEditableFields({
       if (!res.ok) throw new Error(data.error ?? "Save failed");
       setMessage("Payslip updated");
       toast.success("Payslip updated");
+      skipNextPropSync.current = true;
       router.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
@@ -159,10 +214,18 @@ export function PayslipEditableFields({
             Therapy, superannuation, lab bills, and manual adjustments while the period is in draft
           </p>
         </div>
-        <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
-          <Save className="size-3" />
-          Save changes
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {undoStack.length > 0 ? (
+            <Button type="button" size="sm" variant="outline" onClick={undo} data-testid="payslip-undo">
+              <Undo2 className="size-3" />
+              Undo ({undoStack.length})
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
+            <Save className="size-3" />
+            Save changes
+          </Button>
+        </div>
       </div>
 
       {error ? <p className="mb-3 text-caption text-(--color-danger)">{error}</p> : null}
@@ -256,7 +319,10 @@ export function PayslipEditableFields({
             <button
               type="button"
               className="flex items-center gap-1 text-caption font-medium text-(--color-brand)"
-              onClick={() => setLabBills((prev) => [...prev, { lab_name: "", amount: 0 }])}
+              onClick={() => {
+                pushUndo();
+                setLabBills((prev) => [...prev, { lab_name: "", amount: 0 }]);
+              }}
             >
               <Plus className="size-3" /> Add lab bill
             </button>
@@ -305,7 +371,10 @@ export function PayslipEditableFields({
                   <button
                     type="button"
                     className="text-(--color-danger)"
-                    onClick={() => setLabBills((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={() => {
+                      pushUndo();
+                      setLabBills((prev) => prev.filter((_, j) => j !== i));
+                    }}
                     aria-label="Remove lab bill"
                   >
                     <Trash2 className="size-4" />
@@ -329,12 +398,13 @@ export function PayslipEditableFields({
             <button
               type="button"
               className="flex items-center gap-1 text-caption font-medium text-(--color-brand)"
-              onClick={() =>
+              onClick={() => {
+                pushUndo();
                 setAdjustments((prev) => [
                   ...prev,
                   { description: "", amount: 0, amountPence: 0, type: "deduction" },
-                ])
-              }
+                ]);
+              }}
             >
               <Plus className="size-3" /> Add adjustment
             </button>
@@ -390,7 +460,10 @@ export function PayslipEditableFields({
                   <button
                     type="button"
                     className="text-(--color-danger)"
-                    onClick={() => setAdjustments((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={() => {
+                      pushUndo();
+                      setAdjustments((prev) => prev.filter((_, j) => j !== i));
+                    }}
                   >
                     <Trash2 className="size-4" />
                   </button>

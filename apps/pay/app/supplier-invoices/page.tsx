@@ -4,6 +4,8 @@ import type { Role } from "@elio/db";
 import { scopedDb } from "@elio/db";
 import { PageContent, PageHeader } from "@elio/ui";
 import { SupplierInvoicesClient } from "./supplier-invoices-client";
+import type { SupplierInvoiceListItem } from "@/lib/supplier-invoices-summary";
+import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 
 export default async function SupplierInvoicesPage() {
   const session = await auth();
@@ -11,13 +13,38 @@ export default async function SupplierInvoicesPage() {
   await redirectUnlessPayViewAll(session.role as Role);
 
   const db = scopedDb(session.practiceId);
-  const [supplierInvoices, suppliers] = await Promise.all([
+  const currentYear = new Date().getUTCFullYear();
+  const [supplierInvoices, dentists, suppliers] = await Promise.all([
     db.supplierInvoiceEntry.findMany({
-      include: { supplier: { select: { id: true, name: true } } },
-      orderBy: { createdAt: "desc" },
+      include: {
+        supplier: { select: { id: true, name: true } },
+        dentist: { select: { id: true, name: true } },
+      },
+      orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
+    }),
+    db.dentist.findMany({
+      where: ACTIVE_DENTIST_WHERE,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
     db.savedSupplier.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
+
+  const rows: SupplierInvoiceListItem[] = supplierInvoices.map((i) => ({
+    id: i.id,
+    supplierId: i.supplierId,
+    supplierName: i.supplier?.name ?? null,
+    dentistId: i.dentistId,
+    dentistName: i.dentist?.name ?? null,
+    amountPence: i.amountPence,
+    description: i.description,
+    invoiceNumber: i.invoiceNumber,
+    fileUrl: i.fileUrl,
+    invoiceDate: i.invoiceDate?.toISOString() ?? null,
+    paid: i.paid,
+    paidAt: i.paidAt?.toISOString() ?? null,
+    createdAt: i.createdAt.toISOString(),
+  }));
 
   return (
     <PageContent>
@@ -25,18 +52,10 @@ export default async function SupplierInvoicesPage() {
 
       <div className="mt-8">
         <SupplierInvoicesClient
-          initialSupplierInvoices={supplierInvoices.map((i) => ({
-            id: i.id,
-            supplierId: i.supplierId,
-            supplierName: i.supplier?.name ?? null,
-            amountPence: i.amountPence,
-            description: i.description,
-            invoiceDate: i.invoiceDate ? i.invoiceDate.toISOString() : null,
-            paid: i.paid,
-            paidAt: i.paidAt?.toISOString() ?? null,
-            createdAt: i.createdAt.toISOString(),
-          }))}
+          initialSupplierInvoices={rows}
+          dentists={dentists}
           suppliers={suppliers}
+          initialYear={currentYear}
         />
       </div>
     </PageContent>

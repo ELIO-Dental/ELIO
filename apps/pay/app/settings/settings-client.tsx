@@ -331,6 +331,12 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
             onChange={(v) => update("cosmetic_consultation_treatment_code", v)}
             placeholder="e.g. COSM01"
           />
+          <SettingsField
+            label="Private takings Google Sheet IDs (JSON map)"
+            value={settings.takings_spreadsheet_ids}
+            onChange={(v) => update("takings_spreadsheet_ids", v)}
+            placeholder='{"Dentist Name":"spreadsheetId"}'
+          />
         </CardContent>
       </Card>
 

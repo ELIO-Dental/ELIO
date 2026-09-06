@@ -205,6 +205,70 @@ export async function updateDentist(practiceId: string, dentistId: string, input
   return dentist;
 }
 
+const REMOVED_PREFIX = "[REMOVED] ";
+
+/**
+ * Soft-remove when the dentist still has historical pay/bill links; otherwise hard-delete.
+ * Soft: rename to `[REMOVED] …` (no double-prefix), clear identity/contact fields.
+ */
+export async function deleteDentist(practiceId: string, dentistId: string) {
+  const db = scopedDb(practiceId);
+  const existing = await db.dentist.findFirst({ where: { id: dentistId, practiceId } });
+  if (!existing) throw new Error("Dentist not found");
+
+  const [
+    payslipCount,
+    labBillCount,
+    supplierInvoiceCount,
+    paidLogCount,
+    hourCount,
+    payLineCount,
+    treatmentCount,
+    consultCount,
+  ] = await Promise.all([
+    db.payslipEntry.count({ where: { dentistId } }),
+    db.labBillEntry.count({ where: { dentistId } }),
+    db.supplierInvoiceEntry.count({ where: { dentistId } }),
+    db.paidInvoiceLineLog.count({ where: { dentistId } }),
+    db.hourEntry.count({ where: { dentistId } }),
+    db.payLine.count({ where: { dentistId } }),
+    db.treatment.count({ where: { dentistId } }),
+    db.consult.count({ where: { practitionerDentistId: dentistId } }),
+  ]);
+
+  const hasLinks =
+    payslipCount +
+      labBillCount +
+      supplierInvoiceCount +
+      paidLogCount +
+      hourCount +
+      payLineCount +
+      treatmentCount +
+      consultCount >
+    0;
+
+  if (hasLinks) {
+    const name = existing.name.startsWith(REMOVED_PREFIX)
+      ? existing.name
+      : `${REMOVED_PREFIX}${existing.name}`;
+    const dentist = await db.dentist.update({
+      where: { id: dentistId },
+      data: {
+        name,
+        dentallyPractitionerId: null,
+        nhsPerformerNumber: null,
+        email: null,
+        userId: null,
+      },
+    });
+    return { mode: "soft" as const, dentist };
+  }
+
+  await db.dentistRateHistory.deleteMany({ where: { dentistId, practiceId } });
+  await db.dentist.delete({ where: { id: dentistId } });
+  return { mode: "hard" as const, dentist: existing };
+}
+
 // ---------------------------------------------------------------------------
 // Lab bills
 // ---------------------------------------------------------------------------
@@ -441,19 +505,53 @@ export async function updateLabBillPaid(practiceId: string, labBillId: string, p
 // Supplier invoices
 // ---------------------------------------------------------------------------
 
-export async function listSupplierInvoices(practiceId: string, supplierName?: string) {
+export async function listSupplierInvoices(
+  practiceId: string,
+  options?: { supplierName?: string; dentistId?: string; year?: number; month?: number }
+) {
   const db = scopedDb(practiceId);
+  const where: {
+    dentistId?: string;
+    supplier?: { name: { contains: string; mode: "insensitive" } };
+    OR?: Array<
+      | { invoiceDate: { gte: Date; lt: Date } }
+      | { invoiceDate: null; createdAt: { gte: Date; lt: Date } }
+    >;
+  } = {};
+
+  if (options?.dentistId) where.dentistId = options.dentistId;
+  if (options?.supplierName) {
+    where.supplier = { name: { contains: options.supplierName, mode: "insensitive" } };
+  }
+
+  if (options?.year) {
+    const startMonth = options.month ?? 1;
+    const endMonth = options.month ?? 12;
+    const rangeStart = new Date(Date.UTC(options.year, startMonth - 1, 1));
+    const rangeEnd = new Date(Date.UTC(options.year, endMonth, 1));
+    where.OR = [
+      { invoiceDate: { gte: rangeStart, lt: rangeEnd } },
+      { invoiceDate: null, createdAt: { gte: rangeStart, lt: rangeEnd } },
+    ];
+  }
+
   return db.supplierInvoiceEntry.findMany({
-    where: supplierName ? { supplier: { name: { contains: supplierName, mode: "insensitive" } } } : undefined,
-    include: { supplier: { select: { id: true, name: true } } },
-    orderBy: { createdAt: "desc" },
+    where,
+    include: {
+      supplier: { select: { id: true, name: true } },
+      dentist: { select: { id: true, name: true } },
+    },
+    orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
   });
 }
 
 export interface CreateSupplierInvoiceInput {
   supplierId?: string | null;
+  dentistId?: string | null;
   amountPence: number;
   description?: string | null;
+  invoiceNumber?: string | null;
+  fileUrl?: string | null;
   invoiceDate?: string | null;
   paid?: boolean;
   paidAt?: Date | null;
@@ -465,13 +563,58 @@ export async function createSupplierInvoice(practiceId: string, input: CreateSup
     data: {
       practiceId,
       supplierId: input.supplierId ?? null,
+      dentistId: input.dentistId?.trim() || null,
       amountPence: input.amountPence,
       description: input.description ?? null,
+      invoiceNumber: input.invoiceNumber?.trim() || null,
+      fileUrl: input.fileUrl ?? null,
       invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : null,
       paid: input.paid ?? false,
       paidAt: input.paid ? (input.paidAt ?? new Date()) : null,
     },
   });
+}
+
+export async function updateSupplierInvoice(
+  practiceId: string,
+  supplierInvoiceId: string,
+  input: Partial<CreateSupplierInvoiceInput>
+) {
+  const db = scopedDb(practiceId);
+  const existing = await db.supplierInvoiceEntry.findFirst({
+    where: { id: supplierInvoiceId, practiceId },
+  });
+  if (!existing) throw new Error("Supplier invoice not found");
+
+  return db.supplierInvoiceEntry.update({
+    where: { id: supplierInvoiceId },
+    data: {
+      supplierId: input.supplierId !== undefined ? input.supplierId : undefined,
+      dentistId: input.dentistId !== undefined ? input.dentistId : undefined,
+      amountPence: input.amountPence,
+      description: input.description !== undefined ? input.description : undefined,
+      invoiceNumber: input.invoiceNumber !== undefined ? input.invoiceNumber?.trim() || null : undefined,
+      fileUrl: input.fileUrl !== undefined ? input.fileUrl : undefined,
+      invoiceDate:
+        input.invoiceDate !== undefined
+          ? input.invoiceDate
+            ? new Date(input.invoiceDate)
+            : null
+          : undefined,
+      paid: input.paid,
+      paidAt: input.paid === false ? null : input.paid ? (input.paidAt ?? new Date()) : undefined,
+    },
+  });
+}
+
+export async function deleteSupplierInvoice(practiceId: string, supplierInvoiceId: string) {
+  const db = scopedDb(practiceId);
+  const existing = await db.supplierInvoiceEntry.findFirst({
+    where: { id: supplierInvoiceId, practiceId },
+  });
+  if (!existing) throw new Error("Supplier invoice not found");
+  await db.supplierInvoiceEntry.delete({ where: { id: supplierInvoiceId } });
+  return { ok: true };
 }
 
 export async function updateSupplierInvoicePaid(

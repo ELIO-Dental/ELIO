@@ -36,6 +36,7 @@ const smtpSettings: PaySettings = {
   nhs_amounts: "",
   excluded_treatments: "",
   cosmetic_consultation_treatment_code: "",
+  takings_spreadsheet_ids: "",
   smtp_host: "smtp.example.com",
   smtp_port: "587",
   smtp_user: "user@example.com",
