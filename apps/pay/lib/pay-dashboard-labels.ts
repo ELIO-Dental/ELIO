@@ -11,12 +11,16 @@ export function formatPayPeriodMonthLabel(periodStart: Date): string {
   }).format(periodStart);
 }
 
-/** Three-letter month badge (Jan, May, …). */
+/**
+ * Three-letter month badge — AuraPay used `monthName(m).substring(0, 3)`
+ * (e.g. September → Sep, not Intl short “Sept”).
+ */
 export function formatPayPeriodMonthShort(periodStart: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    month: "short",
+  const longMonth = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
     timeZone: "UTC",
   }).format(periodStart);
+  return longMonth.substring(0, 3);
 }
 
 /** Legacy used Finalized / Draft; ELIO stores LOCKED / DRAFT. */
