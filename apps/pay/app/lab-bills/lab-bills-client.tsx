@@ -67,6 +67,7 @@ export function LabBillsClient({
   const [error, setError] = React.useState<string | null>(null);
   const [formDentistId, setFormDentistId] = React.useState<string>("__none__");
   const [formSavedLabId, setFormSavedLabId] = React.useState<string>("__none__");
+  const [formLabName, setFormLabName] = React.useState("");
   const [filterYear, setFilterYear] = React.useState(initialYear);
   const [filterMonth, setFilterMonth] = React.useState<string>("__all__");
   const [payFilter, setPayFilter] = React.useState<LabPayFilter>("all");
@@ -133,6 +134,7 @@ export function LabBillsClient({
       description: form.get("description") || null,
       dentistId: formDentistId === "__none__" ? null : formDentistId,
       savedLabId: formSavedLabId === "__none__" ? null : formSavedLabId,
+      labName: formSavedLabId === "__none__" ? formLabName.trim() || null : null,
       billDate: billDate || null,
     };
 
@@ -153,6 +155,7 @@ export function LabBillsClient({
     (e.target as HTMLFormElement).reset();
     setFormDentistId("__none__");
     setFormSavedLabId("__none__");
+    setFormLabName("");
     router.refresh();
   }
 
@@ -216,13 +219,13 @@ export function LabBillsClient({
           <CardContent>
             <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <Label htmlFor="savedLabId">Lab</Label>
+                <Label htmlFor="savedLabId">Saved lab</Label>
                 <Select value={formSavedLabId} onValueChange={setFormSavedLabId}>
                   <SelectTrigger id="savedLabId">
                     <SelectValue placeholder="Select lab" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select lab…</SelectItem>
+                    <SelectItem value="__none__">Other / type name…</SelectItem>
                     {savedLabs.map((lab) => (
                       <SelectItem key={lab.id} value={lab.id}>
                         {lab.name}
@@ -231,14 +234,26 @@ export function LabBillsClient({
                   </SelectContent>
                 </Select>
               </div>
+              {formSavedLabId === "__none__" ? (
+                <div>
+                  <Label htmlFor="labName">Lab name</Label>
+                  <Input
+                    id="labName"
+                    value={formLabName}
+                    onChange={(e) => setFormLabName(e.target.value)}
+                    placeholder="e.g. Acme Dental Lab"
+                    required
+                  />
+                </div>
+              ) : null}
               <div>
                 <Label htmlFor="dentistId">Dentist</Label>
                 <Select value={formDentistId} onValueChange={setFormDentistId}>
                   <SelectTrigger id="dentistId">
-                    <SelectValue />
+                    <SelectValue placeholder="Select dentist" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    <SelectItem value="__none__">Select dentist…</SelectItem>
                     {dentists.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
@@ -261,7 +276,14 @@ export function LabBillsClient({
               </div>
               <div className="sm:col-span-3">
                 {error ? <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p> : null}
-                <Button type="submit" loading={submitting} disabled={formSavedLabId === "__none__"}>
+                <Button
+                  type="submit"
+                  loading={submitting}
+                  disabled={
+                    formDentistId === "__none__" ||
+                    (formSavedLabId === "__none__" && !formLabName.trim())
+                  }
+                >
                   Add lab bill
                 </Button>
               </div>

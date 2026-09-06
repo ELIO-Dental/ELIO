@@ -1,0 +1,15 @@
+{
+  "period": "2026-05",
+  "notes": "Fill netPayPounds from AuraPay / legacy spreadsheet for the same month. _elioFinalPounds is current ElioPay LOCKED May totals (reference only).",
+  "elioPayPeriodId": "cmt5e9qdi000pule8mdvpnk1v",
+  "entries": [
+    { "dentistName": "Angelica Londono-Ferrero", "netPayPounds": 0, "_elioFinalPounds": 0 },
+    { "dentistName": "Ankush Patel", "netPayPounds": 0, "_elioFinalPounds": 0 },
+    { "dentistName": "Hani Dalati", "netPayPounds": 0, "_elioFinalPounds": 0 },
+    { "dentistName": "Hisham Saqib", "netPayPounds": 3692.95, "_elioFinalPounds": 3692.95 },
+    { "dentistName": "Moneeb Ahmad", "netPayPounds": 26245.92, "_elioFinalPounds": 26245.92 },
+    { "dentistName": "Peter Throw", "netPayPounds": 4420.76, "_elioFinalPounds": 4420.76 },
+    { "dentistName": "Priyanka Kapoor", "netPayPounds": 5763.74, "_elioFinalPounds": 5763.74 },
+    { "dentistName": "Zeeshan Abbas", "netPayPounds": 26163.83, "_elioFinalPounds": 26163.83 }
+  ]
+}

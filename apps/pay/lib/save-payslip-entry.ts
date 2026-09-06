@@ -1,7 +1,21 @@
 import { calculateLabDeduction } from "@elio/pay-engine";
 import type { SavePayslipEntryInput } from "./pay-service";
+import {
+  parsePayslipAdjustments,
+  prepareAdjustmentsForSave,
+  sumAdjustmentsToManualPence,
+  validatePayslipAdjustments,
+} from "./payslip-editable-fields";
 
-type LegacyAdjustment = { description?: string; amount?: number; type?: "addition" | "deduction" };
+type LegacyAdjustment = {
+  description?: string;
+  note?: string;
+  amount?: number;
+  amountPence?: number;
+  type?: "addition" | "deduction";
+  createdBy?: string;
+  createdAt?: string;
+};
 type LegacyLabBill = { amount?: number };
 type LegacyPrivatePatient = {
   amount?: number;
@@ -19,18 +33,17 @@ function poundsToPence(value: unknown): number | undefined {
 
 export function sumLegacyAdjustmentsPence(adjustments: LegacyAdjustment[] | undefined): number | undefined {
   if (!adjustments?.length) return undefined;
-  let totalPence = 0;
-  for (const adj of adjustments) {
-    const amountPence = poundsToPence(adj.amount) ?? 0;
-    totalPence += adj.type === "deduction" ? -amountPence : amountPence;
-  }
-  return totalPence;
+  const parsed = parsePayslipAdjustments(adjustments);
+  return sumAdjustmentsToManualPence(parsed);
 }
 
-export function labBillsDeductionPence(labBills: LegacyLabBill[] | undefined): number | undefined {
+export function labBillsDeductionPence(
+  labBills: LegacyLabBill[] | undefined,
+  labShareRate = 0.5
+): number | undefined {
   if (!labBills?.length) return undefined;
   const billPence = labBills.map((b) => poundsToPence(b.amount) ?? 0);
-  return calculateLabDeduction(billPence);
+  return calculateLabDeduction(billPence, labShareRate);
 }
 
 export function totalsFromLegacyPatients(patients: LegacyPrivatePatient[] | undefined): {
@@ -49,13 +62,37 @@ export function totalsFromLegacyPatients(patients: LegacyPrivatePatient[] | unde
   return { grossPrivateRevenuePence: grossPence, financeFeesPence };
 }
 
-/** Accept legacy AuraPay PUT body keys alongside new ELIO camelCase fields (Y2.1a). */
-export function normalizeSavePayslipEntryInput(body: Record<string, unknown>): SavePayslipEntryInput {
+export class PayslipAdjustmentValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PayslipAdjustmentValidationError";
+  }
+}
+
+/** Accept legacy AuraPay PUT body keys alongside new ELIO camelCase fields (Y2.1a / Step 27). */
+export function normalizeSavePayslipEntryInput(
+  body: Record<string, unknown>,
+  opts?: { labBillSplit?: number; actorUserId?: string }
+): SavePayslipEntryInput {
   const payslipEntryId = String(body.payslipEntryId ?? body.id ?? "");
-  const adjustments = body.adjustments as LegacyAdjustment[] | undefined;
+  const rawAdjustments = (body.adjustments ?? body.adjustmentsJson ?? body.adjustments_json) as
+    | LegacyAdjustment[]
+    | undefined;
   const labBills = body.lab_bills as LegacyLabBill[] | undefined;
   const privatePatients = body.private_patients as LegacyPrivatePatient[] | undefined;
   const patientTotals = totalsFromLegacyPatients(privatePatients);
+  const labShare = opts?.labBillSplit ?? 0.5;
+
+  let adjustmentsJson: unknown = rawAdjustments;
+  let manualFromAdj: number | undefined;
+  if (rawAdjustments != null) {
+    const parsed = parsePayslipAdjustments(rawAdjustments);
+    const err = validatePayslipAdjustments(parsed);
+    if (err) throw new PayslipAdjustmentValidationError(err);
+    const stamped = prepareAdjustmentsForSave(parsed, opts?.actorUserId ?? "system");
+    adjustmentsJson = stamped;
+    manualFromAdj = sumAdjustmentsToManualPence(stamped);
+  }
 
   return {
     payslipEntryId,
@@ -68,7 +105,9 @@ export function normalizeSavePayslipEntryInput(body: Record<string, unknown>): S
     consultationExclusionsPence:
       body.consultationExclusionsPence != null ? Number(body.consultationExclusionsPence) : undefined,
     labDeductionPence:
-      body.labDeductionPence != null ? Number(body.labDeductionPence) : labBillsDeductionPence(labBills),
+      body.labDeductionPence != null
+        ? Number(body.labDeductionPence)
+        : labBillsDeductionPence(labBills, labShare),
     superannuationPence:
       body.superannuationPence != null
         ? Number(body.superannuationPence)
@@ -80,15 +119,17 @@ export function normalizeSavePayslipEntryInput(body: Record<string, unknown>): S
           ? Number(body.therapy_minutes)
           : undefined,
     therapyRatePerMinute:
-      body.therapyRatePerMinute != null
-        ? Number(body.therapyRatePerMinute)
-        : body.therapy_rate != null
-          ? Number(body.therapy_rate)
-          : undefined,
+      body.therapyRatePerMinute === null || body.therapy_rate === null
+        ? null
+        : body.therapyRatePerMinute != null
+          ? Number(body.therapyRatePerMinute)
+          : body.therapy_rate != null && body.therapy_rate !== ""
+            ? Number(body.therapy_rate)
+            : undefined,
     manualAdjustmentsPence:
       body.manualAdjustmentsPence != null
         ? Number(body.manualAdjustmentsPence)
-        : sumLegacyAdjustmentsPence(adjustments),
+        : manualFromAdj,
     adjustmentReason:
       typeof body.adjustmentReason === "string"
         ? body.adjustmentReason
@@ -104,6 +145,6 @@ export function normalizeSavePayslipEntryInput(body: Record<string, unknown>): S
     dentallyPatientsJson: privatePatients ?? body.dentallyPatientsJson,
     dentallyDiscrepanciesJson: body.discrepancies ?? body.dentallyDiscrepanciesJson,
     labBillsJson: labBills ?? body.labBillsJson ?? body.lab_bills_json,
-    adjustmentsJson: adjustments ?? body.adjustmentsJson ?? body.adjustments_json,
+    adjustmentsJson,
   };
 }

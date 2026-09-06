@@ -32,6 +32,12 @@ export interface FetchResult {
     skippedNonClinician?: number;
     skippedNhs?: number;
     unmatchedClinicianIds: string[];
+    unmappedPractitioners?: Array<{
+      practitionerId: string;
+      amountPence: number;
+      treatment: string;
+      invoiceDate: string;
+    }>;
   };
 }
 
@@ -39,6 +45,7 @@ interface PayPeriodActionsContextValue {
   payPeriodId: string;
   locked: boolean;
   payslipCount: number;
+  anyProvisional: boolean;
   fetching: boolean;
   locking: boolean;
   unlocking: boolean;
@@ -68,12 +75,14 @@ export function PayPeriodActionsProvider({
   dentistIds,
   locked,
   payslipCount,
+  anyProvisional = false,
   children,
 }: {
   payPeriodId: string;
   dentistIds: string[];
   locked: boolean;
   payslipCount: number;
+  anyProvisional?: boolean;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -93,23 +102,63 @@ export function PayPeriodActionsProvider({
     setFetchDismissed(false);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, { method: "POST" });
-      const data = (await res.json()) as FetchResult & { error?: string };
-      if (!res.ok) {
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+        status?: string;
+      };
+      if (!res.ok && res.status !== 202) {
         const msg = data.error ?? "Failed to fetch from Dentally";
         setActionError(msg);
         toast.error(msg);
         return;
       }
-      setFetchResult(data);
-      toast.success(data.message || "Fetched from Dentally");
-
-      if (dentistIds.length > 0) {
-        await fetch(`/pay/api/pay-periods/${payPeriodId}/calculate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dentists: dentistIds.map((dentistId) => ({ dentistId })) }),
-        });
+      if (res.status === 202 || data.status === "RUNNING") {
+        toast.info(data.message || "Fetching from Dentally…");
       }
+
+      // Poll DB status until background job finishes (Step 3 — no Dentally on render).
+      const deadline = Date.now() + 10 * 60 * 1000;
+      let final: FetchResult | null = null;
+      let firstPoll = true;
+      while (Date.now() < deadline) {
+        if (!firstPoll) await new Promise((r) => setTimeout(r, 1500));
+        firstPoll = false;
+        const statusRes = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`);
+        const statusData = (await statusRes.json()) as {
+          status?: string;
+          error?: string;
+          result?: FetchResult | null;
+        };
+        if (!statusRes.ok) {
+          const msg = statusData.error ?? "Failed to read Dentally fetch status";
+          setActionError(msg);
+          toast.error(msg);
+          return;
+        }
+        if (statusData.status === "SUCCESS" && statusData.result) {
+          final = statusData.result;
+          break;
+        }
+        if (statusData.status === "ERROR") {
+          const msg = statusData.error ?? "Dentally fetch failed";
+          setActionError(msg);
+          toast.error(msg);
+          return;
+        }
+      }
+      if (!final) {
+        const msg = "Dentally fetch timed out — try again or check the period later";
+        setActionError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      setFetchResult(final);
+      toast.success(final.message || "Fetched from Dentally");
+      // Step 34 — do not auto-calculate; ops must confirm finance/labs/therapy/UDAs first, then Run calculation.
+      toast.info("Review finance terms and ops fields, then run calculation");
 
       router.refresh();
     } catch (err) {
@@ -220,6 +269,7 @@ export function PayPeriodActionsProvider({
     payPeriodId,
     locked,
     payslipCount,
+    anyProvisional,
     fetching,
     locking,
     unlocking,

@@ -1,5 +1,6 @@
 import { formatMoneyGBPOrDash } from "@elio/ui";
 import { computePayslipExpandedMetrics, type PayslipExpandedMetricsInput } from "@/lib/payslip-expanded-metrics";
+import { parsePayslipLabBills } from "@/lib/payslip-editable-fields";
 
 function MetricCard({
   label,
@@ -25,13 +26,17 @@ function MetricCard({
   );
 }
 
-/** Legacy Y2.4 quick summary + deductions breakdown cards. */
-export function PayslipExpandedSummary(props: PayslipExpandedMetricsInput) {
+/** Legacy Y2.4 quick summary + deductions breakdown cards. Step 15: each lab invoice + link. */
+export function PayslipExpandedSummary(
+  props: PayslipExpandedMetricsInput & { labBillsJson?: unknown }
+) {
   const metrics = computePayslipExpandedMetrics(props);
+  const labBills = parsePayslipLabBills(props.labBillsJson);
   const showDeductions =
     metrics.totalDeductionsPence > 0 ||
     metrics.therapyMinutes > 0 ||
-    metrics.superannuationDeductionPence > 0;
+    metrics.superannuationDeductionPence > 0 ||
+    labBills.length > 0;
 
   return (
     <div className="space-y-4" data-testid="payslip-expanded-summary">
@@ -52,7 +57,40 @@ export function PayslipExpandedSummary(props: PayslipExpandedMetricsInput) {
             Deductions breakdown
           </h4>
           <div className="mt-2 space-y-1.5 text-caption text-(--color-danger)">
-            {metrics.labDeductionPence > 0 ? (
+            {labBills.length > 0 ? (
+              <div className="space-y-1.5" data-testid="payslip-lab-bills-list">
+                <p className="font-medium text-(--color-danger)">Lab bills</p>
+                {labBills.map((bill, i) => (
+                  <div key={`${bill.lab_name}-${i}`} className="flex justify-between gap-4 pl-2">
+                    <span className="min-w-0">
+                      {bill.lab_name || "Lab"}
+                      {bill.file_url ? (
+                        <>
+                          {" · "}
+                          <a
+                            href={bill.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline text-(--color-brand)"
+                          >
+                            View bill
+                          </a>
+                        </>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 font-medium tabular-nums">
+                      {formatMoneyGBPOrDash(Math.round(bill.amount * 100))}
+                    </span>
+                  </div>
+                ))}
+                {metrics.labDeductionPence > 0 ? (
+                  <div className="flex justify-between gap-4 border-t border-(--color-danger)/15 pt-1 pl-2">
+                    <span>Lab share (dentist)</span>
+                    <span className="font-medium">-{formatMoneyGBPOrDash(metrics.labDeductionPence)}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : metrics.labDeductionPence > 0 ? (
               <div className="flex justify-between gap-4">
                 <span>Lab bills</span>
                 <span className="font-medium">-{formatMoneyGBPOrDash(metrics.labDeductionPence)}</span>
@@ -66,16 +104,8 @@ export function PayslipExpandedSummary(props: PayslipExpandedMetricsInput) {
             ) : null}
             {metrics.therapyDeductionPence > 0 ? (
               <div className="flex justify-between gap-4">
-                <span>
-                  Therapy ({metrics.therapyMinutes} mins)
-                </span>
+                <span>Therapy ({metrics.therapyMinutes} mins)</span>
                 <span className="font-medium">-{formatMoneyGBPOrDash(metrics.therapyDeductionPence)}</span>
-              </div>
-            ) : null}
-            {metrics.therapyMinutes > 0 && metrics.therapyDeductionPence === 0 ? (
-              <div className="flex justify-between gap-4 text-(--color-warning)">
-                <span>Therapy ({metrics.therapyMinutes} mins) — rate not set</span>
-                <span className="font-medium">£0.00</span>
               </div>
             ) : null}
             {metrics.superannuationDeductionPence > 0 ? (

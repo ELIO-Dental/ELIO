@@ -3,13 +3,15 @@ import { scopedDb } from "@elio/db";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { getPaySettings } from "@/lib/pay-settings-service";
+import { enrichPayslipPdfInput } from "@/lib/payslip-pdf-enrich";
+import { resolvePeriodRatesByDentistId } from "@/lib/period-dentist-rates";
 import {
   PayslipEmailConfigError,
   sendAllPayslipEmails,
   summarizePayslipEmailBatch,
 } from "@/lib/payslip-email";
 
-/** Email all payslip PDFs for a period (legacy send-all-emails, Y3.8). */
+/** Email all payslip PDFs for a period (ops-only via pay:download-payslip — Step 30). */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("pay:download-payslip");
@@ -42,8 +44,20 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
 
     const settings = await getPaySettings(session.practiceId);
+    const dentistIds = [...new Set(payPeriod.payslipEntries.map((e) => e.dentistId))];
+    const rateHistory = await db.dentistRateHistory.findMany({
+      where: { dentistId: { in: dentistIds } },
+      orderBy: { effectiveFrom: "desc" },
+    });
+    const ratesByDentist = resolvePeriodRatesByDentistId(
+      payPeriod.payslipEntries.map((e) => e.dentist),
+      rateHistory,
+      payPeriod.periodEnd
+    );
     const results = await sendAllPayslipEmails({
-      payslips: payPeriod.payslipEntries,
+      payslips: payPeriod.payslipEntries.map((e) =>
+        enrichPayslipPdfInput(e, settings, ratesByDentist.get(e.dentistId))
+      ),
       settings,
     });
 

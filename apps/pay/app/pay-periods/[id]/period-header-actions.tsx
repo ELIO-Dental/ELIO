@@ -8,6 +8,7 @@ export function PeriodHeaderActions() {
   const {
     locked,
     payslipCount,
+    anyProvisional,
     fetching,
     locking,
     unlocking,
@@ -36,9 +37,10 @@ export function PeriodHeaderActions() {
         onClick={emailAllPayslips}
         loading={emailing}
         disabled={payslipCount === 0 || emailing}
+        title={anyProvisional ? "Emails will be labelled PROVISIONAL until finance term/fee confirmed" : undefined}
         data-testid="email-all-pdfs"
       >
-        Email All
+        Email All{anyProvisional ? " (provisional)" : ""}
       </Button>
       {!locked ? (
         <Button onClick={fetchFromDentally} loading={fetching} disabled={fetching || locking} data-testid="header-fetch-dentally">
@@ -54,7 +56,12 @@ export function PeriodHeaderActions() {
           variant="secondary"
           onClick={lockPeriod}
           loading={locking}
-          disabled={locking || fetching || payslipCount === 0}
+          disabled={locking || fetching || payslipCount === 0 || anyProvisional}
+          title={
+            anyProvisional
+              ? "Cannot finalize while provisional payslips remain — confirm finance term/fee first"
+              : undefined
+          }
           data-testid="finalize-period"
         >
           Finalize

@@ -3,24 +3,40 @@ import { scopedDb } from "@elio/db";
 import { calculatePrivateEarnings, calculateFinalPay, calculateLabDeduction } from "@elio/pay-engine";
 import { getPaySettings } from "@/lib/pay-settings-service";
 import { resolveFinanceFeeSplit, resolveLabBillSplit } from "@/lib/pay-settings";
+import { resolveDentistRatesAsOf, resolveShareBp, periodRatesAsOfDate } from "@/lib/dentist-rates";
 import {
   financeFeesDeductionPence,
   privateRevenueItemsToTreatments,
   therapyDeductionPence,
 } from "@/lib/private-revenue";
-import { labBillAmountsPenceFromPayslipJson, labBillPeriodWhere } from "@/lib/lab-bills-period";
+import { payslipIsProvisional, resolveFinanceFeesForDeduction } from "@/lib/finance-fee";
+import { resolveNhsUdasForCalc } from "@/lib/nhs-udas";
+import { labBillAmountsPenceFromPayslipJson, labBillEntriesToPayslipJson, labBillPeriodWhere } from "@/lib/lab-bills-period";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
+import { lineCountsTowardGross } from "@/lib/payment-flags";
+import { isAlreadyPaidInOtherPeriod } from "@/lib/paid-invoice-line-log";
+import { loadPaidLogLookup, upsertPaidLogEntries } from "@/lib/paid-invoice-line-log-db";
+import { manualLineSourceFields } from "@/lib/line-source";
 
 /**
  * §6.3-6.5 — runs the pay-engine for every dentist in this pay period.
  * Dentally-fetched PrivateRevenueLineItem rows are reused (metadata preserved).
- * Explicit `privateRevenueItems` in the body replace lines (manual £ entry path).
+ * Explicit `privateRevenueItems` in the body replace lines (manual £ entry path)
+ * and MUST include a Step 32 note + author stamp.
+ * Rates use DentistRateHistory as-of period end (Step 21 / 34).
  */
 
 interface CalcDentistInput {
   dentistId: string;
-  privateRevenueItems?: { amountPence: number; excludedAsConsultation: boolean; treatmentId?: string }[];
+  privateRevenueItems?: {
+    amountPence: number;
+    excludedAsConsultation: boolean;
+    treatmentId?: string;
+    manualNote?: string;
+  }[];
+  /** Shared note for all manual £ plugs for this dentist (Step 32). */
+  manualRevenueNote?: string;
   labBillsPence?: number[];
   manualAdjustmentsPence?: number;
   adjustmentReason?: string;
@@ -33,16 +49,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const body = (await req.json()) as { dentists: CalcDentistInput[] };
     const db = scopedDb(session.practiceId);
     const paySettings = await getPaySettings(session.practiceId);
-    const labBillSplit = resolveLabBillSplit(paySettings);
-    const financeFeeSplit = resolveFinanceFeeSplit(paySettings);
+    const practiceLabBp = resolveLabBillSplit(paySettings);
+    const practiceFinanceBp = resolveFinanceFeeSplit(paySettings);
 
     const payPeriod = await db.payPeriod.findUnique({ where: { id: payPeriodId } });
     if (!payPeriod) return NextResponse.json({ error: "Pay period not found" }, { status: 404 });
-    if (payPeriod.status === "LOCKED") {
-      return NextResponse.json({ error: "Pay period is locked" }, { status: 409 });
+
+    const { canRunPeriodCalculation } = await import("@/lib/month-pipeline");
+    const gate = canRunPeriodCalculation({
+      periodStatus: payPeriod.status,
+      dentallyFetchStatus: payPeriod.dentallyFetchStatus,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error }, { status: gate.status });
     }
 
     const results = [];
+    const paidLogLookup = await loadPaidLogLookup(db, session.practiceId);
 
     for (const input of body.dentists) {
       const dentist = await db.dentist.findUnique({ where: { id: input.dentistId } });
@@ -57,15 +80,58 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const useManualItems = Boolean(manualItems?.length);
       const existingLines = existingPayslip?.privateRevenueLineItems ?? [];
 
+      if (useManualItems) {
+        const note =
+          input.manualRevenueNote?.trim() ||
+          manualItems?.find((i) => i.manualNote?.trim())?.manualNote?.trim() ||
+          "";
+        if (!note) {
+          return NextResponse.json(
+            {
+              error: `Manual private revenue for ${dentist.name} requires a note (Step 32 — no unexplained plugs)`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      const rateHistory = await db.dentistRateHistory.findMany({
+        where: { dentistId: dentist.id },
+        orderBy: { effectiveFrom: "desc" },
+      });
+      const rates = resolveDentistRatesAsOf(
+        {
+          privateSplitPercent:
+            dentist.privateSplitPercent != null ? Number(dentist.privateSplitPercent) : null,
+          udaRatePence: dentist.udaRatePence,
+          hourlyRatePence: dentist.hourlyRatePence,
+          labShareBp: dentist.labShareBp,
+          financeShareBp: dentist.financeShareBp,
+          therapyHourlyPence: dentist.therapyHourlyPence,
+        },
+        rateHistory.map((h) => ({
+          effectiveFrom: h.effectiveFrom,
+          privateSplitPercent:
+            h.privateSplitPercent != null ? Number(h.privateSplitPercent) : null,
+          udaRatePence: h.udaRatePence,
+          hourlyRatePence: h.hourlyRatePence,
+          labShareBp: h.labShareBp,
+          financeShareBp: h.financeShareBp,
+          therapyHourlyPence: h.therapyHourlyPence,
+        })),
+        periodRatesAsOfDate(payPeriod.periodEnd)
+      );
+
       if (dentist.payType === "HOURLY") {
         const hourEntries = await db.hourEntry.findMany({ where: { dentistId: dentist.id, payPeriodId } });
         const hoursWorked = hourEntries.reduce((sum, h) => sum + Number(h.hours), 0);
-        const hourlyRatePence = dentist.hourlyRatePence ?? 0;
+        const hourlyRatePence = rates.hourlyRatePence ?? 0;
         const finalPayPence = calculateFinalPay({
           payType: "HOURLY",
           hoursWorked,
           hourlyRatePence,
-          manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
+          manualAdjustmentsPence:
+            input.manualAdjustmentsPence ?? existingPayslip?.manualAdjustmentsPence ?? 0,
         });
 
         const hourlyData = {
@@ -76,8 +142,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           hoursWorked,
           hourlyRatePence,
           hourlyEarningsPence: Math.round(hoursWorked * hourlyRatePence),
-          manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
-          adjustmentReason: input.adjustmentReason ?? null,
+          manualAdjustmentsPence:
+            input.manualAdjustmentsPence ?? existingPayslip?.manualAdjustmentsPence ?? 0,
+          adjustmentReason:
+            input.adjustmentReason ?? existingPayslip?.adjustmentReason ?? null,
           finalPayPence,
         };
         const payslip = await db.payslipEntry.upsert({
@@ -94,10 +162,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         where: { dentistId: dentist.id, compassStatement: { payPeriodId }, matchConfidence: "CONFIDENT" },
         orderBy: { createdAt: "desc" },
       });
-      const udas = payLine?.udas ? Number(payLine.udas) : 0;
-      const superannuationPence = payLine?.superannuationPence ?? 0;
-      const udaRatePence = dentist.udaRatePence ?? 0;
-      const privateSplitPercent = dentist.privateSplitPercent ? Number(dentist.privateSplitPercent) : 0;
+      const nhs = resolveNhsUdasForCalc(
+        { nhsPerformerNumber: dentist.nhsPerformerNumber, udaRatePence: rates.udaRatePence },
+        payLine?.udas ? Number(payLine.udas) : 0
+      );
+      const { udas, udaRatePence, nhsEarningsPence } = nhs;
+      const superannuationPence = dentist.nhsPerformerNumber?.trim()
+        ? (payLine?.superannuationPence ?? 0)
+        : 0;
+      const privateSplitPercent = rates.privateSplitPercent ?? 0;
+      const labBillSplit = resolveShareBp(rates.labShareBp, practiceLabBp);
+      const financeFeeSplit = resolveShareBp(rates.financeShareBp, practiceFinanceBp);
 
       const revenueForCalc = useManualItems
         ? (manualItems ?? []).map((item, i) => ({
@@ -106,12 +181,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             treatmentId: item.treatmentId,
             id: item.treatmentId ?? `manual-${dentist.id}-${i}`,
           }))
-        : existingLines.map((li) => ({
-            amountPence: li.amountPence,
-            excludedAsConsultation: li.excludedAsConsultation,
-            treatmentId: li.treatmentId,
-            id: li.id,
-          }));
+        : existingLines
+            .filter((li) => {
+              const prior = isAlreadyPaidInOtherPeriod(
+                {
+                  dentallyInvoiceId: li.dentallyInvoiceId,
+                  dentallyPatientId: li.dentallyPatientId,
+                  treatmentDescription: li.treatmentDescription,
+                  amountPence: li.amountPence,
+                },
+                paidLogLookup,
+                payPeriodId,
+                dentist.id
+              );
+              return !prior;
+            })
+            .map((li) => ({
+              amountPence: li.amountPence,
+              excludedAsConsultation: li.excludedAsConsultation,
+              treatmentId: li.treatmentId,
+              id: li.id,
+              paymentStatus: li.paymentStatus,
+              flagged: li.flagged,
+              amountOutstandingPence: li.amountOutstandingPence,
+            }));
 
       const treatments = privateRevenueItemsToTreatments(
         dentist.id,
@@ -129,27 +222,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
       const fromPayslipLabs = labBillAmountsPenceFromPayslipJson(existingPayslip?.labBillsJson);
       let labAmounts: number[];
+      let syncedLabBillsJson: ReturnType<typeof labBillEntriesToPayslipJson> | undefined;
       if (input.labBillsPence?.length) {
         labAmounts = input.labBillsPence;
       } else if (fromPayslipLabs != null) {
+        // Explicit payslip JSON (including []) — never resurrect LabBillEntry rows.
         labAmounts = fromPayslipLabs;
       } else {
-        const labAgg = await db.labBillEntry.aggregate({
+        const labEntries = await db.labBillEntry.findMany({
           where: labBillPeriodWhere(dentist.id, payPeriod.periodStart),
-          _sum: { amountPence: true },
+          select: { labName: true, amountPence: true, description: true, fileUrl: true },
         });
-        labAmounts = [labAgg._sum.amountPence ?? 0];
+        labAmounts = labEntries.map((e) => e.amountPence).filter((n) => n > 0);
+        // Step 15 — snapshot each lab invoice (name + link) onto the payslip for PDF/UI.
+        if (labEntries.length > 0) {
+          syncedLabBillsJson = labBillEntriesToPayslipJson(labEntries);
+        }
       }
       const labDeductionPence = calculateLabDeduction(labAmounts, labBillSplit);
 
       const therapyDeduction = therapyDeductionPence(
         existingPayslip?.therapyMinutes != null ? Number(existingPayslip.therapyMinutes) : 0,
-        existingPayslip?.therapyRatePerMinute != null ? Number(existingPayslip.therapyRatePerMinute) : 0
+        existingPayslip?.therapyRatePerMinute != null ? Number(existingPayslip.therapyRatePerMinute) : 0,
+        rates.therapyHourlyPence
       );
       const financeDeduction = financeFeesDeductionPence(
-        useManualItems ? [] : existingLines.map((li) => ({ financeFeePence: li.financeFeePence })),
+        useManualItems
+          ? []
+          : resolveFinanceFeesForDeduction(existingLines, paySettings),
         financeFeeSplit
       );
+      const provisional = useManualItems ? false : payslipIsProvisional(existingLines);
 
       const finalPayPence = calculateFinalPay({
         payType: "PERCENTAGE_SPLIT",
@@ -163,7 +266,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         superannuationPence,
         therapyDeductionPence: therapyDeduction,
         financeFeesDeductionPence: financeDeduction,
-        manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
+        manualAdjustmentsPence:
+          input.manualAdjustmentsPence ?? existingPayslip?.manualAdjustmentsPence ?? 0,
       });
 
       const data = {
@@ -173,16 +277,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         payType: "PERCENTAGE_SPLIT" as const,
         udas,
         udaRatePence,
-        nhsEarningsPence: Math.round(udas * udaRatePence),
+        nhsEarningsPence,
         grossPrivateRevenuePence: earnings.grossPrivateRevenuePence,
         privateSplitPercent,
         privateEarningsPence: earnings.privateEarningsPence,
         consultationExclusionsPence: earnings.consultationExclusionsPence,
         labDeductionPence,
         superannuationPence,
-        manualAdjustmentsPence: input.manualAdjustmentsPence ?? 0,
-        adjustmentReason: input.adjustmentReason ?? null,
+        manualAdjustmentsPence:
+          input.manualAdjustmentsPence ?? existingPayslip?.manualAdjustmentsPence ?? 0,
+        adjustmentReason: input.adjustmentReason ?? existingPayslip?.adjustmentReason ?? null,
         finalPayPence,
+        provisional,
+        ...(syncedLabBillsJson
+          ? { labBillsJson: syncedLabBillsJson as unknown as object }
+          : {}),
       };
       const payslip = await db.payslipEntry.upsert({
         where: { payPeriodId_dentistId: { payPeriodId, dentistId: dentist.id } },
@@ -199,18 +308,53 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
 
       if (useManualItems && manualItems) {
+        const note =
+          input.manualRevenueNote?.trim() ||
+          manualItems.find((i) => i.manualNote?.trim())?.manualNote?.trim() ||
+          "";
         await db.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });
         for (const item of manualItems) {
+          const itemNote = item.manualNote?.trim() || note;
+          const source = manualLineSourceFields({
+            amountPence: item.amountPence,
+            actorUserId: session.userId,
+            note: itemNote,
+          });
           await db.privateRevenueLineItem.create({
             data: {
               payslipEntryId: payslip.id,
               treatmentId: item.treatmentId ?? null,
               amountPence: item.amountPence,
               excludedAsConsultation: item.excludedAsConsultation,
+              dentallyLineKey: source.dentallyLineKey,
+              sourceType: source.sourceType,
+              manualCreatedByUserId: source.manualCreatedByUserId,
+              manualNote: source.manualNote,
             },
           });
         }
       }
+
+      // Step 14 — append lines that count toward this month's gross into PaidInvoiceLineLog.
+      // Manual £ entries have no Dentally invoice id — upsert skips unstable identities.
+      const linesToLog = useManualItems
+        ? []
+        : existingLines.filter(
+            (li) =>
+              lineCountsTowardGross(li) &&
+              !isAlreadyPaidInOtherPeriod(
+                {
+                  dentallyInvoiceId: li.dentallyInvoiceId,
+                  dentallyPatientId: li.dentallyPatientId,
+                  treatmentDescription: li.treatmentDescription,
+                  amountPence: li.amountPence,
+                },
+                paidLogLookup,
+                payPeriodId,
+                dentist.id
+              )
+          );
+      await upsertPaidLogEntries(db, session.practiceId, payPeriodId, dentist.id, linesToLog);
 
       results.push(payslip);
     }

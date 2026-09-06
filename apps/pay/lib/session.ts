@@ -2,6 +2,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { can, getSession, isModuleLicensed, type PermissionSubject } from "@elio/auth";
 import type { Role } from "@elio/db";
+import { UnauthorizedError, ForbiddenError, UnlicensedError } from "./errors";
+
+export {
+  UnauthorizedError,
+  ForbiddenError,
+  UnlicensedError,
+} from "./errors";
 
 /** Loads the current session and asserts a practiceId is present — every
  * route in this app is practice-scoped (packages/db/tenant.ts). */
@@ -42,19 +49,15 @@ export async function redirectToLauncher(query?: string): Promise<never> {
   return redirectToShellPath(query ? `/launcher?${query}` : "/launcher");
 }
 
-export { can };
+/** Step 30 — ops/admin/finance/auditor pages; clinicians (own-only) are redirected. */
+export async function redirectUnlessPayViewAll(role: Role): Promise<void> {
+  const { canPayViewAll } = await import("./pay-scope");
+  if (!canPayViewAll({ role })) {
+    await redirectToLauncher("error=forbidden");
+  }
+}
 
-export class UnauthorizedError extends Error {
-  status = 401;
-}
-export class ForbiddenError extends Error {
-  status = 403;
-}
-// Extends ForbiddenError (not Error) deliberately — every existing API route
-// catches `instanceof ForbiddenError` and maps it to a 403; this way the new
-// licence check below returns the correct status through every route's
-// existing catch block without needing each one edited individually.
-export class UnlicensedError extends ForbiddenError {}
+export { can };
 
 export interface PaySession {
   userId: string;
@@ -91,6 +94,27 @@ export async function requirePermission(action: string): Promise<PaySession> {
   const subject: PermissionSubject = { role: session.role as Role };
   if (!can(subject, action)) {
     throw new ForbiddenError(`Missing permission: ${action}`);
+  }
+  return {
+    userId: session.userId,
+    practiceId: session.practiceId,
+    role: session.role as Role,
+    permissions: session.permissions ?? [],
+    impersonating: session.impersonating,
+    actualUserId: session.actualUserId,
+  };
+}
+
+/** Step 30 — accept any of several pay permissions (view-all / view-own / readonly). */
+export async function requireAnyPermission(...actions: string[]): Promise<PaySession> {
+  const session = await requireSession();
+  if (!session) throw new UnauthorizedError("Not signed in");
+  if (!(await isModuleLicensed(session.practiceId, "PAY"))) {
+    throw new UnlicensedError("ElioPay is not licensed for this practice");
+  }
+  const subject: PermissionSubject = { role: session.role as Role };
+  if (!actions.some((a) => can(subject, a))) {
+    throw new ForbiddenError(`Missing permission: ${actions.join(" | ")}`);
   }
   return {
     userId: session.userId,

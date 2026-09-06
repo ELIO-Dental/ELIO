@@ -38,6 +38,9 @@ describe("pay discrepancies (Y2.6)", () => {
   it("labels legacy discrepancy types", () => {
     expect(discrepancyTypeLabel("in_log_not_system")).toBe("IN LOG ONLY");
     expect(discrepancyTypeLabel("partial_payment")).toBe("PARTIAL");
+    expect(discrepancyTypeLabel("needs_finance_term")).toBe("NEEDS TERM");
+    expect(discrepancyTypeLabel("possible_duplicate")).toBe("POSSIBLE DUP");
+    expect(discrepancyTypeLabel("unmapped_practitioner")).toBe("UNMAPPED ID");
   });
 
   it("maps type badge colour classes", () => {

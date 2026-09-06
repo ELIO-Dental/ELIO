@@ -20,7 +20,31 @@
 // never bursts past Dentally's rate limit.
 
 const DENTALLY_BASE_URL = "https://api.dentally.co/v1";
-const APP_USER_AGENT = "ELIO/1.0 (+https://elioportal.co.uk)";
+/** ElioPay / portal brand User-Agent (PDF named AuraPayments historically — keep ELIO). */
+export const APP_USER_AGENT = "ELIO/1.0 (+https://elioportal.co.uk)";
+
+/** Headers required on every Dentally request (revision1 Step 2 / PDF §2). */
+export function buildDentallyHeaders(apiKey: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    "User-Agent": APP_USER_AGENT,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+}
+
+/**
+ * Invoice list calls must always include practice `site_id` (PDF §2).
+ * Throws if missing/blank so Pay never silently pulls other sites.
+ */
+export function requireDentallySiteId(
+  params: Record<string, string | number | undefined>
+): asserts params is Record<string, string | number | undefined> & { site_id: string | number } {
+  const siteId = params.site_id;
+  if (siteId === undefined || siteId === null || String(siteId).trim() === "") {
+    throw new Error("Dentally invoice/list request missing required site_id");
+  }
+}
 
 export class DentallyApiError extends Error {
   constructor(
@@ -39,7 +63,7 @@ export interface DentallyClientOptions {
   baseUrl?: string;
   /** Max concurrent in-flight requests against Dentally. Default 4. */
   concurrency?: number;
-  /** Max retry attempts on 429/5xx before giving up. Default 5. */
+  /** Max retry attempts on 403/429/5xx before giving up. Default 5. */
   maxRetries?: number;
   /** Base delay (ms) for exponential backoff. Default 500. */
   baseDelayMs?: number;
@@ -137,16 +161,16 @@ export class DentallyClient {
       while (true) {
         const res = await this.fetchImpl(url.toString(), {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            // Dentally returns a bare 403 without a User-Agent header — see
-            // ElioPlans/src/lib/dentally.ts's comment, confirmed still true.
-            "User-Agent": APP_USER_AGENT,
-            Accept: "application/json",
-          },
+          headers: buildDentallyHeaders(this.apiKey),
         });
 
-        if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
+        // PDF §2: Dentally rate limits often return 403 (as well as 429).
+        // Retry 403/429/5xx with backoff; do not retry 401 (bad key).
+        if (
+          res.status === 429 ||
+          res.status === 403 ||
+          (res.status >= 500 && res.status < 600)
+        ) {
           attempt++;
           if (attempt > this.maxRetries) {
             const body = await res.text().catch(() => "");

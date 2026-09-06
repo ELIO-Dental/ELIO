@@ -8,6 +8,8 @@ import { extractNhsPeriodDates, toValidISODate } from "./nhs-period-extract";
 import { financeFeesDeductionPence, therapyDeductionPence } from "./private-revenue";
 import { getPaySettings } from "./pay-settings-service";
 import { resolveFinanceFeeSplit } from "./pay-settings";
+import { periodRatesAsOfDate, resolveDentistRatesAsOf, resolveShareBp } from "./dentist-rates";
+import { resolveFinanceFeesForDeduction, payslipIsProvisional } from "./finance-fee";
 
 // pdf-parse removed — use pay-engine extractPdfText
 
@@ -141,32 +143,68 @@ export async function processNhsStatement(
     });
   }
 
-  const financeFeeSplit = resolveFinanceFeeSplit(await getPaySettings(practiceId));
+  const paySettings = await getPaySettings(practiceId);
+  const practiceFinanceBp = resolveFinanceFeeSplit(paySettings);
+  const rateHistory = await db.dentistRateHistory.findMany({
+    where: { dentistId: { in: extractions.map((e) => e.dentistId) } },
+    orderBy: { effectiveFrom: "desc" },
+  });
+  const asOf = periodRatesAsOfDate(payPeriod.periodEnd);
 
   const updates: string[] = [];
   for (const extraction of extractions) {
     const existing = await db.payslipEntry.findFirst({
       where: { payPeriodId, dentistId: extraction.dentistId },
-      include: { privateRevenueLineItems: true },
+      include: { privateRevenueLineItems: true, dentist: true },
     });
     if (!existing) {
       updates.push(`${extraction.dentistName}: skipped (no payslip — run calculation first)`);
       continue;
     }
 
+    const rates = resolveDentistRatesAsOf(
+      {
+        privateSplitPercent:
+          existing.dentist.privateSplitPercent != null
+            ? Number(existing.dentist.privateSplitPercent)
+            : null,
+        udaRatePence: existing.dentist.udaRatePence,
+        hourlyRatePence: existing.dentist.hourlyRatePence,
+        labShareBp: existing.dentist.labShareBp,
+        financeShareBp: existing.dentist.financeShareBp,
+        therapyHourlyPence: existing.dentist.therapyHourlyPence,
+      },
+      rateHistory
+        .filter((h) => h.dentistId === extraction.dentistId)
+        .map((h) => ({
+          effectiveFrom: h.effectiveFrom,
+          privateSplitPercent: h.privateSplitPercent != null ? Number(h.privateSplitPercent) : null,
+          udaRatePence: h.udaRatePence,
+          hourlyRatePence: h.hourlyRatePence,
+          labShareBp: h.labShareBp,
+          financeShareBp: h.financeShareBp,
+          therapyHourlyPence: h.therapyHourlyPence,
+        })),
+      asOf
+    );
+    const financeFeeSplit = resolveShareBp(rates.financeShareBp, practiceFinanceBp);
     const therapyDeduction = therapyDeductionPence(
       existing.therapyMinutes != null ? Number(existing.therapyMinutes) : 0,
-      existing.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0
+      existing.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0,
+      rates.therapyHourlyPence
     );
     const financeDeduction = financeFeesDeductionPence(
-      existing.privateRevenueLineItems.map((li) => ({ financeFeePence: li.financeFeePence })),
+      resolveFinanceFeesForDeduction(existing.privateRevenueLineItems, paySettings),
       financeFeeSplit
     );
+
+    const udaRatePence = rates.udaRatePence ?? extraction.udaRatePence;
+    const nhsEarningsPence = Math.round(extraction.udas * udaRatePence);
 
     const finalPayPence = calculateFinalPay({
       payType: "PERCENTAGE_SPLIT",
       udas: extraction.udas,
-      udaRatePence: extraction.udaRatePence,
+      udaRatePence,
       grossPrivateRevenuePence: existing.grossPrivateRevenuePence ?? 0,
       privateSplitPercent: Number(existing.privateSplitPercent ?? 0),
       privateEarningsPence: existing.privateEarningsPence ?? 0,
@@ -182,9 +220,10 @@ export async function processNhsStatement(
       where: { id: existing.id },
       data: {
         udas: extraction.udas,
-        udaRatePence: extraction.udaRatePence,
-        nhsEarningsPence: extraction.nhsEarningsPence,
+        udaRatePence,
+        nhsEarningsPence,
         finalPayPence,
+        provisional: payslipIsProvisional(existing.privateRevenueLineItems),
       },
     });
 

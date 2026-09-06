@@ -12,9 +12,9 @@ interface AccordionContextValue {
 
 const AccordionContext = createContext<AccordionContextValue | null>(null);
 
-function useAccordion(): AccordionContextValue {
+export function usePayslipAccordion(): AccordionContextValue {
   const ctx = useContext(AccordionContext);
-  if (!ctx) throw new Error("PayslipAccordionItem must be used within PayslipAccordion");
+  if (!ctx) throw new Error("usePayslipAccordion must be used within PayslipAccordion");
   return ctx;
 }
 
@@ -30,6 +30,7 @@ export interface PayslipAccordionHeader {
   patientCount: number;
   finalPayPence: number | null;
   pdfHref: string;
+  provisional?: boolean;
 }
 
 /** Single-expand payslip list (legacy Y2.3). */
@@ -50,7 +51,7 @@ export function PayslipAccordionItem({
   header: PayslipAccordionHeader;
   children: ReactNode;
 }) {
-  const { expandedId, setExpandedId } = useAccordion();
+  const { expandedId, setExpandedId } = usePayslipAccordion();
   const expanded = expandedId === header.id;
 
   const subtitle = formatPayslipAccordionSubtitle({
@@ -79,7 +80,14 @@ export function PayslipAccordionItem({
             {dentistInitials(header.dentistName)}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-semibold text-(--color-text-primary)">{header.dentistName}</p>
+            <p className="truncate font-semibold text-(--color-text-primary)">
+              {header.dentistName}
+              {header.provisional ? (
+                <span className="ml-2 rounded bg-(--color-warning)/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-(--color-warning)">
+                  Provisional
+                </span>
+              ) : null}
+            </p>
             <p className="mt-0.5 text-caption text-(--color-text-secondary)">
               {subtitle || "—"}
             </p>
@@ -90,7 +98,7 @@ export function PayslipAccordionItem({
             <p className="text-money font-bold tabular-nums text-(--color-text-primary)">
               {formatMoneyGBPOrDash(header.finalPayPence)}
             </p>
-            <p className="text-caption text-(--color-text-tertiary)">Net pay</p>
+            <p className="text-caption text-(--color-text-tertiary)">Total payment</p>
           </div>
           <a
             href={header.pdfHref}

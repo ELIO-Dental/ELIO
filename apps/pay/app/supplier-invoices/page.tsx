@@ -1,5 +1,6 @@
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { auth } from "@elio/auth";
+import type { Role } from "@elio/db";
 import { scopedDb } from "@elio/db";
 import { PageContent, PageHeader } from "@elio/ui";
 import { SupplierInvoicesClient } from "./supplier-invoices-client";
@@ -7,6 +8,7 @@ import { SupplierInvoicesClient } from "./supplier-invoices-client";
 export default async function SupplierInvoicesPage() {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
+  await redirectUnlessPayViewAll(session.role as Role);
 
   const db = scopedDb(session.practiceId);
   const [supplierInvoices, suppliers] = await Promise.all([

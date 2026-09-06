@@ -5,6 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
 import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination, toast } from "@elio/ui";
 import { privatePatientsFooterTotals } from "@/lib/private-patients-table-format";
+import {
+  FINANCE_TERMS_MONTHS,
+  isValidFinanceTerm,
+  resolveFinanceRateForTerm,
+  suggestFinanceFeePence,
+  type FinanceTermMonths,
+} from "@/lib/finance-fee";
+import { formatLineSourceSummary, isTraceablePrivateLine } from "@/lib/line-source";
 
 export interface PrivatePatientRow {
   id: string;
@@ -18,10 +26,26 @@ export interface PrivatePatientRow {
   hourlyRatePence: number | null;
   isFinance: boolean;
   financeFeePence: number | null;
+  financeTermMonths: number | null;
+  financeFeeManual: boolean;
   flagged: boolean;
   flagReason: string | null;
   treatmentDescription: string | null;
+  /** Step 32 */
+  dentallyInvoiceId?: string | null;
+  dentallyLineKey?: string | null;
+  sourceType?: string | null;
+  manualCreatedByUserId?: string | null;
+  manualNote?: string | null;
+  createdAt?: string | Date | null;
 }
+
+export type FinanceRatesProp = {
+  finance_rate_3m: string;
+  finance_rate_12m: string;
+  finance_rate_36m: string;
+  finance_rate_60m: string;
+};
 
 function penceToPoundsInput(pence: number): string {
   return (pence / 100).toFixed(2);
@@ -35,17 +59,19 @@ function hourlyRateClass(pence: number | null): string {
   return "font-medium text-(--color-text-secondary)";
 }
 
-/** Interactive private patients table (legacy Y2.5). */
+/** Interactive private patients table (legacy Y2.5 + Step 16 term/fee). */
 export function PrivatePatientsTable({
   payPeriodId,
   payslipEntryId,
   locked,
   initialLines,
+  financeRates,
 }: {
   payPeriodId: string;
   payslipEntryId: string;
   locked: boolean;
   initialLines: PrivatePatientRow[];
+  financeRates: FinanceRatesProp;
 }) {
   const router = useRouter();
   const [lines, setLines] = useState(initialLines);
@@ -118,7 +144,18 @@ export function PrivatePatientsTable({
               next.flagReason = "Partial payment";
             }
             if (updates.finance != null) next.isFinance = Boolean(updates.finance);
-            if (updates.financeFee != null) next.financeFeePence = Math.round(Number(updates.financeFee) * 100);
+            if (updates.financeTerm !== undefined) {
+              const t = updates.financeTerm === "" || updates.financeTerm == null ? null : Number(updates.financeTerm);
+              next.financeTermMonths = t;
+              if (isValidFinanceTerm(t) && !next.financeFeeManual) {
+                const rate = resolveFinanceRateForTerm(financeRates, t as FinanceTermMonths);
+                next.financeFeePence = suggestFinanceFeePence(next.amountPence, rate);
+              }
+            }
+            if (updates.financeFee != null) {
+              next.financeFeePence = Math.round(Number(updates.financeFee) * 100);
+              next.financeFeeManual = true;
+            }
             if (updates.resolved === true) {
               next.flagged = false;
               next.flagReason = null;
@@ -139,10 +176,16 @@ export function PrivatePatientsTable({
         options?.successMsg
       );
     },
-    [apiBase, mutate, payslipEntryId]
+    [apiBase, financeRates, mutate, payslipEntryId]
   );
 
   const addPatient = () => {
+    const note = window.prompt("Note for this manual line (required — Step 32 traceability):");
+    if (note == null) return;
+    if (!note.trim()) {
+      toast.error("A note is required for manual patient lines");
+      return;
+    }
     void mutate(
       "new",
       async () => {
@@ -151,7 +194,14 @@ export function PrivatePatientsTable({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             payslipEntryId,
-            patient: { name: "", date: new Date().toISOString().slice(0, 10), amount: 0, status: "paid", finance: false },
+            patient: {
+              name: "",
+              date: new Date().toISOString().slice(0, 10),
+              amount: 0,
+              status: "paid",
+              finance: false,
+              note: note.trim(),
+            },
           }),
         });
         return res;
@@ -212,18 +262,21 @@ export function PrivatePatientsTable({
           No individual patients logged. Fetch from Dentally or add manually.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-(--radius-md) border border-(--color-border-subtle)">
-          <table className="w-full min-w-[720px] text-caption">
-            <thead>
-              <tr className="border-b border-(--color-border-subtle) bg-(--color-surface-dim)">
-                <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Patient</th>
+        <>
+          <div className="overflow-x-auto rounded-(--radius-md) border border-(--color-border-subtle)">
+            <table className="w-full min-w-[820px] text-caption">
+              <thead>
+                <tr className="border-b border-(--color-border-subtle) bg-(--color-surface-dim)">
+                  <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Patient</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Date</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Amount</th>
                 <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Mins</th>
                 <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">£/hr</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Status</th>
                 <th className="px-3 py-2 text-center font-medium text-(--color-text-secondary)">Finance</th>
+                <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Term</th>
                 <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Fee</th>
+                <th className="px-2 py-2 text-center font-medium text-(--color-text-secondary)">Source</th>
                 {!locked ? <th className="w-10" /> : null}
               </tr>
             </thead>
@@ -233,11 +286,17 @@ export function PrivatePatientsTable({
                   ? "bg-(--color-warning)/10"
                   : "";
                 const busy = pendingId === line.id;
+                const needsFinanceInput =
+                  line.isFinance &&
+                  !isValidFinanceTerm(line.financeTermMonths) &&
+                  (line.financeFeePence == null || line.financeFeePence < 0);
                 return (
                   <tr key={line.id} className={`border-b border-(--color-border-subtle) last:border-0 ${rowClass}`}>
                     <td className="px-3 py-1.5 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {line.flagged ? <AlertCircle className="size-3 shrink-0 text-(--color-warning)" /> : null}
+                        {line.flagged || needsFinanceInput ? (
+                          <AlertCircle className="size-3 shrink-0 text-(--color-warning)" />
+                        ) : null}
                         {locked ? (
                           <span>{line.patientName ?? "—"}</span>
                         ) : (
@@ -257,6 +316,9 @@ export function PrivatePatientsTable({
                       </div>
                       {line.flagReason && line.flagged ? (
                         <p className="mt-0.5 text-[10px] text-(--color-warning)">{line.flagReason}</p>
+                      ) : null}
+                      {needsFinanceInput ? (
+                        <p className="mt-0.5 text-[10px] text-(--color-warning)">Set term and/or fee</p>
                       ) : null}
                       {line.treatmentDescription ? (
                         <p className="text-[10px] text-(--color-text-tertiary)">{line.treatmentDescription}</p>
@@ -343,6 +405,38 @@ export function PrivatePatientsTable({
                     <td className="px-2 py-1.5 text-center">
                       {line.isFinance ? (
                         locked ? (
+                          line.financeTermMonths != null ? `${line.financeTermMonths}m` : "—"
+                        ) : (
+                          <select
+                            className="rounded border border-(--color-brand)/30 bg-transparent px-1 py-0.5 text-[10px] outline-none"
+                            value={line.financeTermMonths ?? ""}
+                            disabled={busy}
+                            onChange={(e) =>
+                              updateLine(
+                                line.id,
+                                {
+                                  financeTerm: e.target.value === "" ? null : Number(e.target.value),
+                                  financeFeeManual: false,
+                                },
+                                { successMsg: "Term saved" }
+                              )
+                            }
+                          >
+                            <option value="">Term…</option>
+                            {FINANCE_TERMS_MONTHS.map((m) => (
+                              <option key={m} value={m}>
+                                {m}m
+                              </option>
+                            ))}
+                          </select>
+                        )
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-center">
+                      {line.isFinance ? (
+                        locked ? (
                           formatMoneyGBPOrDash(line.financeFeePence)
                         ) : (
                           <input
@@ -352,12 +446,21 @@ export function PrivatePatientsTable({
                             className="mx-auto w-16 rounded border border-(--color-brand)/30 px-1 py-0.5 text-center text-[10px] outline-none"
                             value={line.financeFeePence != null ? (line.financeFeePence / 100).toFixed(2) : ""}
                             disabled={busy}
-                            onBlur={(e) => updateLine(line.id, { financeFee: e.target.value })}
+                            onBlur={(e) =>
+                              updateLine(line.id, {
+                                financeFee: e.target.value === "" ? null : e.target.value,
+                                financeFeeManual: e.target.value !== "",
+                              })
+                            }
                             onChange={(e) =>
                               setLines((prev) =>
                                 prev.map((row) =>
                                   row.id === line.id
-                                    ? { ...row, financeFeePence: Math.round((parseFloat(e.target.value) || 0) * 100) }
+                                    ? {
+                                        ...row,
+                                        financeFeePence: Math.round((parseFloat(e.target.value) || 0) * 100),
+                                        financeFeeManual: true,
+                                      }
                                     : row
                                 )
                               )
@@ -367,6 +470,36 @@ export function PrivatePatientsTable({
                       ) : (
                         "—"
                       )}
+                    </td>
+                    <td className="px-2 py-1.5 text-center text-[10px] text-(--color-text-tertiary)">
+                      <details className="mx-auto max-w-[9rem] text-left" data-testid="line-source">
+                        <summary
+                          className={
+                            isTraceablePrivateLine({
+                              dentallyInvoiceId: line.dentallyInvoiceId ?? null,
+                              dentallyLineKey: line.dentallyLineKey ?? null,
+                              sourceType: (line.sourceType as "DENTALLY" | "MANUAL") || "DENTALLY",
+                              manualCreatedByUserId: line.manualCreatedByUserId ?? null,
+                              manualNote: line.manualNote ?? null,
+                              createdAt: line.createdAt ?? null,
+                            })
+                              ? "cursor-pointer text-(--color-text-secondary)"
+                              : "cursor-pointer text-(--color-warning)"
+                          }
+                        >
+                          {line.sourceType === "MANUAL" || line.manualCreatedByUserId ? "Manual" : "Dentally"}
+                        </summary>
+                        <p className="mt-1 break-words text-[10px] leading-snug">
+                          {formatLineSourceSummary({
+                            dentallyInvoiceId: line.dentallyInvoiceId ?? null,
+                            dentallyLineKey: line.dentallyLineKey ?? null,
+                            sourceType: (line.sourceType as "DENTALLY" | "MANUAL") || "DENTALLY",
+                            manualCreatedByUserId: line.manualCreatedByUserId ?? null,
+                            manualNote: line.manualNote ?? null,
+                            createdAt: line.createdAt ?? null,
+                          })}
+                        </p>
+                      </details>
                     </td>
                     {!locked ? (
                       <td className="px-1 py-1.5">
@@ -416,19 +549,21 @@ export function PrivatePatientsTable({
                 <td className="px-3 py-2 text-center text-(--color-brand)">
                   {totals.financeCount > 0 ? `${totals.financeCount} fin` : "—"}
                 </td>
+                <td className="px-2 py-2 text-center text-(--color-text-tertiary)">—</td>
                 <td className="px-2 py-2 text-center font-medium text-(--color-brand)">
                   {totals.financeFeeTotalPence > 0 ? formatMoneyGBPOrDash(totals.financeFeeTotalPence) : "—"}
                 </td>
                 {!locked ? <td /> : null}
               </tr>
             </tfoot>
-          </table>
-        </div>
-        {showPagination ? (
-          <div className="mt-3">
-            <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+            </table>
           </div>
-        ) : null}
+          {showPagination ? (
+            <div className="mt-3">
+              <TablePagination page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} />
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

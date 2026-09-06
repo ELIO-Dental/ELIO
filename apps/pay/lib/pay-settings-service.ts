@@ -3,6 +3,7 @@ import {
   mergePaySettingsInput,
   parsePaySettingsJson,
   paySettingsToJson,
+  assertValidFinanceRateSettings,
   type PaySettings,
 } from "./pay-settings";
 
@@ -34,6 +35,7 @@ export async function savePaySettings(
     delete patch.smtp_pass;
   }
   const merged = mergePaySettingsInput(current, patch);
+  assertValidFinanceRateSettings(merged);
 
   const cosmeticCode =
     merged.cosmetic_consultation_treatment_code.trim() || null;

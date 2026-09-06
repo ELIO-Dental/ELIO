@@ -94,12 +94,17 @@ async function main() {
   );
 
   const tolerance = Number(process.env.PAY_PARITY_TOLERANCE_PENCE ?? DEFAULT_PAY_PARITY_TOLERANCE_PENCE);
+  // Ignore deactivated UAT / client-removed dentists (e.g. Angelica).
+  const isActiveDentistName = (name: string) =>
+    !name.startsWith("[REMOVED]") && !name.startsWith("[UAT]");
   const result = comparePeriodPayParity(
-    legacyExport.entries,
-    payPeriod.payslipEntries.map((entry) => ({
-      dentistName: entry.dentist.name,
-      finalPayPence: entry.finalPayPence,
-    })),
+    legacyExport.entries.filter((e) => isActiveDentistName(e.dentistName) && !/angelica/i.test(e.dentistName)),
+    payPeriod.payslipEntries
+      .filter((entry) => isActiveDentistName(entry.dentist.name))
+      .map((entry) => ({
+        dentistName: entry.dentist.name,
+        finalPayPence: entry.finalPayPence,
+      })),
     Number.isFinite(tolerance) ? tolerance : DEFAULT_PAY_PARITY_TOLERANCE_PENCE
   );
 

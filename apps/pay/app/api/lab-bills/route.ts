@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
-import { createLabBill, deleteLabBill, listLabBills, updateLabBill } from "@/lib/pay-service";
-import { errorResponse } from "@/lib/api-error";
+import { createLabBill, listLabBills } from "@/lib/pay-service";
+import { recordPayAudit } from "@/lib/pay-audit";
 
 export async function GET(req: Request) {
   try {
@@ -31,6 +31,19 @@ export async function POST(req: Request) {
       description: body.description ?? null,
       fileUrl: body.fileUrl ?? body.file_url ?? null,
       billDate: body.billDate ?? body.date ?? null,
+    });
+    await recordPayAudit(session, {
+      action: "pay.lab_bill.created",
+      targetType: "LabBillEntry",
+      targetId: labBill.id,
+      metadata: {
+        after: {
+          dentistId: labBill.dentistId,
+          amountPence: labBill.amountPence,
+          labName: labBill.labName,
+          description: labBill.description,
+        },
+      },
     });
     return NextResponse.json({ labBill }, { status: 201 });
   } catch (e) {

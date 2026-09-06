@@ -239,6 +239,9 @@ model Practice {
   savedLabs              SavedLab[]
   savedSuppliers         SavedSupplier[]
   legacyPayslipArchives  LegacyPayslipArchive[]
+  paidInvoiceLineLogs    PaidInvoiceLineLog[]
+  dentistRateHistories   DentistRateHistory[]
+  payslipVersions        PayslipVersion[]
 
   // ElioPlans (draft)
   plansPlans           PlanModel[]
@@ -605,6 +608,13 @@ model Dentist {
   // HOURLY (therapists/hygienists)
   hourlyRatePence Int?
 
+  /** Step 21 — per-dentist lab share override (basis points; null = practice default). */
+  labShareBp Int?
+  /** Step 21 — per-dentist finance fee share override (basis points; null = practice default). */
+  financeShareBp Int?
+  /** Step 21 — therapy hourly rate for deductions on this dentist's patients (pence; null = practice). */
+  therapyHourlyPence Int?
+
   effectiveFrom DateTime @default(now())
 
   createdAt DateTime @default(now())
@@ -616,10 +626,36 @@ model Dentist {
   labBillEntries        LabBillEntry[]
   treatments            Treatment[]
   consults              Consult[]
+  paidInvoiceLineLogs   PaidInvoiceLineLog[]
+  rateHistory           DentistRateHistory[]
 
   @@index([practiceId])
   @@index([practiceId, dentallyPractitionerId])
   @@map("pay_dentists")
+}
+
+/**
+ * Step 21 — dated dentist rate versions. Calc picks the latest row with
+ * effectiveFrom <= period end (else current Dentist columns).
+ */
+model DentistRateHistory {
+  id                  String   @id @default(cuid())
+  practiceId          String
+  practice            Practice @relation(fields: [practiceId], references: [id])
+  dentistId           String
+  dentist             Dentist  @relation(fields: [dentistId], references: [id], onDelete: Cascade)
+  effectiveFrom       DateTime
+  privateSplitPercent Decimal? @db.Decimal(5, 2)
+  udaRatePence        Int?
+  hourlyRatePence     Int?
+  labShareBp          Int?
+  financeShareBp      Int?
+  therapyHourlyPence  Int?
+  createdAt           DateTime @default(now())
+
+  @@index([dentistId, effectiveFrom])
+  @@index([practiceId])
+  @@map("pay_dentist_rate_history")
 }
 
 model HourEntry {
@@ -654,17 +690,36 @@ model PayPeriod {
   nhsPeriodStart DateTime?
   nhsPeriodEnd   DateTime?
 
+  /**
+   * Pay-period Dentally fetch job (revision1 Step 3) — UI never calls Dentally on render;
+   * POST enqueues background work; pages read these fields + local line tables only.
+   */
+  dentallyFetchStatus     PayDentallyFetchStatus @default(IDLE)
+  dentallyFetchStartedAt  DateTime?
+  dentallyFetchFinishedAt DateTime?
+  dentallyFetchError      String?
+  /** Last successful/failed fetch summary (message, summary, debug) as JSON. */
+  dentallyFetchResultJson Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   hourEntries       HourEntry[]
   compassStatements CompassStatement[]
   payslipEntries    PayslipEntry[]
+  paidInvoiceLineLogs PaidInvoiceLineLog[]
 
   @@index([practiceId])
   @@index([periodStart])
   @@index([periodEnd])
   @@map("pay_periods")
+}
+
+enum PayDentallyFetchStatus {
+  IDLE
+  RUNNING
+  SUCCESS
+  ERROR
 }
 
 model CompassStatement {
@@ -757,11 +812,14 @@ model PayslipEntry {
   adjustmentsJson             Json?
   therapyMinutes            Decimal? @db.Decimal(8, 2)
   therapyRatePerMinute      Decimal? @db.Decimal(10, 4) // legacy AuraPay therapy_rate (£/min)
+  /** Step 16 — true until ops confirms finance term/fee on all finance lines. */
+  provisional               Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   privateRevenueLineItems PrivateRevenueLineItem[]
+  versions                PayslipVersion[]
 
   // F.1 Final QA money-path audit (2026-08-29): apps/pay/lib/pay-service.ts's
   // calculatePayslipForDentist() and the /api/pay-periods/[id]/calculate
@@ -780,6 +838,32 @@ model PayslipEntry {
   @@index([payPeriodId])
   @@index([dentistId])
   @@map("pay_payslip_entries")
+}
+
+/**
+ * Step 26 / 28 — immutable payslip PDF version. Created on lock; prior versions
+ * kept when period is reopened and re-locked (v2, v3, …).
+ */
+model PayslipVersion {
+  id             String       @id @default(cuid())
+  practiceId     String
+  practice       Practice     @relation(fields: [practiceId], references: [id])
+  payslipEntryId String
+  payslipEntry   PayslipEntry @relation(fields: [payslipEntryId], references: [id], onDelete: Cascade)
+  version        Int
+  lockedAt       DateTime
+  /** Render inputs + totals used to generate this PDF (audit / replay). */
+  snapshotJson   Json
+  /** Stored PDF bytes (base64) — served after lock; never regenerated from live row. */
+  pdfBase64      String       @db.Text
+  contentSha256  String
+  provisional    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@unique([payslipEntryId, version])
+  @@index([practiceId])
+  @@index([payslipEntryId])
+  @@map("pay_payslip_versions")
 }
 
 /**
@@ -846,12 +930,50 @@ model PrivateRevenueLineItem {
   hourlyRatePence          Int?
   flagged                  Boolean @default(false)
   flagReason               String?
-  financeFeePence          Int? // AuraPay financeFee on patient row; Tabeo rates applied in Y3.5 settings
+  financeFeePence          Int? // AuraPay financeFee; Tabeo term×rate or ops-entered (Step 16)
+  /** Step 16 — Tabeo term months ∈ {3,12,36,60}; null = needs term. */
+  financeTermMonths        Int?
+  /** Step 16 — true when ops typed fee (do not overwrite with suggested rate). */
+  financeFeeManual         Boolean @default(false)
+
+  // Step 32 — traceability: Dentally invoice+line key, or manual author/note
+  /** PaidInvoiceLineLog-compatible key within invoice (e.g. amt:12345). */
+  dentallyLineKey          String?
+  /** DENTALLY | MANUAL */
+  sourceType               String  @default("DENTALLY")
+  /** Who created a manual plug line (ops user id). */
+  manualCreatedByUserId    String?
+  /** Ops note explaining a manual / plug line. */
+  manualNote               String?
 
   createdAt DateTime @default(now())
 
   @@index([payslipEntryId])
   @@map("pay_private_revenue_line_items")
+}
+
+/**
+ * PDF §7 / Step 14 — every invoice line paid out on a payslip.
+ * Prevents double-pay across months. Seed historically once (do not re-parse old PDFs forever).
+ */
+model PaidInvoiceLineLog {
+  id           String    @id @default(cuid())
+  practiceId   String
+  practice     Practice  @relation(fields: [practiceId], references: [id])
+  invoiceId    String
+  lineKey      String
+  dentistId    String
+  dentist      Dentist   @relation(fields: [dentistId], references: [id])
+  payPeriodId  String
+  payPeriod    PayPeriod @relation(fields: [payPeriodId], references: [id])
+  amountPence  Int
+  createdAt    DateTime  @default(now())
+
+  @@unique([practiceId, invoiceId, lineKey])
+  @@index([practiceId])
+  @@index([payPeriodId])
+  @@index([dentistId])
+  @@map("pay_paid_invoice_line_logs")
 }
 
 model LabBillEntry {

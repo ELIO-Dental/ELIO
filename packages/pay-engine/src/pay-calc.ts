@@ -101,7 +101,24 @@ export interface HourlyPayslipInput {
 
 export type PayslipCalcInput = PercentageSplitPayslipInput | HourlyPayslipInput;
 
-/** §6.5 — final formula, branched by payType. Returns the final amount in pence. */
+/**
+ * Step 33 — locked policy (Hisham 2026-09-05): therapist work is NOT added to private gross.
+ * Keep a zero term for PDF formula compatibility (`gross_total = dentist + therapist`).
+ * Associate cost = manual therapy minutes × hourly rate only (Step 18).
+ */
+export const GROSS_PRIVATE_THERAPIST_PENCE = 0 as const;
+
+/** PDF gross_total with therapist term forced to 0 (Step 33). */
+export function resolveGrossTotalPence(grossPrivateDentistPence: number): number {
+  return grossPrivateDentistPence + GROSS_PRIVATE_THERAPIST_PENCE;
+}
+
+/**
+ * §6.5 — final formula, branched by payType. Returns the final amount in pence.
+ * Lab is always LAB_AFTER_SPLIT (Step 23): deduct lab from post-split privateEarningsPence.
+ * LAB_BEFORE_SPLIT is intentionally unsupported.
+ * Step 33: no therapist gross term — only `therapyDeductionPence` from manual minutes.
+ */
 export function calculateFinalPay(input: PayslipCalcInput): number {
   const adjustments = input.manualAdjustmentsPence ?? 0;
 
@@ -127,10 +144,13 @@ export function calculateFinalPay(input: PayslipCalcInput): number {
   return hourlyEarningsPence + adjustments;
 }
 
-/** §6.4 — dentist's share of attributable lab bills for the period (default 50%). */
-export function calculateLabDeduction(labBillsPence: number[], dentistShare = 0.5): number {
+/** §6.4 — dentist's share of attributable lab bills (share in basis points; 5000 = 50%). */
+export function calculateLabDeduction(labBillsPence: number[], dentistShareBp = 5000): number {
   const total = labBillsPence.reduce((sum, v) => sum + v, 0);
-  return Math.round(total * dentistShare);
+  if (!(total > 0) || !(dentistShareBp > 0)) return 0;
+  // Accept legacy float fractions (≤1) from older callers.
+  const bp = dentistShareBp <= 1 ? Math.round(dentistShareBp * 10_000) : Math.round(dentistShareBp);
+  return Math.round((total * bp) / 10_000);
 }
 
 /** §6.2 — NHS earnings = UDAs (Compass "Current Financial Year" figure) × ELIO's configured rate. */

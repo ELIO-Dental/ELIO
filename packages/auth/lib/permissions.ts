@@ -30,7 +30,7 @@ const PAY_PERMISSIONS: Record<Role, string[]> = {
   OWNER: ["pay:view", "pay:configure-splits", "pay:upload-statement", "pay:review-nhs-figure", "pay:manual-adjustment", "pay:run-period", "pay:edit-bills", "pay:download-payslip"],
   ADMIN: ["pay:view", "pay:configure-splits", "pay:upload-statement", "pay:review-nhs-figure", "pay:manual-adjustment", "pay:run-period", "pay:edit-bills", "pay:download-payslip"],
   FINANCE: ["pay:view", "pay:configure-splits", "pay:upload-statement", "pay:review-nhs-figure", "pay:manual-adjustment", "pay:run-period", "pay:edit-bills", "pay:download-payslip"],
-  STAFF: [], // default: no access unless a clinician-facing view is added — open item, PERMISSIONS_MATRIX.md section 7
+  STAFF: ["pay:view-own-payslip", "pay:download-payslip:own"], // Step 30 — own payslips only when Dentist.userId linked
   AUDITOR: ["pay:view:readonly", "pay:download-payslip:readonly"],
 };
 

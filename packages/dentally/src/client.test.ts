@@ -1,9 +1,76 @@
 import { describe, expect, it, vi } from "vitest";
-import { DentallyApiError, DentallyClient } from "./client";
+import {
+  APP_USER_AGENT,
+  buildDentallyHeaders,
+  DentallyApiError,
+  DentallyClient,
+  requireDentallySiteId,
+} from "./client";
+import { resolveInvoicePractitionerUserId } from "./invoice-attribution";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), { status, headers });
 }
+
+describe("Dentally client contract headers (Step 2)", () => {
+  it("buildDentallyHeaders sets Authorization, User-Agent, Accept, Content-Type", () => {
+    const headers = buildDentallyHeaders("secret-key");
+    expect(headers.Authorization).toBe("Bearer secret-key");
+    expect(headers["User-Agent"]).toBe(APP_USER_AGENT);
+    expect(headers.Accept).toBe("application/json");
+    expect(headers["Content-Type"]).toBe("application/json");
+    expect(APP_USER_AGENT).toMatch(/^ELIO\//);
+  });
+
+  it("every GET sends the full header contract", async () => {
+    let captured: HeadersInit | undefined;
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      captured = init?.headers;
+      return jsonResponse({ patients: [], meta: { total: 0, page: 1 } });
+    });
+    const client = new DentallyClient({
+      apiKey: "k",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await client.get("/patients");
+    const headers = captured as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer k");
+    expect(headers["User-Agent"]).toBe(APP_USER_AGENT);
+    expect(headers.Accept).toBe("application/json");
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+});
+
+describe("requireDentallySiteId", () => {
+  it("passes when site_id is present", () => {
+    expect(() => requireDentallySiteId({ site_id: "42", page: 1 })).not.toThrow();
+  });
+
+  it("throws when site_id is missing or blank", () => {
+    expect(() => requireDentallySiteId({ page: 1 })).toThrow(/site_id/);
+    expect(() => requireDentallySiteId({ site_id: "" })).toThrow(/site_id/);
+    expect(() => requireDentallySiteId({ site_id: "   " })).toThrow(/site_id/);
+  });
+});
+
+describe("resolveInvoicePractitionerUserId", () => {
+  it("prefers invoice line practitioner_id (Dentally user.id)", () => {
+    expect(
+      resolveInvoicePractitionerUserId({
+        id: 1,
+        user_id: 99,
+        practitioner_id: 88,
+        invoice_items: [{ practitioner_id: 777 }],
+      })
+    ).toBe("777");
+  });
+
+  it("falls back to user_id then practitioner_id", () => {
+    expect(resolveInvoicePractitionerUserId({ id: 1, user_id: 99, practitioner_id: 88 })).toBe("99");
+    expect(resolveInvoicePractitionerUserId({ id: 1, practitioner_id: 88 })).toBe("88");
+    expect(resolveInvoicePractitionerUserId({ id: 1 })).toBe("");
+  });
+});
 
 describe("DentallyClient rate-limit backoff", () => {
   it("retries a 429 with backoff and succeeds once the API recovers", async () => {
@@ -28,8 +95,27 @@ describe("DentallyClient rate-limit backoff", () => {
 
     expect(calls).toBe(3);
     expect(result.patients).toHaveLength(1);
-    // Backed off twice before the 3rd (successful) attempt.
     expect(sleeps).toHaveLength(2);
+  });
+
+  it("retries a rate-limit 403 with backoff (PDF §2)", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls++;
+      if (calls <= 2) {
+        return jsonResponse({ error: "rate limited" }, 403, { "retry-after": "0" });
+      }
+      return jsonResponse({ patients: [{ id: 1 }], meta: { total: 1, page: 1 } });
+    });
+    const client = new DentallyClient({
+      apiKey: "test-key",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async () => {},
+    });
+
+    const result = await client.get<{ patients: unknown[] }>("/patients");
+    expect(calls).toBe(3);
+    expect(result.patients).toHaveLength(1);
   });
 
   it("throws DentallyApiError after exhausting retries on persistent 429s", async () => {
@@ -42,7 +128,6 @@ describe("DentallyClient rate-limit backoff", () => {
     });
 
     await expect(client.get("/patients")).rejects.toBeInstanceOf(DentallyApiError);
-    // 1 initial + 2 retries = 3 attempts total.
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
@@ -120,8 +205,6 @@ describe("partial-failure isolation", () => {
       { perPage: 2 }
     );
 
-    // 3 records processed total; record 2 failed but 1 and 3 still succeeded —
-    // a single bad record doesn't corrupt/abort the rest of the batch.
     expect(results).toHaveLength(3);
     expect(results.filter((r) => r.ok)).toHaveLength(2);
     expect(results.find((r) => r.id === 2)?.ok).toBe(false);

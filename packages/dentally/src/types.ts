@@ -46,6 +46,8 @@ export interface DentallyInvoiceItemRaw {
   id?: string | number;
   name?: string;
   amount?: string | number;
+  /** Present on GET /invoices/{id} detail payloads (Aura / PDF §3.3). */
+  total_price?: string | number;
   quantity?: number;
   treatment_id?: number | string;
   // Real, structured field (per Dentally's official API reference) linking
@@ -56,6 +58,7 @@ export interface DentallyInvoiceItemRaw {
   // name. Captured as-is; matched against a configurable practice setting,
   // never hardcoded/guessed (see normalize.ts).
   treatment_category?: string | null;
+  nhs_charge?: boolean;
 }
 
 export interface DentallyInvoiceRaw {
@@ -67,6 +70,7 @@ export interface DentallyInvoiceRaw {
   dated_on?: string | null;
   created_at?: string;
   paid?: boolean;
+  paid_on?: string | null;
   state?: string;
   site_id?: string | null;
   user_id?: number | string | null;
@@ -86,6 +90,13 @@ export interface DentallyPaymentRaw {
   dated_on?: string | null;
   created_at?: string | null;
   site_id?: string | null;
+  /** Payment method label from Dentally (e.g. "Finance", "Card"). */
+  method?: string | null;
+  /** Allocations linking this payment to invoice ids. */
+  explanations?: Array<{
+    invoice_id?: number | string | null;
+    amount?: string | number | null;
+  }> | null;
   updated_at?: string;
 }
 

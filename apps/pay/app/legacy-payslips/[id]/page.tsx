@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@elio/auth";
-import { scopedDb } from "@elio/db";
+import { scopedDb, type Role } from "@elio/db";
 import {
   Badge,
   Card,
@@ -19,7 +19,7 @@ import {
   TableRow,
   formatMoneyGBPOrDash,
 } from "@elio/ui";
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import {
   formatLegacyPeriodLabel,
   legacyPayslipAdjustments,
@@ -36,6 +36,7 @@ function pounds(value: number): number {
 export default async function LegacyPayslipDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
+  await redirectUnlessPayViewAll(session.role as Role);
   const { id } = await params;
 
   const db = scopedDb(session.practiceId);

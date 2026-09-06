@@ -24,6 +24,7 @@ export function DentistFetchDetails({
   lines,
   dentallyDiscrepanciesJson,
   dentallyDentistLogJson,
+  financeRates,
 }: {
   payPeriodId: string;
   payslipEntryId: string;
@@ -34,6 +35,7 @@ export function DentistFetchDetails({
   lines: PrivatePatientRow[];
   dentallyDiscrepanciesJson: unknown;
   dentallyDentistLogJson: unknown;
+  financeRates: import("./private-patients-table").FinanceRatesProp;
 }) {
   const patientsWithDuration = lines.filter((l) => l.durationMins && l.durationMins > 0).length;
   const topPatients = analytics?.topPatientsByHourlyRate ?? [];
@@ -100,6 +102,7 @@ export function DentistFetchDetails({
         payslipEntryId={payslipEntryId}
         locked={locked}
         initialLines={lines}
+        financeRates={financeRates}
       />
 
       <DentistLogImportPanel

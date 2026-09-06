@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { auth } from "@elio/auth";
-import { scopedDb } from "@elio/db";
+import { scopedDb, type Role } from "@elio/db";
 import {
   Table,
   TableHeader,
@@ -18,6 +18,7 @@ import {
   TablePagination,
   parseTablePage,
 } from "@elio/ui";
+import { canPayViewAll, canPayViewAny } from "@/lib/pay-scope";
 import { NewPayPeriodForm } from "./new-pay-period-form";
 
 export default async function PayPeriodsPage({
@@ -26,7 +27,12 @@ export default async function PayPeriodsPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const session = await auth();
-  if (!session?.practiceId) return redirectToLogin();
+  if (!session?.practiceId || !session.userId) return redirectToLogin();
+  const subject = { role: session.role as Role, userId: session.userId };
+  if (!canPayViewAny(subject)) {
+    return redirectToLauncher("error=forbidden");
+  }
+  const viewAll = canPayViewAll(subject);
   const { page, skip, pageSize } = parseTablePage(await searchParams);
 
   const db = scopedDb(session.practiceId);
@@ -42,11 +48,16 @@ export default async function PayPeriodsPage({
 
   return (
     <PageContent>
-      <PageHeader title="Pay periods" description="Create and manage monthly payroll runs." />
+      <PageHeader
+        title="Pay periods"
+        description={viewAll ? "Create and manage monthly payroll runs." : "Open a period to view your payslip."}
+      />
 
-      <div className="mt-8">
-        <NewPayPeriodForm />
-      </div>
+      {viewAll ? (
+        <div className="mt-8">
+          <NewPayPeriodForm />
+        </div>
+      ) : null}
 
       <div className="mt-8">
         {totalCount === 0 ? (

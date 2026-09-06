@@ -8,6 +8,7 @@ export interface PayslipExpandedMetricsInput {
   superannuationPence: number | null;
   therapyMinutes: number | null;
   therapyRatePerMinute: number | null;
+  therapyHourlyPence?: number | null;
   financeLines: Array<{ financeFeePence?: number | null }>;
   financeFeeSplit?: number;
 }
@@ -31,8 +32,12 @@ export function computePayslipExpandedMetrics(input: PayslipExpandedMetricsInput
   const nhsIncomePence = input.nhsEarningsPence ?? 0;
   const labDeductionPence = input.labDeductionPence ?? 0;
   const superannuationDeductionPence = input.superannuationPence ?? 0;
-  const therapyDeduction = therapyDeductionPence(input.therapyMinutes, input.therapyRatePerMinute);
-  const financeFeesDeduction = financeFeesDeductionPence(input.financeLines, input.financeFeeSplit ?? 0.5);
+  const therapyDeduction = therapyDeductionPence(
+    input.therapyMinutes,
+    input.therapyRatePerMinute,
+    input.therapyHourlyPence
+  );
+  const financeFeesDeduction = financeFeesDeductionPence(input.financeLines, input.financeFeeSplit ?? 5000);
   const therapyMinutes = input.therapyMinutes ?? 0;
 
   return {

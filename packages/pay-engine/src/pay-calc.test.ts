@@ -5,6 +5,8 @@ import {
   calculateFinalPay,
   calculateLabDeduction,
   calculateNhsEarnings,
+  GROSS_PRIVATE_THERAPIST_PENCE,
+  resolveGrossTotalPence,
   type TreatmentRecord,
 } from "./pay-calc";
 
@@ -131,10 +133,13 @@ describe("calculateFinalPay — §6.5 final formula", () => {
 });
 
 describe("calculateLabDeduction — §6.4, dentist share of attributable lab bills", () => {
-  it("defaults to 50%", () => {
-    expect(calculateLabDeduction([10000, 5000, 999])).toBe(Math.round(15999 / 2));
+  it("defaults to 50% (5000 bp)", () => {
+    expect(calculateLabDeduction([10000, 5000, 999])).toBe(Math.round((15999 * 5000) / 10000));
   });
-  it("accepts custom split from practice settings", () => {
+  it("accepts custom split as basis points", () => {
+    expect(calculateLabDeduction([10000], 6000)).toBe(6000);
+  });
+  it("accepts legacy float fraction for compatibility", () => {
     expect(calculateLabDeduction([10000], 0.6)).toBe(6000);
   });
   it("zero bills = zero deduction", () => {
@@ -142,8 +147,109 @@ describe("calculateLabDeduction — §6.4, dentist share of attributable lab bil
   });
 });
 
+describe("Step 20 golden example — integer pence invariant", () => {
+  it("50% split, default shares → total_payment 32500p", () => {
+    const gross = 100_000;
+    const netPrivate = Math.round((gross * 50) / 100); // 50000
+    const labShare = calculateLabDeduction([20_000], 5000); // 10000
+    const financeShare = Math.round((8000 * 5000) / 10000); // 4000
+    const therapy = Math.round((60 * 3500) / 60); // 3500
+    const totalDeductions = labShare + financeShare + therapy; // 17500
+    const totalPayment = netPrivate - totalDeductions; // 32500
+    expect(netPrivate).toBe(50_000);
+    expect(labShare).toBe(10_000);
+    expect(financeShare).toBe(4_000);
+    expect(therapy).toBe(3_500);
+    expect(totalDeductions).toBe(17_500);
+    expect(totalPayment).toBe(32_500);
+    expect(
+      calculateFinalPay({
+        payType: "PERCENTAGE_SPLIT",
+        udas: 0,
+        udaRatePence: 0,
+        grossPrivateRevenuePence: gross,
+        privateSplitPercent: 50,
+        privateEarningsPence: netPrivate,
+        consultationExclusionsPence: 0,
+        labDeductionPence: labShare,
+        superannuationPence: 0,
+        therapyDeductionPence: therapy,
+        financeFeesDeductionPence: financeShare,
+      })
+    ).toBe(32_500);
+  });
+});
+
+describe("Step 23 — LAB_AFTER_SPLIT only", () => {
+  it("gross 100000p × 50% → net 50000 → after lab 10000p → 40000 (before other deductions)", () => {
+    const gross = 100_000;
+    const netPrivate = Math.round((gross * 50) / 100);
+    const labShare = calculateLabDeduction([20_000], 5000);
+    expect(netPrivate).toBe(50_000);
+    expect(labShare).toBe(10_000);
+    expect(netPrivate - labShare).toBe(40_000);
+    expect(
+      calculateFinalPay({
+        payType: "PERCENTAGE_SPLIT",
+        udas: 0,
+        udaRatePence: 0,
+        grossPrivateRevenuePence: gross,
+        privateSplitPercent: 50,
+        privateEarningsPence: netPrivate,
+        consultationExclusionsPence: 0,
+        labDeductionPence: labShare,
+        superannuationPence: 0,
+        therapyDeductionPence: 0,
+        financeFeesDeductionPence: 0,
+      })
+    ).toBe(40_000);
+  });
+});
+
 describe("calculateNhsEarnings — §6.2, UDAs × ELIO-configured rate (never the statement's own rate)", () => {
   it("multiplies UDAs by the configured pence rate", () => {
     expect(calculateNhsEarnings(232.4, 1550)).toBe(Math.round(232.4 * 1550));
+  });
+});
+
+describe("Step 33 — gross_private_therapist locked at 0", () => {
+  it("exports zero therapist gross constant", () => {
+    expect(GROSS_PRIVATE_THERAPIST_PENCE).toBe(0);
+  });
+
+  it("gross_total equals dentist gross only (therapist term is zero)", () => {
+    expect(resolveGrossTotalPence(80_000)).toBe(80_000);
+    expect(resolveGrossTotalPence(0)).toBe(0);
+  });
+
+  it("final pay uses therapyDeductionPence from minutes, not therapist gross", () => {
+    const withoutTherapy = calculateFinalPay({
+      payType: "PERCENTAGE_SPLIT",
+      udas: 0,
+      udaRatePence: 0,
+      grossPrivateRevenuePence: 50_000,
+      privateSplitPercent: 50,
+      privateEarningsPence: 25_000,
+      consultationExclusionsPence: 0,
+      labDeductionPence: 0,
+      superannuationPence: 0,
+      therapyDeductionPence: 0,
+    });
+    const withMinutesDeduction = calculateFinalPay({
+      payType: "PERCENTAGE_SPLIT",
+      udas: 0,
+      udaRatePence: 0,
+      grossPrivateRevenuePence: 50_000,
+      privateSplitPercent: 50,
+      privateEarningsPence: 25_000,
+      consultationExclusionsPence: 0,
+      labDeductionPence: 0,
+      superannuationPence: 0,
+      therapyDeductionPence: 3500, // 60 mins × £35/hr
+    });
+    expect(withoutTherapy).toBe(25_000);
+    expect(withMinutesDeduction).toBe(25_000 - 3500);
+    // Therapist gross never inflates private earnings base
+    expect(resolveGrossTotalPence(50_000)).toBe(50_000);
   });
 });

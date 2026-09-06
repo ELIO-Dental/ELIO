@@ -37,6 +37,9 @@ const TENANT_SCOPED_MODELS = new Set([
   // or compassStatement.practiceId in their own where-clause (as apps/pay's routes do).
   "payslipEntry",
   "labBillEntry",
+  "paidInvoiceLineLog",
+  "dentistRateHistory",
+  "payslipVersion",
   "planModel",
   "planPatient",
   "patientPlanEnrolment",

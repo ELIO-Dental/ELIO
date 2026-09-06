@@ -15,6 +15,8 @@ const baseLine = (): PrivatePatientLineDraft => ({
   paymentStatus: "partial",
   isFinance: false,
   financeFeePence: null,
+  financeTermMonths: null,
+  financeFeeManual: false,
   flagged: false,
   flagReason: null,
 });
@@ -32,13 +34,35 @@ describe("private patient line utils (Y2.1b)", () => {
     expect(patientIndexForLineId(lines, "b")).toBe(1);
   });
 
-  it("totals gross private from paid amounts and finance fees", () => {
+  it("totals gross only from lines that count toward gross (paid, unflagged)", () => {
     expect(
       totalsFromLines([
-        { amountPaidPence: 50000, isFinance: false, financeFeePence: null },
-        { amountPaidPence: 30000, isFinance: true, financeFeePence: 1500 },
+        {
+          amountPence: 50000,
+          amountPaidPence: 50000,
+          paymentStatus: "paid",
+          flagged: false,
+          isFinance: false,
+          financeFeePence: null,
+        },
+        {
+          amountPence: 30000,
+          amountPaidPence: 30000,
+          paymentStatus: "paid",
+          flagged: true,
+          isFinance: true,
+          financeFeePence: 1500,
+        },
+        {
+          amountPence: 10000,
+          amountPaidPence: 4000,
+          paymentStatus: "partial",
+          flagged: true,
+          isFinance: false,
+          financeFeePence: null,
+        },
       ])
-    ).toEqual({ grossPrivateRevenuePence: 80000, financeFeesPence: 1500 });
+    ).toEqual({ grossPrivateRevenuePence: 50000, financeFeesPence: 1500 });
   });
 
   it("maps pence totals to legacy pounds", () => {

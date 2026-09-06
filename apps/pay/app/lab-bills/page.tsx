@@ -1,13 +1,16 @@
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { auth } from "@elio/auth";
+import type { Role } from "@elio/db";
 import { scopedDb } from "@elio/db";
 import { PageContent, PageHeader } from "@elio/ui";
 import { LabBillsClient } from "./lab-bills-client";
 import type { LabBillListItem } from "@/lib/lab-bills-summary";
+import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 
 export default async function LabBillsPage() {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
+  await redirectUnlessPayViewAll(session.role as Role);
 
   const db = scopedDb(session.practiceId);
   const currentYear = new Date().getUTCFullYear();
@@ -19,7 +22,11 @@ export default async function LabBillsPage() {
       },
       orderBy: [{ billDate: "desc" }, { createdAt: "desc" }],
     }),
-    db.dentist.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.dentist.findMany({
+      where: ACTIVE_DENTIST_WHERE,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
     db.savedLab.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 

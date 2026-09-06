@@ -55,7 +55,9 @@ export function PayslipEditableFields({
 }) {
   const router = useRouter();
   const [therapyMins, setTherapyMins] = useState(therapyMinutes?.toString() ?? "");
-  const [therapyRate, setTherapyRate] = useState(therapyRatePerMinute?.toString() ?? "0.5833");
+  const [therapyRate, setTherapyRate] = useState(
+    therapyRatePerMinute != null ? therapyRatePerMinute.toString() : ""
+  );
   const [superannuation, setSuperannuation] = useState(penceToPounds(superannuationPence));
   const [grossPrivate, setGrossPrivate] = useState(penceToPounds(grossPrivateRevenuePence));
   const [financeFees, setFinanceFees] = useState(penceToPounds(financeFeesPence));
@@ -69,7 +71,7 @@ export function PayslipEditableFields({
 
   useEffect(() => {
     setTherapyMins(therapyMinutes?.toString() ?? "");
-    setTherapyRate(therapyRatePerMinute?.toString() ?? "0.5833");
+    setTherapyRate(therapyRatePerMinute != null ? therapyRatePerMinute.toString() : "");
     setSuperannuation(penceToPounds(superannuationPence));
     setGrossPrivate(penceToPounds(grossPrivateRevenuePence));
     setFinanceFees(penceToPounds(financeFeesPence));
@@ -99,11 +101,24 @@ export function PayslipEditableFields({
       const body: Record<string, unknown> = {
         payslipEntryId,
         therapy_minutes: therapyMins ? Number(therapyMins) : 0,
-        therapy_rate: therapyRate ? Number(therapyRate) : 0.5833,
+        therapy_rate: therapyRate.trim() !== "" ? Number(therapyRate) : null,
         superannuation_deduction: poundsToNumber(superannuation),
         lab_bills: labBills.filter((b) => b.amount > 0 || b.lab_name.trim()),
-        adjustments: adjustments.filter((a) => a.amount > 0 || a.description.trim()),
+        adjustments: adjustments
+          .filter((a) => a.amount > 0 || a.description.trim())
+          .map((a) => ({
+            description: a.description.trim(),
+            amount: a.amount,
+            amountPence: Math.round(a.amount * 100),
+            type: a.type,
+            createdBy: a.createdBy ?? undefined,
+            createdAt: a.createdAt ?? undefined,
+          })),
       };
+      const missingNote = (body.adjustments as PayslipAdjustment[]).find(
+        (a) => a.amountPence > 0 && !a.description.trim()
+      );
+      if (missingNote) throw new Error("Each adjustment requires a note");
       if (isNhs && nhsUdas) body.nhs_udas = Number(nhsUdas);
       if (!hasPatientLines) {
         body.gross_private = poundsToNumber(grossPrivate);
@@ -196,17 +211,22 @@ export function PayslipEditableFields({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Therapy minutes</label>
+            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+              Therapy minutes (manual each month)
+            </label>
             <input
               type="number"
               min="0"
               value={therapyMins}
               onChange={(e) => setTherapyMins(e.target.value)}
+              placeholder="0"
               className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
             />
           </div>
           <div>
-            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Rate per minute (£)</label>
+            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+              Rate per minute (£) — blank uses £35/hr
+            </label>
             <input
               type="number"
               step="0.0001"
@@ -271,10 +291,22 @@ export function PayslipEditableFields({
                     }}
                     className="w-28 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
                   />
+                  <input
+                    type="url"
+                    placeholder="Bill link (URL)"
+                    value={bill.file_url ?? ""}
+                    onChange={(e) => {
+                      const next = [...labBills];
+                      next[i] = { ...bill, file_url: e.target.value || undefined };
+                      setLabBills(next);
+                    }}
+                    className="min-w-40 flex-1 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                  />
                   <button
                     type="button"
                     className="text-(--color-danger)"
                     onClick={() => setLabBills((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label="Remove lab bill"
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -298,7 +330,10 @@ export function PayslipEditableFields({
               type="button"
               className="flex items-center gap-1 text-caption font-medium text-(--color-brand)"
               onClick={() =>
-                setAdjustments((prev) => [...prev, { description: "", amount: 0, type: "deduction" }])
+                setAdjustments((prev) => [
+                  ...prev,
+                  { description: "", amount: 0, amountPence: 0, type: "deduction" },
+                ])
               }
             >
               <Plus className="size-3" /> Add adjustment
@@ -312,7 +347,8 @@ export function PayslipEditableFields({
                 <div key={i} className="flex flex-wrap items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Description"
+                    placeholder="Note (required)"
+                    required
                     value={adj.description}
                     onChange={(e) => {
                       const next = [...adjustments];
@@ -330,18 +366,23 @@ export function PayslipEditableFields({
                     }}
                     className="rounded-(--radius-md) border border-(--color-border-subtle) px-2 py-2 text-body-sm"
                   >
-                    <option value="deduction">Deduction</option>
-                    <option value="addition">Addition</option>
+                    <option value="deduction">Deduction (−)</option>
+                    <option value="addition">Addition (+)</option>
                   </select>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min="0.01"
                     placeholder="£"
                     value={adj.amount || ""}
                     onChange={(e) => {
+                      const pounds = poundsToNumber(e.target.value);
                       const next = [...adjustments];
-                      next[i] = { ...adj, amount: poundsToNumber(e.target.value) };
+                      next[i] = {
+                        ...adj,
+                        amount: pounds,
+                        amountPence: Math.round(pounds * 100),
+                      };
                       setAdjustments(next);
                     }}
                     className="w-28 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"

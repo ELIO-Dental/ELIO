@@ -311,13 +311,19 @@ export function SettingsClient({ initialSettings }: { initialSettings: PaySettin
             label="Therapist / hygienist IDs (comma-separated)"
             value={settings.therapist_ids}
             onChange={(v) => update("therapist_ids", v)}
-            placeholder="189342,189343"
+            placeholder="Blank = Taryn Dawson 288298"
           />
           <SettingsField
             label="NHS amounts to exclude (comma-separated £)"
             value={settings.nhs_amounts}
             onChange={(v) => update("nhs_amounts", v)}
-            placeholder="27.40,75.30,326.70"
+            placeholder="Blank = §0.6 defaults (current + previous year)"
+          />
+          <SettingsField
+            label="Excluded treatments (comma-separated phrases)"
+            value={settings.excluded_treatments}
+            onChange={(v) => update("excluded_treatments", v)}
+            placeholder="CBCT, CT Scan, Cone Beam"
           />
           <SettingsField
             label="Cosmetic consultation treatment code"

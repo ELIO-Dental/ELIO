@@ -71,7 +71,35 @@ test("dentally fetch flow: create period, fetch, calculate, download PDF", async
   payPeriodId = period.id;
 
   await page.route(`**/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, async (route) => {
-    if (route.request().method() !== "POST") {
+    const method = route.request().method();
+    const mockResult = {
+      ok: true,
+      message: "Mock Dentally fetch complete",
+      summary: {
+        [dentistId]: {
+          invoicedPence: 25000,
+          paidPence: 25000,
+          invoiceCount: 1,
+        },
+      },
+    };
+
+    if (method === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "SUCCESS",
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          error: null,
+          result: mockResult,
+        }),
+      });
+      return;
+    }
+
+    if (method !== "POST") {
       await route.continue();
       return;
     }
@@ -101,18 +129,14 @@ test("dentally fetch flow: create period, fetch, calculate, download PDF", async
     });
 
     await route.fulfill({
-      status: 200,
+      status: 202,
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        message: "Mock Dentally fetch complete",
-        summary: {
-          [dentistId]: {
-            invoicedPence: 25000,
-            paidPence: 25000,
-            invoiceCount: 1,
-          },
-        },
+        queued: true,
+        status: "RUNNING",
+        mode: "queued",
+        message: "Dentally fetch started",
       }),
     });
   });

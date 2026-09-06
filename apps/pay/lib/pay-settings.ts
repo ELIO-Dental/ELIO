@@ -21,6 +21,8 @@ export interface PaySettings {
   dentally_site_id: string;
   therapist_ids: string;
   nhs_amounts: string;
+  /** Comma-separated treatment name phrases excluded from dentist gross (PDF §4.1). Empty = defaults. */
+  excluded_treatments: string;
   cosmetic_consultation_treatment_code: string;
   smtp_host: string;
   smtp_port: string;
@@ -52,6 +54,7 @@ export const PAY_SETTINGS_KEYS = [
   "dentally_site_id",
   "therapist_ids",
   "nhs_amounts",
+  "excluded_treatments",
   "cosmetic_consultation_treatment_code",
   "smtp_host",
   "smtp_port",
@@ -85,6 +88,7 @@ export function defaultPaySettings(practiceName = ""): PaySettings {
     dentally_site_id: "",
     therapist_ids: "",
     nhs_amounts: "",
+    excluded_treatments: "",
     cosmetic_consultation_treatment_code: "",
     smtp_host: "",
     smtp_port: "587",
@@ -135,6 +139,23 @@ export function mergePaySettingsInput(current: PaySettings, input: Record<string
   return next;
 }
 
+const FINANCE_RATE_KEYS = [
+  "finance_rate_3m",
+  "finance_rate_12m",
+  "finance_rate_36m",
+  "finance_rate_60m",
+] as const;
+
+/** Step 17 — reject non-numeric / negative Tabeo rates. */
+export function assertValidFinanceRateSettings(settings: PaySettings): void {
+  for (const key of FINANCE_RATE_KEYS) {
+    const n = Number(settings[key]);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(`Invalid ${key}: must be a number ≥ 0 (decimal rate, e.g. 0.08 for 8%)`);
+    }
+  }
+}
+
 export function syncTherapyRates(settings: PaySettings, changed: "hourly" | "per_min"): PaySettings {
   const next = { ...settings };
   if (changed === "hourly") {
@@ -154,6 +175,9 @@ export function paySettingsForExport(settings: PaySettings): PaySettings {
   };
 }
 
+/** Seed therapist practitioner user.ids (PDF §0.4 / Step 11). */
+export const DEFAULT_THERAPIST_PRACTITIONER_IDS = ["288298"] as const;
+
 export function resolveTherapistIdSet(settings: PaySettings): Set<string> {
   const fromSettings = settings.therapist_ids
     .split(/[,;]/)
@@ -162,7 +186,12 @@ export function resolveTherapistIdSet(settings: PaySettings): Set<string> {
   if (fromSettings.length > 0) return new Set(fromSettings);
 
   const raw = process.env.DENTALLY_THERAPIST_IDS?.trim() ?? "";
-  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+  if (raw) {
+    return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+  }
+
+  // Step 11 / §0.4 — Taryn Dawson (Dentally user.id) when settings blank.
+  return new Set([...DEFAULT_THERAPIST_PRACTITIONER_IDS]);
 }
 
 export function resolveTherapyRatePerMinute(settings: PaySettings): number {
@@ -176,6 +205,16 @@ export function resolveTherapyRatePerMinute(settings: PaySettings): number {
   return parseFloat(DEFAULT_THERAPY_PER_MIN);
 }
 
+/** PDF §0.6 — current NHS band charges + differentials (£). */
+export const DEFAULT_NHS_BAND_AMOUNTS_GBP = [
+  27.4, 75.3, 326.7, 47.9, 299.3, 251.4,
+] as const;
+
+/** PDF §0.6 — previous-year NHS band charges + differentials (£). */
+export const DEFAULT_NHS_BAND_AMOUNTS_PREVIOUS_GBP = [
+  26.8, 73.5, 319.1, 23.8, 46.7,
+] as const;
+
 export function resolveNhsAmountSet(settings: PaySettings): Set<number> {
   const fromSettings = settings.nhs_amounts
     .split(/[,;]/)
@@ -184,12 +223,27 @@ export function resolveNhsAmountSet(settings: PaySettings): Set<number> {
   if (fromSettings.length > 0) return new Set(fromSettings);
 
   const raw = process.env.DENTALLY_NHS_AMOUNTS?.trim() ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((s) => parseFloat(s.trim()))
-      .filter((n) => Number.isFinite(n) && n > 0)
-  );
+  if (raw) {
+    return new Set(
+      raw
+        .split(",")
+        .map((s) => parseFloat(s.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    );
+  }
+
+  // Step 9 / §0.6 — seed current + previous year when settings blank.
+  return new Set([...DEFAULT_NHS_BAND_AMOUNTS_GBP, ...DEFAULT_NHS_BAND_AMOUNTS_PREVIOUS_GBP]);
+}
+
+/** PDF §4.1 — practice-owned treatment name phrases (case-insensitive substring). */
+export function resolveExcludedTreatmentPhrases(settings: PaySettings): string[] {
+  const fromSettings = settings.excluded_treatments
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (fromSettings.length > 0) return fromSettings;
+  return ["CBCT", "CT Scan", "Cone Beam"];
 }
 
 export function resolveDentallySiteId(settings: PaySettings): string {
@@ -198,15 +252,17 @@ export function resolveDentallySiteId(settings: PaySettings): string {
   return process.env.DENTALLY_SITE_ID?.trim() ?? "";
 }
 
+import { parseRateToBasisPoints, parseShareToBasisPoints, applySharePence } from "./money-pence";
+
 export function resolveLabBillSplit(settings: PaySettings): number {
-  const n = parseFloat(settings.lab_bill_split);
-  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.5;
+  return parseShareToBasisPoints(settings.lab_bill_split, 5000);
 }
 
 export function resolveFinanceFeeSplit(settings: PaySettings): number {
-  const n = parseFloat(settings.finance_fee_split);
-  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.5;
+  return parseShareToBasisPoints(settings.finance_fee_split, 5000);
 }
+
+export { applySharePence, parseShareToBasisPoints, parseRateToBasisPoints };
 
 export function paySettingsToJson(settings: PaySettings): Record<string, string> {
   return { ...settings };

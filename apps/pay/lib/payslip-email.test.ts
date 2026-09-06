@@ -34,6 +34,7 @@ const smtpSettings: PaySettings = {
   dentally_site_id: "",
   therapist_ids: "",
   nhs_amounts: "",
+  excluded_treatments: "",
   cosmetic_consultation_treatment_code: "",
   smtp_host: "smtp.example.com",
   smtp_port: "587",
@@ -160,6 +161,21 @@ describe("sendPayslipEmail", () => {
     expect(mail?.from).toBe("pay@example.com");
     expect(mail?.subject).toContain("May 2026");
     expect(mail?.attachments?.[0]?.contentType).toBe("application/pdf");
+  });
+
+  it("labels email PROVISIONAL when payslip is provisional (Step 29)", async () => {
+    const sendMail = vi.fn().mockResolvedValue({ messageId: "1" });
+    const transporter = { sendMail } as unknown as Transporter;
+
+    await sendPayslipEmail({
+      payslip: makePayslip({ provisional: true }),
+      settings: smtpSettings,
+      transporter,
+    });
+
+    const mail = sendMail.mock.calls[0]?.[0];
+    expect(mail?.subject).toMatch(/^PROVISIONAL/);
+    expect(mail?.html).toMatch(/PROVISIONAL/);
   });
 
   it("rejects dentists without email", async () => {

@@ -3,7 +3,10 @@ export type PayDiscrepancyType =
   | "partial_payment"
   | "log_mismatch"
   | "in_log_not_system"
-  | "in_system_not_log";
+  | "in_system_not_log"
+  | "unmapped_practitioner"
+  | "needs_finance_term"
+  | "possible_duplicate";
 
 export interface PayDiscrepancy {
   type: PayDiscrepancyType;
@@ -16,6 +19,16 @@ export interface PayDiscrepancy {
   patientId?: string;
   invoiceId?: string;
   logAmount?: number;
+  /** Step 10 / PDF §4.3 payment-flag fields. */
+  treatment?: string;
+  outstandingBalance?: number;
+  /** Step 12 / PDF §4.5 */
+  practitionerId?: string;
+  /** Step 13 / PDF §7 */
+  priorPeriodId?: string;
+  dentistName?: string;
+  dentistId?: string;
+  lineId?: string;
 }
 
 export function parsePayDiscrepancies(value: unknown): PayDiscrepancy[] {
@@ -37,6 +50,12 @@ export function discrepancyTypeLabel(type: PayDiscrepancyType): string {
       return "IN SYSTEM ONLY";
     case "log_mismatch":
       return "MISMATCH";
+    case "unmapped_practitioner":
+      return "UNMAPPED ID";
+    case "needs_finance_term":
+      return "NEEDS TERM";
+    case "possible_duplicate":
+      return "POSSIBLE DUP";
     default:
       return "REVIEW";
   }
@@ -55,6 +74,12 @@ export function discrepancyTypeBadgeClass(type: PayDiscrepancyType): string {
       return "bg-(--color-brand)/10 text-(--color-brand)";
     case "log_mismatch":
       return "bg-(--color-surface-dim) text-(--color-text-secondary)";
+    case "unmapped_practitioner":
+      return "bg-(--color-warning)/15 text-(--color-warning)";
+    case "needs_finance_term":
+      return "bg-(--color-brand)/10 text-(--color-brand)";
+    case "possible_duplicate":
+      return "bg-purple-100 text-purple-700";
     default:
       return "bg-(--color-surface-dim) text-(--color-text-secondary)";
   }

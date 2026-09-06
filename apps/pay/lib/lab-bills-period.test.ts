@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { labBillAmountsPenceFromPayslipJson } from "./lab-bills-period";
-import { therapyDeductionPence, DEFAULT_THERAPY_RATE_PER_MINUTE } from "./private-revenue";
+import {
+  labBillAmountsPenceFromPayslipJson,
+  labBillEntriesToPayslipJson,
+  labShareDeductionPence,
+} from "./lab-bills-period";
 
 describe("labBillAmountsPenceFromPayslipJson", () => {
-  it("returns null for missing json", () => {
+  it("returns null for missing", () => {
     expect(labBillAmountsPenceFromPayslipJson(null)).toBeNull();
     expect(labBillAmountsPenceFromPayslipJson(undefined)).toBeNull();
   });
 
-  it("converts AuraPay pound amounts to pence", () => {
+  it("converts pounds to pence", () => {
     expect(labBillAmountsPenceFromPayslipJson([{ amount: 200 }])).toEqual([20000]);
   });
 
@@ -17,13 +20,27 @@ describe("labBillAmountsPenceFromPayslipJson", () => {
   });
 });
 
-describe("therapyDeductionPence", () => {
-  it("uses default rate when minutes > 0 and rate missing", () => {
-    expect(therapyDeductionPence(60, 0)).toBe(Math.round(60 * DEFAULT_THERAPY_RATE_PER_MINUTE * 100));
-    expect(therapyDeductionPence(60, null)).toBe(Math.round(60 * DEFAULT_THERAPY_RATE_PER_MINUTE * 100));
+describe("lab bills Step 15", () => {
+  it("maps LabBillEntry rows to payslip JSON with links", () => {
+    const rows = labBillEntriesToPayslipJson([
+      {
+        labName: "Acme",
+        amountPence: 20000,
+        fileUrl: "https://files.example/a.pdf",
+      },
+      { labName: "Beta", amountPence: 10000, fileUrl: null },
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({
+      lab_name: "Acme",
+      amount: 200,
+      description: undefined,
+      file_url: "https://files.example/a.pdf",
+    });
+    expect(rows[1]?.file_url).toBeUndefined();
   });
 
-  it("returns 0 when minutes are 0", () => {
-    expect(therapyDeductionPence(0, 1.5)).toBe(0);
+  it("applies share once on total", () => {
+    expect(labShareDeductionPence([20000, 10000], 0.5)).toBe(15000);
   });
 });

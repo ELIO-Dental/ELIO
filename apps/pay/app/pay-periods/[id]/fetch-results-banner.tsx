@@ -83,9 +83,10 @@ export function FetchResultsBanner() {
       )}
 
       {fetchResult.debug && fetchResult.debug.unmatchedClinicianIds.length > 0 && (
-        <p className="mt-3 text-caption text-(--color-warning)">
-          Unmatched clinician IDs: {fetchResult.debug.unmatchedClinicianIds.join(", ")} — set dentallyPractitionerId on
-          dentist records.
+        <p className="mt-3 text-caption text-(--color-warning)" data-testid="fetch-unmapped-ids">
+          Unmatched clinician IDs: {fetchResult.debug.unmatchedClinicianIds.join(", ")} — set
+          dentallyPractitionerId on dentist records. See the Unmapped practitioners panel below
+          (persists after dismiss).
         </p>
       )}
     </section>

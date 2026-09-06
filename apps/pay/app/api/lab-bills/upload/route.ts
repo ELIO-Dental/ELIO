@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import { NextResponse } from "next/server";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
 import { updateLabBill } from "@/lib/pay-service";
@@ -10,7 +12,7 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/webp": "webp",
 };
 
-/** Lab bill file upload — stores local:// placeholder until blob storage wired (Y3.3). */
+/** Lab bill file upload — writes under public/lab-bills for clickable /pay/… URLs (Step 15). */
 export async function POST(req: Request) {
   try {
     const session = await requirePermission("pay:edit-bills");
@@ -34,7 +36,17 @@ export async function POST(req: Request) {
     const safeName = String(entityName ?? "lab")
       .replace(/[^a-zA-Z0-9]/g, "_")
       .slice(0, 30);
-    const fileUrl = `local://lab-bills/${labBillId}/${safeName}.${ext}`;
+    const filename = `${safeName}.${ext}`;
+    const relDir = path.join("lab-bills", session.practiceId, labBillId);
+    const publicDir = path.join(process.cwd(), "public", relDir);
+    await mkdir(publicDir, { recursive: true });
+    const buf = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(publicDir, filename), buf);
+
+    // App basePath is /pay — store absolute URL so PDF links are clickable.
+    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3001";
+    const proto = req.headers.get("x-forwarded-proto") ?? "http";
+    const fileUrl = `${proto}://${host}/pay/${relDir.replace(/\\/g, "/")}/${filename}`;
 
     const labBill = await updateLabBill(session.practiceId, labBillId, { fileUrl });
     return NextResponse.json({ ok: true, fileUrl, labBill });

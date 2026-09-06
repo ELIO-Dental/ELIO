@@ -5,9 +5,11 @@ import {
   parsePaySettingsJson,
   resolveDentallySiteId,
   resolveNhsAmountSet,
+  resolveExcludedTreatmentPhrases,
   resolveTherapistIdSet,
   resolveTherapyRatePerMinute,
   syncTherapyRates,
+  assertValidFinanceRateSettings,
 } from "./pay-settings";
 
 describe("pay settings (Y3.5)", () => {
@@ -47,5 +49,24 @@ describe("pay settings (Y3.5)", () => {
     expect([...resolveNhsAmountSet(settings)]).toEqual([27.4, 75.3]);
     expect(resolveDentallySiteId(settings)).toBe("site-uuid");
     expect(resolveTherapyRatePerMinute(settings)).toBe(0.75);
+  });
+
+  it("defaults therapist id to Taryn Dawson 288298 when blank (Step 11)", () => {
+    expect([...resolveTherapistIdSet(defaultPaySettings())]).toEqual(["288298"]);
+  });
+
+  it("seeds §0.6 current+previous NHS bands when nhs_amounts blank", () => {
+    const amounts = resolveNhsAmountSet(defaultPaySettings());
+    expect(amounts.has(27.4)).toBe(true);
+    expect(amounts.has(326.7)).toBe(true);
+    expect(amounts.has(26.8)).toBe(true);
+    expect(amounts.has(23.8)).toBe(true);
+    expect(amounts.size).toBe(11);
+  });
+
+  it("rejects invalid finance rates (Step 17)", () => {
+    const bad = mergePaySettingsInput(defaultPaySettings(), { finance_rate_12m: "-0.1" });
+    expect(() => assertValidFinanceRateSettings(bad)).toThrow(/finance_rate_12m/);
+    expect(() => assertValidFinanceRateSettings(defaultPaySettings())).not.toThrow();
   });
 });

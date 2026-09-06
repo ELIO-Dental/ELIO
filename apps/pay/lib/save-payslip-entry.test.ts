@@ -39,8 +39,8 @@ describe("normalizeSavePayslipEntryInput (Y2.1a legacy parity)", () => {
       finance_fees: 40,
       notes: "Adjusted after review",
       adjustments: [
-        { amount: 50, type: "addition" },
-        { amount: 10, type: "deduction" },
+        { description: "Bonus", amount: 50, type: "addition" },
+        { description: "Correction", amount: 10, type: "deduction" },
       ],
       lab_bills: [{ amount: 200 }, { amount: 100 }],
       discrepancies: [{ type: "missing", note: "check log" }],
@@ -74,7 +74,8 @@ describe("normalizeSavePayslipEntryInput (Y2.1a legacy parity)", () => {
     expect(sumLegacyAdjustmentsPence([{ amount: 25, type: "addition" }, { amount: 5, type: "deduction" }])).toBe(2000);
   });
 
-  it("calculates lab bill deduction at 50%", () => {
+  it("calculates lab bill deduction at configurable share", () => {
     expect(labBillsDeductionPence([{ amount: 100 }, { amount: 50 }])).toBe(7500);
+    expect(labBillsDeductionPence([{ amount: 100 }, { amount: 50 }], 0.6)).toBe(9000);
   });
 });

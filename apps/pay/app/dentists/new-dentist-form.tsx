@@ -24,6 +24,18 @@ export function NewDentistForm() {
     if (payType === "PERCENTAGE_SPLIT") {
       body.privateSplitPercent = Number(form.get("privateSplitPercent"));
       body.udaRatePence = Math.round(Number(form.get("udaRate")) * 100);
+      const labShare = form.get("labSharePercent");
+      const financeShare = form.get("financeSharePercent");
+      const therapyHourly = form.get("therapyHourly");
+      if (labShare != null && String(labShare).trim() !== "") {
+        body.labShareBp = Math.round(Number(labShare) * 100);
+      }
+      if (financeShare != null && String(financeShare).trim() !== "") {
+        body.financeShareBp = Math.round(Number(financeShare) * 100);
+      }
+      if (therapyHourly != null && String(therapyHourly).trim() !== "") {
+        body.therapyHourlyPence = Math.round(Number(therapyHourly) * 100);
+      }
     } else {
       body.hourlyRatePence = Math.round(Number(form.get("hourlyRate")) * 100);
     }
@@ -86,6 +98,18 @@ export function NewDentistForm() {
               <div>
                 <Label htmlFor="udaRate">UDA rate (£)</Label>
                 <Input id="udaRate" name="udaRate" type="number" step="0.01" required />
+              </div>
+              <div>
+                <Label htmlFor="labSharePercent">Lab share % (optional)</Label>
+                <Input id="labSharePercent" name="labSharePercent" type="number" step="0.01" placeholder="practice default" />
+              </div>
+              <div>
+                <Label htmlFor="financeSharePercent">Finance share % (optional)</Label>
+                <Input id="financeSharePercent" name="financeSharePercent" type="number" step="0.01" placeholder="practice default" />
+              </div>
+              <div>
+                <Label htmlFor="therapyHourly">Therapy £/hr (optional)</Label>
+                <Input id="therapyHourly" name="therapyHourly" type="number" step="0.01" placeholder="35" />
               </div>
             </>
           ) : (

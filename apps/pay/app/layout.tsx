@@ -3,7 +3,9 @@ import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { geistSans, geistMono, Toaster, PageTransition, NavigationProgress, ThemeProvider, ThemeScript } from "@elio/ui";
 import { PwaProvider, getPwaConfig } from "@elio/pwa";
 import { auth, isModuleLicensed } from "@elio/auth";
+import type { Role } from "@elio/db";
 import { ShellLayout } from "@/components/shell-layout";
+import { canPayViewAll } from "@/lib/pay-scope";
 import { getPaySettings } from "@/lib/pay-settings-service";
 import "./globals.css";
 
@@ -51,6 +53,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   const paySettings = await getPaySettings(session.practiceId);
   const brandLogoUrl = paySettings.clinic_logo_url?.trim() || undefined;
+  const viewAll = canPayViewAll({ role: session.role as Role });
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
@@ -62,6 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ShellLayout
           userEmail={session?.user?.email ?? undefined}
           isOwner={session?.role === "OWNER"}
+          viewAll={viewAll}
           brandLogoUrl={brandLogoUrl}
         >
           <PageTransition>{children}</PageTransition>

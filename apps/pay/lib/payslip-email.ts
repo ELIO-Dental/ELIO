@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import type { PaySettings } from "./pay-settings";
 import type { PayslipPdfInput } from "./payslip-pdf";
 import { generatePayslipPdf } from "./payslip-pdf";
+import { loadStoredPayslipPdf } from "./payslip-version";
 
 export interface SmtpConfig {
   host: string;
@@ -58,8 +59,12 @@ export function buildPayslipEmailHtml(opts: {
   dentistName: string;
   clinicName: string;
   periodLabel: string;
+  provisional?: boolean;
 }): string {
   const clinicName = opts.clinicName.trim() || "Elio Pay";
+  const provisionalBanner = opts.provisional
+    ? `<p style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:10px 12px;border-radius:6px;font-weight:bold">PROVISIONAL — finance term/fee still pending. Figures may change.</p>`
+    : "";
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#0f172a;padding:20px;border-radius:8px 8px 0 0">
@@ -67,6 +72,7 @@ export function buildPayslipEmailHtml(opts: {
         <p style="color:#94a3b8;margin:5px 0 0">Payslip Notification</p>
       </div>
       <div style="padding:25px;background:#fff;border:1px solid #e9ecef">
+        ${provisionalBanner}
         <p>Dear ${escapeHtml(opts.dentistName)},</p>
         <p>Please find your payslip for <strong>${escapeHtml(opts.periodLabel)}</strong> attached.</p>
         <p>If you have any questions regarding your payslip, please do not hesitate to get in touch.</p>
@@ -115,19 +121,37 @@ export async function sendPayslipEmail({
   }
 
   const smtp = requireSmtpConfig(settings);
-  const { buffer, filename } = await generatePayslipPdf(payslip);
+  // Step 26 — attach locked version PDF when available (immutable after finalize).
+  let buffer: Buffer;
+  let filename: string;
+  if (payslip.payPeriod.status === "LOCKED") {
+    const stored = await loadStoredPayslipPdf(payslip.practiceId, payslip.id);
+    if (stored) {
+      buffer = stored.buffer;
+      filename = stored.filename;
+    } else {
+      ({ buffer, filename } = await generatePayslipPdf(payslip));
+    }
+  } else {
+    ({ buffer, filename } = await generatePayslipPdf(payslip));
+  }
   const clinicName = settings.clinic_name.trim() || "Elio Pay";
   const periodLabel = formatPayPeriodLabel(payslip.payPeriod.periodStart);
   const mailer = transporter ?? createSmtpTransporter(smtp);
+  const provisional = Boolean(payslip.provisional);
+  const subject = provisional
+    ? `PROVISIONAL Payslip - ${periodLabel}`
+    : `Your Payslip - ${periodLabel}`;
 
   await mailer.sendMail({
     from: smtp.from,
     to: dentistEmail,
-    subject: `Your Payslip - ${periodLabel}`,
+    subject,
     html: buildPayslipEmailHtml({
       dentistName: payslip.dentist.name,
       clinicName,
       periodLabel,
+      provisional,
     }),
     attachments: [{ filename, content: buffer, contentType: "application/pdf" }],
   });

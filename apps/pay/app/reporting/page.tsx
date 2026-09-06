@@ -1,5 +1,6 @@
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { auth } from "@elio/auth";
+import type { Role } from "@elio/db";
 import { getReportingData } from "@/lib/pay-service";
 import { getBillsReportingData } from "@/lib/bills-reporting-service";
 import { PageContent, PageHeader } from "@elio/ui";
@@ -8,6 +9,7 @@ import { ReportingClient } from "./reporting-client";
 export default async function ReportingPage() {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
+  await redirectUnlessPayViewAll(session.role as Role);
 
   const [periods, bills] = await Promise.all([
     getReportingData(session.practiceId),

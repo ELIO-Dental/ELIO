@@ -9,10 +9,12 @@ export function PayslipEmailActions({
   payslipEntryId,
   dentistEmail,
   pdfHref,
+  provisional = false,
 }: {
   payslipEntryId: string;
   dentistEmail: string | null;
   pdfHref: string;
+  provisional?: boolean;
 }) {
   const [sending, setSending] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -60,16 +62,28 @@ export function PayslipEmailActions({
         onClick={() => void sendEmail()}
         loading={sending}
         disabled={!hasEmail || sending}
-        title={hasEmail ? `Send to ${dentistEmail}` : "No email address set"}
+        title={
+          !hasEmail
+            ? "No email address set"
+            : provisional
+              ? `Send PROVISIONAL payslip to ${dentistEmail}`
+              : `Send to ${dentistEmail}`
+        }
         data-testid={`send-payslip-email-${payslipEntryId}`}
       >
         <Mail className="size-4" aria-hidden />
-        Email
+        {provisional ? "Email (provisional)" : "Email"}
       </Button>
       {!hasEmail ? (
         <span className="inline-flex items-center gap-1 text-caption text-(--color-warning)">
           <AlertCircle className="size-3.5" aria-hidden />
           No email set
+        </span>
+      ) : null}
+      {provisional ? (
+        <span className="inline-flex items-center gap-1 text-caption text-(--color-warning)">
+          <AlertCircle className="size-3.5" aria-hidden />
+          Email will be labelled PROVISIONAL
         </span>
       ) : null}
       {message ? <span className="text-caption text-(--color-success)">{message}</span> : null}

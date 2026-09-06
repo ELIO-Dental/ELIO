@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth } from "@elio/auth";
-import { scopedDb } from "@elio/db";
+import { scopedDb, type Role } from "@elio/db";
 import {
   Badge,
   Card,
@@ -12,7 +12,14 @@ import {
   PageHeader,
   TablePanel,
 } from "@elio/ui";
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectToLauncher } from "@/lib/session";
+import { buildOpsReviewList } from "@/lib/ops-review";
+import { flattenPayslipLinesForOpsReview } from "@/lib/ops-review-lines";
+import { isAlreadyPaidInOtherPeriod } from "@/lib/paid-invoice-line-log";
+import { loadPaidLogLookup } from "@/lib/paid-invoice-line-log-db";
+import { getPaySettings } from "@/lib/pay-settings-service";
+import { canPayViewAny, resolvePayPractitionerScope } from "@/lib/pay-scope";
+import { filterPayslipsForScope } from "@/lib/pay-scope-utils";
 import { CompassUploadForm } from "./compass-upload-form";
 import { NhsStatementPanel } from "./nhs-statement-panel";
 import { PayPeriodActionsProvider } from "./pay-period-actions-provider";
@@ -21,16 +28,35 @@ import { PeriodActionAlerts } from "./period-action-alerts";
 import { ManualReviewList } from "./manual-review-list";
 import { CalculateAndLockPanel } from "./calculate-and-lock-panel";
 import { FetchResultsBanner } from "./fetch-results-banner";
+import { OperationsReviewPanel } from "./operations-review-panel";
 import { PayslipAccordion, PayslipAccordionItem } from "./payslip-accordion";
 import { PayslipEntryBody } from "./payslip-entry-body";
+import { PeriodPayslipSummaryTable } from "./period-payslip-summary-table";
+import { buildPeriodPayslipSummaryRows, formatDecimalLabel } from "@/lib/period-payslip-summary";
+import { resolveFinanceFeeSplit } from "@/lib/pay-settings";
+import { resolveShareBp } from "@/lib/dentist-rates";
+import { financeFeesDeductionPence } from "@/lib/private-revenue";
+import { resolveFinanceFeesForDeduction } from "@/lib/finance-fee";
+import { formatPayslipPaymentDate } from "@/lib/payslip-pdf";
+import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.practiceId) return redirectToLogin();
+  if (!session?.practiceId || !session.userId) return redirectToLogin();
+  // Step 13/30 ACL — ops/admin/finance/auditor (pay:view*) or linked clinician (own).
+  if (!canPayViewAny({ role: session.role as Role })) {
+    return redirectToLauncher("error=forbidden");
+  }
   const { id } = await params;
+  const subject = { role: session.role as Role, userId: session.userId };
+  const scope = await resolvePayPractitionerScope(session.practiceId, subject);
+  if (!scope.viewAll && !scope.dentistId) {
+    return redirectToLauncher("error=forbidden");
+  }
+  const viewAll = scope.viewAll;
 
   const db = scopedDb(session.practiceId);
-  const [payPeriod, dentists] = await Promise.all([
+  const [payPeriod, dentists, paySettings] = await Promise.all([
     db.payPeriod.findUnique({
       where: { id },
       include: {
@@ -43,20 +69,97 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         compassStatements: { include: { lines: { include: { dentist: true } } } },
       },
     }),
-    db.dentist.findMany({ orderBy: { name: "asc" } }),
+    db.dentist.findMany({ where: ACTIVE_DENTIST_WHERE, orderBy: { name: "asc" } }),
+    getPaySettings(session.practiceId),
   ]);
 
   if (!payPeriod) notFound();
 
-  const nhsDentists = dentists.filter((d) => d.nhsPerformerNumber);
+  // Step 30 — clinicians only see their own payslip rows.
+  const visibleEntries = filterPayslipsForScope(payPeriod.payslipEntries, scope);
+  payPeriod.payslipEntries = visibleEntries;
+
+  const priorPeriod = viewAll
+    ? await db.payPeriod.findFirst({
+        where: { periodEnd: { lt: payPeriod.periodStart } },
+        orderBy: { periodEnd: "desc" },
+        include: {
+          payslipEntries: {
+            include: {
+              dentist: true,
+              privateRevenueLineItems: true,
+            },
+          },
+        },
+      })
+    : null;
+
+  const currentLines = viewAll ? flattenPayslipLinesForOpsReview(payPeriod.payslipEntries) : [];
+  const paidLogLookup = viewAll ? await loadPaidLogLookup(db, session.practiceId) : new Map();
+  const paidLogDuplicateHits = viewAll
+    ? currentLines
+        .map((line) => {
+          const prior = isAlreadyPaidInOtherPeriod(line, paidLogLookup, payPeriod.id, line.dentistId);
+          return prior ? { line, priorPeriodId: prior.payPeriodId } : null;
+        })
+        .filter((x): x is { line: (typeof currentLines)[number]; priorPeriodId: string } => Boolean(x))
+    : [];
+
+  const opsReviewItems = viewAll
+    ? buildOpsReviewList({
+        currentLines,
+        priorPaidLines: priorPeriod
+          ? flattenPayslipLinesForOpsReview(priorPeriod.payslipEntries)
+          : [],
+        priorPeriodId: priorPeriod?.id ?? null,
+        fetchResultJson: payPeriod.dentallyFetchResultJson,
+        paidLogDuplicateHits,
+      })
+    : [];
+
+  const visibleDentists = viewAll
+    ? dentists
+    : dentists.filter((d) => d.id === scope.dentistId);
+  const nhsDentists = visibleDentists.filter((d) => d.nhsPerformerNumber);
   const nhsPeriodStart = payPeriod.nhsPeriodStart?.toISOString().slice(0, 10) ?? null;
   const nhsPeriodEnd = payPeriod.nhsPeriodEnd?.toISOString().slice(0, 10) ?? null;
 
-  const needsReviewLines = payPeriod.compassStatements
-    .flatMap((s) => s.lines)
-    .filter((l) => l.matchConfidence === "NEEDS_REVIEW");
+  const needsReviewLines = viewAll
+    ? payPeriod.compassStatements.flatMap((s) => s.lines).filter((l) => l.matchConfidence === "NEEDS_REVIEW")
+    : [];
 
-  const splitDentistIds = dentists.filter((d) => d.payType === "PERCENTAGE_SPLIT").map((d) => d.id);
+  const splitDentistIds = visibleDentists.filter((d) => d.payType === "PERCENTAGE_SPLIT").map((d) => d.id);
+  const financeRates = {
+    finance_rate_3m: paySettings.finance_rate_3m,
+    finance_rate_12m: paySettings.finance_rate_12m,
+    finance_rate_36m: paySettings.finance_rate_36m,
+    finance_rate_60m: paySettings.finance_rate_60m,
+  };
+  const anyProvisional = payPeriod.payslipEntries.some((p) => p.provisional);
+  const practiceFinanceBp = resolveFinanceFeeSplit(paySettings);
+  const summaryRows = buildPeriodPayslipSummaryRows(
+    payPeriod.payslipEntries.map((p) => ({
+      id: p.id,
+      dentistName: p.dentist.name,
+      payType: p.payType,
+      udas: p.udas,
+      privateSplitPercent: p.privateSplitPercent,
+      nhsEarningsPence: p.nhsEarningsPence,
+      grossPrivateRevenuePence: p.grossPrivateRevenuePence,
+      privateEarningsPence: p.privateEarningsPence,
+      labDeductionPence: p.labDeductionPence,
+      superannuationPence: p.superannuationPence,
+      therapyMinutes: p.therapyMinutes != null ? Number(p.therapyMinutes) : null,
+      therapyRatePerMinute: p.therapyRatePerMinute != null ? Number(p.therapyRatePerMinute) : null,
+      therapyHourlyPence: p.dentist.therapyHourlyPence,
+      financeLines: resolveFinanceFeesForDeduction(p.privateRevenueLineItems, financeRates),
+      financeShareBp: p.dentist.financeShareBp,
+      practiceFinanceBp,
+      manualAdjustmentsPence: p.manualAdjustmentsPence,
+      finalPayPence: p.finalPayPence,
+      provisional: p.provisional,
+    }))
+  );
 
   return (
     <PayPeriodActionsProvider
@@ -64,22 +167,45 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       dentistIds={splitDentistIds}
       locked={payPeriod.status === "LOCKED"}
       payslipCount={payPeriod.payslipEntries.length}
+      anyProvisional={anyProvisional}
     >
     <PageContent>
       <PageHeader
         title={`${payPeriod.periodStart.toISOString().slice(0, 10)} – ${payPeriod.periodEnd.toISOString().slice(0, 10)}`}
         description={
-          <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>
-            {payPeriod.status === "LOCKED" ? "Finalized" : "Draft"}
-          </Badge>
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>
+              {payPeriod.status === "LOCKED" ? "Finalized" : "Draft"}
+            </Badge>
+            <span className="text-body-sm text-(--color-text-secondary)">
+              Payment date: {formatPayslipPaymentDate(payPeriod.periodStart)}
+            </span>
+          </span>
         }
-        actions={<PeriodHeaderActions />}
+        actions={viewAll ? <PeriodHeaderActions /> : undefined}
       />
 
-      <PeriodActionAlerts />
-      <FetchResultsBanner />
+      {viewAll ? (
+        <>
+          <PeriodActionAlerts />
+          <FetchResultsBanner />
+        </>
+      ) : null}
+      {anyProvisional ? (
+        <div
+          className="mt-4 rounded-(--radius-md) border border-(--color-warning)/40 bg-(--color-warning)/10 px-4 py-3 text-body-sm text-(--color-warning)"
+          data-testid="period-provisional-banner"
+        >
+          <strong className="font-semibold">PROVISIONAL payslips</strong>
+          {" — "}
+          Finance term/fee still missing on one or more dentists. Confirm term and/or fee on private patient lines, then recalculate.
+        </div>
+      ) : null}
+      {viewAll ? <OperationsReviewPanel items={opsReviewItems} /> : null}
 
       <div className="mt-8 flex flex-col gap-8">
+        {viewAll ? (
+          <>
         <Card>
           <CardHeader className="flex-col items-start gap-1">
             <CardTitle>Dentally</CardTitle>
@@ -111,7 +237,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                 udas: l.udas?.toString() ?? null,
                 superannuationPence: l.superannuationPence,
               }))}
-              dentists={dentists.map((d) => ({ id: d.id, name: d.name }))}
+              dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name }))}
             />
           </CardContent>
         </Card>
@@ -141,33 +267,50 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
           <CardContent>
             <CalculateAndLockPanel
               payPeriodId={payPeriod.id}
-              dentists={dentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
+              dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
               locked={payPeriod.status === "LOCKED"}
             />
           </CardContent>
         </Card>
+          </>
+        ) : null}
 
         <section>
-          <h2 className="text-h3 text-(--color-text-primary)">Payslips</h2>
+          <h2 className="text-h3 text-(--color-text-primary)">{viewAll ? "Payslips" : "My payslip"}</h2>
           {payPeriod.payslipEntries.length === 0 ? (
             <TablePanel className="mt-4">
-              <EmptyState title="No payslips calculated yet" description="Run the calculation above once Compass data is loaded." className="py-12" />
+              <EmptyState
+                title={viewAll ? "No payslips calculated yet" : "No payslip for you in this period yet"}
+                description={
+                  viewAll
+                    ? "Fetch from Dentally, complete ops fields (finance/therapy/labs), then Run calculation."
+                    : "Your payslip will appear here once operations have run this period."
+                }
+                className="py-12"
+              />
             </TablePanel>
           ) : (
             <PayslipAccordion className="mt-4">
+              <PeriodPayslipSummaryTable rows={summaryRows} />
               {payPeriod.payslipEntries.map((p) => {
-                const isNhs = Boolean(p.dentist.nhsPerformerNumber) || (p.nhsEarningsPence ?? 0) > 0;
+                const isNhs = Boolean(p.dentist.nhsPerformerNumber);
+                const financeFeeSplit = resolveShareBp(p.dentist.financeShareBp, practiceFinanceBp);
+                const clinicianReadOnly = !viewAll;
                 return (
                   <PayslipAccordionItem
                     key={p.id}
                     header={{
                       id: p.id,
                       dentistName: p.dentist.name,
-                      privateSplitPercent: p.privateSplitPercent?.toString() ?? null,
+                      privateSplitPercent:
+                        p.privateSplitPercent != null
+                          ? formatDecimalLabel(p.privateSplitPercent)
+                          : null,
                       isNhs,
                       patientCount: p.privateRevenueLineItems.length,
                       finalPayPence: p.finalPayPence,
-                      pdfHref: `/pay/api/payslips/${p.id}/pdf`,
+                      pdfHref: p.pdfUrl || `/pay/api/payslips/${p.id}/pdf`,
+                      provisional: p.provisional,
                     }}
                   >
                     <PayslipEntryBody
@@ -175,7 +318,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       payslipEntryId={p.id}
                       dentistName={p.dentist.name}
                       dentistEmail={p.dentist.email}
-                      locked={payPeriod.status === "LOCKED"}
+                      locked={payPeriod.status === "LOCKED" || clinicianReadOnly}
                       isNhs={isNhs}
                       nhsPeriodStart={nhsPeriodStart}
                       nhsPeriodEnd={nhsPeriodEnd}
@@ -191,6 +334,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       superannuationPence={p.superannuationPence}
                       therapyMinutes={p.therapyMinutes != null ? Number(p.therapyMinutes) : null}
                       therapyRatePerMinute={p.therapyRatePerMinute != null ? Number(p.therapyRatePerMinute) : null}
+                      therapyHourlyPence={p.dentist.therapyHourlyPence}
                       hoursWorked={p.hoursWorked}
                       hourlyRatePence={p.hourlyRatePence}
                       hourlyEarningsPence={p.hourlyEarningsPence}
@@ -202,6 +346,13 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       dentallyDentistLogJson={p.dentallyDentistLogJson}
                       labBillsJson={p.labBillsJson}
                       adjustmentsJson={p.adjustmentsJson}
+                      provisional={p.provisional}
+                      financeRates={financeRates}
+                      financeFeeSplit={financeFeeSplit}
+                      financeFeesDeductionPence={financeFeesDeductionPence(
+                        resolveFinanceFeesForDeduction(p.privateRevenueLineItems, financeRates),
+                        financeFeeSplit
+                      )}
                       privateRevenueLineItems={p.privateRevenueLineItems.map((line) => ({
                         id: line.id,
                         patientName: line.patientName,
@@ -217,6 +368,14 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                         flagReason: line.flagReason,
                         treatmentDescription: line.treatmentDescription,
                         financeFeePence: line.financeFeePence,
+                        financeTermMonths: line.financeTermMonths,
+                        financeFeeManual: line.financeFeeManual,
+                        dentallyInvoiceId: line.dentallyInvoiceId,
+                        dentallyLineKey: line.dentallyLineKey,
+                        sourceType: line.sourceType,
+                        manualCreatedByUserId: line.manualCreatedByUserId,
+                        manualNote: line.manualNote,
+                        createdAt: line.createdAt,
                       }))}
                     />
                   </PayslipAccordionItem>

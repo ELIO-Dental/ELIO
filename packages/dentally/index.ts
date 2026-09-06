@@ -2,8 +2,16 @@
 // See project-docs/APPLICATION_FLOW.md section 5 and
 // project-docs/PERFORMANCE_SCALABILITY.md section 1 for the design decisions.
 
-export { DentallyClient, DentallyApiError, getDentallyClient } from "./src/client";
+export {
+  DentallyClient,
+  DentallyApiError,
+  getDentallyClient,
+  APP_USER_AGENT,
+  buildDentallyHeaders,
+  requireDentallySiteId,
+} from "./src/client";
 export type { DentallyClientOptions } from "./src/client";
+export { resolveInvoicePractitionerUserId } from "./src/invoice-attribution";
 
 export { syncPracticeDentallyData, syncPracticeDentallyPhase, syncPracticeDentallyPhasePage, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS } from "./src/sync";
 export type { SyncResult, SyncError, SyncCounts, SyncPhaseResult, SyncPhasePageResult, DentallySyncPhase } from "./src/sync";

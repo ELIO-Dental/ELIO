@@ -1,8 +1,30 @@
-export function totalsFromLines(lines: Array<{ amountPaidPence?: number | null; isFinance: boolean; financeFeePence?: number | null }>) {
+import { lineCountsTowardGross } from "./payment-flags";
+
+export function totalsFromLines(
+  lines: Array<{
+    amountPence?: number | null;
+    amountPaidPence?: number | null;
+    amountOutstandingPence?: number | null;
+    paymentStatus?: string | null;
+    flagged?: boolean | null;
+    isFinance: boolean;
+    financeFeePence?: number | null;
+  }>
+) {
   let grossPrivateRevenuePence = 0;
   let financeFeesPence = 0;
   for (const line of lines) {
-    grossPrivateRevenuePence += line.amountPaidPence ?? 0;
+    // Match calculate path: only fully-paid unflagged lines enter gross (amountPence).
+    if (
+      lineCountsTowardGross({
+        amountPence: line.amountPence ?? line.amountPaidPence ?? 0,
+        paymentStatus: line.paymentStatus,
+        flagged: line.flagged,
+        amountOutstandingPence: line.amountOutstandingPence,
+      })
+    ) {
+      grossPrivateRevenuePence += line.amountPence ?? line.amountPaidPence ?? 0;
+    }
     if (line.isFinance && line.financeFeePence) {
       financeFeesPence += line.financeFeePence;
     }
@@ -27,6 +49,8 @@ export type PrivatePatientLineDraft = {
   paymentStatus: string | null;
   isFinance: boolean;
   financeFeePence: number | null;
+  financeTermMonths: number | null;
+  financeFeeManual: boolean;
   flagged: boolean;
   flagReason: string | null;
 };
@@ -36,7 +60,9 @@ export type PrivatePatientLineUpdates = {
   invoiceDate?: string;
   paymentStatus?: "paid" | "partial" | "unpaid";
   isFinance?: boolean;
-  financeFeePence?: number;
+  financeFeePence?: number | null;
+  financeTermMonths?: number | null;
+  financeFeeManual?: boolean;
   amountPence?: number;
   flagged?: boolean;
   flagReason?: string | null;
@@ -84,10 +110,25 @@ export function applyPrivatePatientLineUpdates(line: PrivatePatientLineDraft, up
       line.flagged = true;
       line.flagReason = "Paid via finance - verify fee deduction";
     }
+    if (!updates.isFinance) {
+      line.financeFeePence = null;
+      line.financeTermMonths = null;
+      line.financeFeeManual = false;
+    }
+  }
+
+  if (updates.financeTermMonths !== undefined) {
+    line.financeTermMonths = updates.financeTermMonths;
   }
 
   if (updates.financeFeePence !== undefined) {
     line.financeFeePence = updates.financeFeePence;
+  }
+
+  if (updates.financeFeeManual !== undefined) {
+    line.financeFeeManual = updates.financeFeeManual;
+  } else if (updates.financeFeePence !== undefined && updates.financeFeePence != null) {
+    line.financeFeeManual = true;
   }
 
   if (updates.flagged !== undefined) {

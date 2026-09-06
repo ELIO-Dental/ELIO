@@ -3,6 +3,7 @@ import { scopedDb } from "@elio/db";
 import { processNhsStatement } from "@/lib/process-nhs-statement";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
+import { recordPayAudit } from "@/lib/pay-audit";
 
 function handleError(err: unknown) {
   const message = err instanceof Error ? err.message : "Request failed";
@@ -36,6 +37,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       manualUdas,
       nhsPeriodStart: typeof nhsPeriodStart === "string" ? nhsPeriodStart : undefined,
       nhsPeriodEnd: typeof nhsPeriodEnd === "string" ? nhsPeriodEnd : undefined,
+    });
+
+    await recordPayAudit(session, {
+      action: "pay.nhs_statement.udas_applied",
+      targetType: "PayPeriod",
+      targetId: payPeriodId,
+      metadata: {
+        after: {
+          updates: result.updates,
+          extractions: result.extractions,
+          period: result.period,
+        },
+        source: manualUdas ? "manual" : "pdf",
+      },
     });
 
     return NextResponse.json({ ok: true, ...result });

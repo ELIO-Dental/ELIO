@@ -1,17 +1,57 @@
 /**
  * Y1 — Pay-period Dentally fetch (ported from ElioPay/aurapay/src/app/api/dentally/route.ts).
- * Invoices + appointments → private patient rows, analytics, therapy attribution, finance flags.
+ * Invoices + appointments → private patient rows, analytics, finance flags.
+ * Step 18: therapy minutes are NEVER auto-filled from Dentally — ops enters manually.
  */
 
 import { Prisma, scopedDb } from "@elio/db";
 import {
   getDentallyClientForPractice,
+  requireDentallySiteId,
+  resolveInvoicePractitionerUserId,
   type DentallyAppointmentRaw,
   type DentallyClient,
   type DentallyInvoiceRaw,
   type DentallyPatientRaw,
+  type DentallyPaymentRaw,
 } from "@elio/dentally";
 import { isDateInPeriod } from "@elio/pay-engine";
+import {
+  buildInvoiceListQueryParamsForPayPeriod,
+  isInvoiceEligibleForGrossInPeriod,
+  isInvoiceRelevantForPayPeriod,
+  parseInvoiceAmount,
+  resolveInvoicePaymentStatus,
+  shouldDiscardInvoiceAmount,
+  toPracticeDateString,
+} from "./dentally-fetch-invoices";
+import {
+  buildInvoicePaymentMethodMap,
+  buildPatientFinanceSet,
+  buildPaymentsListQueryParams,
+  invoiceIsFinanceFromPayments,
+  paymentWindowBounds,
+} from "./dentally-fetch-payments";
+import { hydrateInvoiceItems } from "./dentally-fetch-lines";
+import { dentallyLineSourceFields } from "./line-source";
+import { buildPriorFinanceOpsLookup, mergeFinanceOpsOntoFetchedLine } from "./month-pipeline";
+import { attributeEmptyInvoicePractitioner } from "./dentally-fetch-empty-items";
+import {
+  classifyPrivateLine,
+  defaultClassifyContext,
+  type LineExcludeReason,
+} from "./dentally-line-filters";
+import {
+  buildPaymentFlagsFromLines,
+  paymentFlagsToDiscrepancies,
+} from "./payment-flags";
+import {
+  recordUnmappedPractitioner,
+  unmappedHitsToList,
+  type UnmappedPractitionerHit,
+} from "./unmapped-practitioners";
+import { uniquePatientIdsForFetch, mapWithConcurrency } from "./dentally-fetch-cache";
+import { payslipIsProvisional } from "./finance-fee";
 
 const CBCT_KEYWORDS = ["cbct", "ct scan", "cone beam"];
 const CLINICIAN_ROLES = ["dentist", "clinician", "associate", "principal"];
@@ -57,6 +97,8 @@ export interface DentallyPatientRow {
   durationMins?: number;
   treatment?: string;
   hourlyRate?: number;
+  /** Same invoice + amount occurrence (0 = first) for stable line keys. */
+  amountOccurrence?: number;
 }
 
 export type { DentallyAnalytics } from "./dentally-analytics";
@@ -64,19 +106,9 @@ import { calculateDentistAnalytics } from "./dentally-analytics";
 import {
   resolveDentallySiteId as resolveDentallySiteIdFromSettings,
   resolveNhsAmountSet as resolveNhsAmountsFromSettings,
+  resolveExcludedTreatmentPhrases as resolveExcludedTreatmentsFromSettings,
   resolveTherapistIdSet as resolveTherapistIdsFromSettings,
-  resolveTherapyRatePerMinute as resolveTherapyRateFromSettings,
 } from "./pay-settings";
-
-export interface TherapyBreakdownItem {
-  patientName: string;
-  patientId: string;
-  date: string;
-  minutes: number;
-  treatment?: string;
-  therapistName?: string;
-  cost: number;
-}
 
 export interface DentallyFetchDebug {
   totalInvoicesFromApi: number;
@@ -88,7 +120,11 @@ export interface DentallyFetchDebug {
   financePayments: number;
   flaggedForReview: number;
   appointmentsFetched: number;
+  paymentsFetched: number;
+  paymentWindow: { datedAfter: string; datedBefore: string };
+  excludeReasonCounts: Partial<Record<string, number>>;
   unmatchedClinicianIds: string[];
+  unmappedPractitioners: UnmappedPractitionerHit[];
   dateRange: { start: string; end: string };
 }
 
@@ -120,18 +156,17 @@ function isClinicianRole(role?: string): boolean {
 }
 
 function parseAmount(val: unknown): number {
-  if (typeof val === "number") return val;
-  if (typeof val === "string") return parseFloat(val) || 0;
-  return 0;
+  return parseInvoiceAmount(val);
 }
 
 function parsePence(amount: number): number {
   return Math.round(amount * 100);
 }
 
-function isNhsAmount(amount: number, nhsAmounts: Set<number>): boolean {
-  for (const nhsAmt of nhsAmounts) {
-    if (Math.abs(amount - nhsAmt) < 0.01) return true;
+function isNhsAmount(amountGbp: number, nhsAmountsGbp: Set<number>): boolean {
+  const amountPence = Math.round(amountGbp * 100);
+  for (const nhsAmt of nhsAmountsGbp) {
+    if (Math.abs(amountPence - Math.round(nhsAmt * 100)) <= 1) return true;
   }
   return false;
 }
@@ -152,15 +187,16 @@ function isCbctItem(item: { name?: string }): boolean {
 }
 
 function isFinancePayment(inv: DentallyInvoiceRaw): boolean {
-  if (inv.payment_plan_id) return true;
+  // Step 5 — Finance/Tabeo from payment method / flags only.
+  // Do NOT treat bare payment_plan_id as Finance (Denplan/membership false positives).
   if (inv.finance === true) return true;
   const method = (inv.payment_method || "").toLowerCase();
-  if (method.includes("finance") || method.includes("payment plan") || method.includes("tabeo")) {
+  if (method.includes("finance") || method.includes("tabeo")) {
     return true;
   }
   for (const item of inv.invoice_items ?? []) {
     const name = (item.name || "").toLowerCase();
-    if (name.includes("finance") || name.includes("payment plan") || name.includes("tabeo")) {
+    if (name.includes("tabeo") || /\bfinance fee\b/.test(name)) {
       return true;
     }
   }
@@ -168,22 +204,15 @@ function isFinancePayment(inv: DentallyInvoiceRaw): boolean {
 }
 
 function invoicePractitionerId(inv: DentallyInvoiceRaw): string {
-  const raw = inv.user_id ?? inv.practitioner_id ?? inv.invoice_items?.[0]?.practitioner_id;
-  return raw != null ? String(raw) : "";
+  // Line practitioner_id === Dentally user.id (PDF §2); never prefer resource id alone.
+  return resolveInvoicePractitionerUserId(inv);
 }
 
-function isInvoiceInPeriod(inv: DentallyInvoiceRaw, startDate: string, endDate: string): boolean {
-  const dated = inv.dated_on ?? inv.created_at?.substring(0, 10) ?? "";
-  return isDateInPeriod(dated, startDate, endDate);
-}
-
-function apiEndBuffer(endDate: string): string {
-  const parts = endDate.split("-").map(Number);
-  const y = parts[0] ?? 0;
-  const m = parts[1] ?? 0;
-  const bufferMonth = m === 12 ? 1 : m + 1;
-  const bufferYear = m === 12 ? y + 1 : y;
-  return `${bufferYear}-${String(bufferMonth).padStart(2, "0")}-01`;
+function getPaymentStatus(
+  inv: DentallyInvoiceRaw,
+  privateAmount: number
+): { status: "paid" | "partial" | "unpaid"; amountPaid: number; amountOutstanding: number } {
+  return resolveInvoicePaymentStatus(inv, privateAmount);
 }
 
 function privateAmountFromInvoice(inv: DentallyInvoiceRaw, nhsAmounts: Set<number>): number {
@@ -202,30 +231,6 @@ function privateAmountFromInvoice(inv: DentallyInvoiceRaw, nhsAmounts: Set<numbe
     privateAmount += itemAmount;
   }
   return privateAmount;
-}
-
-function getPaymentStatus(
-  inv: DentallyInvoiceRaw,
-  privateAmount: number
-): { status: "paid" | "partial" | "unpaid"; amountPaid: number; amountOutstanding: number } {
-  const outstanding = parseAmount(inv.amount_outstanding ?? inv.balance ?? 0);
-  if (inv.paid === true || inv.state === "paid") {
-    return { status: "paid", amountPaid: privateAmount, amountOutstanding: 0 };
-  }
-  if (outstanding <= 0.01) {
-    return { status: "paid", amountPaid: privateAmount, amountOutstanding: 0 };
-  }
-  const total = parseAmount(inv.amount);
-  const paid = Math.max(0, total - outstanding);
-  const privatePaid = total > 0 ? (paid / total) * privateAmount : 0;
-  const privateOutstanding = Math.max(0, privateAmount - privatePaid);
-  if (privatePaid > 0.01 && privateOutstanding > 0.01) {
-    return { status: "partial", amountPaid: privatePaid, amountOutstanding: privateOutstanding };
-  }
-  if (privatePaid > 0.01) {
-    return { status: "paid", amountPaid: privateAmount, amountOutstanding: 0 };
-  }
-  return { status: "unpaid", amountPaid: 0, amountOutstanding: privateAmount };
 }
 
 function getAppointmentDuration(apt: DentallyAppointmentRaw): number {
@@ -279,108 +284,30 @@ async function loadClinicianUsers(
   return map;
 }
 
+/** Default concurrent Dentally patient GETs (Step 6b — avoid rate limit without dropping names). */
+const PATIENT_NAME_FETCH_CONCURRENCY = 8;
+
 async function fetchPatientNames(
   client: DentallyClient,
   patientIds: string[]
 ): Promise<Map<string, string>> {
   const names = new Map<string, string>();
-  // Batch by fetching individually with concurrency via client queue — cap to avoid huge pulls.
-  const unique = Array.from(new Set(patientIds)).slice(0, 500);
-  await Promise.all(
-    unique.map(async (id) => {
-      try {
-        const data = await client.get<{ patient?: DentallyPatientRaw }>(`/patients/${id}`);
-        const p = data.patient;
-        if (p) {
-          names.set(id, `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || `Patient ${id}`);
-        }
-      } catch {
+  // Once per distinct patient_id per run (PDF §2 / Step 3 + 6b) — no silent 500 cap.
+  const unique = uniquePatientIdsForFetch(patientIds);
+  await mapWithConcurrency(unique, PATIENT_NAME_FETCH_CONCURRENCY, async (id) => {
+    try {
+      const data = await client.get<{ patient?: DentallyPatientRaw }>(`/patients/${id}`);
+      const p = data.patient;
+      if (p) {
+        names.set(id, `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || `Patient ${id}`);
+      } else {
         names.set(id, `Patient ${id}`);
       }
-    })
-  );
-  return names;
-}
-
-async function calculateTherapyBreakdown(
-  client: DentallyClient,
-  appointments: DentallyAppointmentRaw[],
-  startDate: string,
-  endDate: string,
-  siteId: string,
-  therapistIds: Set<string>,
-  therapyRate: number,
-  dentistByPractitioner: Map<string, { id: string; name: string }>,
-  clinicianUsers: Map<string, { name: string; isClinician: boolean }>,
-  patientNames: Map<string, string>
-): Promise<Map<string, TherapyBreakdownItem[]>> {
-  const therapyByDentist = new Map<string, TherapyBreakdownItem[]>();
-  if (therapistIds.size === 0) return therapyByDentist;
-
-  const therapistAppointments = appointments.filter((apt) => {
-    const practId = String(apt.practitioner_id || apt.user_id || "");
-    if (!therapistIds.has(practId)) return false;
-    const aptDate = apt.starts_at || apt.start_time || "";
-    return isDateInPeriod(aptDate, startDate, endDate);
-  });
-
-  for (const apt of therapistAppointments) {
-    const patientId = String(apt.patient_id ?? "");
-    const aptDate = (apt.starts_at || apt.start_time || "").substring(0, 10);
-    const practId = String(apt.practitioner_id || apt.user_id || "");
-    const minutes = getAppointmentDuration(apt);
-    if (!patientId || !aptDate || minutes <= 0) continue;
-
-    // Referring dentist: most recent non-therapist clinician appointment before therapy date.
-    let referringId: string | null = null;
-    try {
-      const hist: DentallyAppointmentRaw[] = [];
-      await client.paginate<DentallyAppointmentRaw>(
-        "/appointments",
-        "appointments",
-        { site_id: siteId, patient_id: patientId, end_date: aptDate, per_page: 50 },
-        (page) => {
-          hist.push(...page);
-        },
-        { perPage: 50, maxPages: 2 }
-      );
-      hist.sort((a, b) => {
-        const da = a.starts_at || a.start_time || "";
-        const db = b.starts_at || b.start_time || "";
-        return db.localeCompare(da);
-      });
-      for (const prior of hist) {
-        const pid = String(prior.practitioner_id || prior.user_id || "");
-        if (!pid || therapistIds.has(pid)) continue;
-        if (dentistByPractitioner.has(pid)) {
-          referringId = dentistByPractitioner.get(pid)!.id;
-          break;
-        }
-        const user = clinicianUsers.get(pid);
-        if (user?.isClinician) {
-          // unmapped clinician — skip assignment
-          break;
-        }
-      }
     } catch {
-      // skip this therapy row
+      names.set(id, `Patient ${id}`);
     }
-
-    if (!referringId) continue;
-
-    if (!therapyByDentist.has(referringId)) therapyByDentist.set(referringId, []);
-    therapyByDentist.get(referringId)!.push({
-      patientName: patientNames.get(patientId) || `Patient ${patientId}`,
-      patientId,
-      date: aptDate,
-      minutes,
-      treatment: apt.treatment_description || apt.reason || undefined,
-      therapistName: clinicianUsers.get(practId)?.name,
-      cost: Math.round(minutes * therapyRate * 100) / 100,
-    });
-  }
-
-  return therapyByDentist;
+  });
+  return names;
 }
 
 export async function fetchDentallyForPayPeriod(
@@ -398,17 +325,22 @@ export async function fetchDentallyForPayPeriod(
   }
 
   const therapistIds = resolveTherapistIdsFromSettings(paySettings);
-  const therapyRate = resolveTherapyRateFromSettings(paySettings);
   const nhsAmounts = resolveNhsAmountsFromSettings(paySettings);
+  const excludedTreatments = resolveExcludedTreatmentsFromSettings(paySettings);
 
   const db = scopedDb(practiceId);
   const payPeriod = await db.payPeriod.findUnique({ where: { id: payPeriodId } });
   if (!payPeriod) throw new Error("Pay period not found");
   if (payPeriod.status === "LOCKED") throw new Error("Pay period is locked");
 
-  const startDate = payPeriod.periodStart.toISOString().slice(0, 10);
-  const endDate = payPeriod.periodEnd.toISOString().slice(0, 10);
-  const apiEndDate = apiEndBuffer(endDate);
+  const { loadPaidLogLookup } = await import("./paid-invoice-line-log-db");
+  const { isAlreadyPaidInOtherPeriod } = await import("./paid-invoice-line-log");
+  const paidLogLookup = await loadPaidLogLookup(db, practiceId);
+
+  const startDate = toPracticeDateString(payPeriod.periodStart);
+  const endDate = toPracticeDateString(payPeriod.periodEnd);
+  // Appointments use the exclusive period end as API upper bound (same half-open month).
+  const apiEndDate = endDate;
 
   const dentists = await db.dentist.findMany({
     where: { practiceId },
@@ -423,11 +355,15 @@ export async function fetchDentallyForPayPeriod(
   const client = await getDentallyClientForPractice(practiceId);
   const clinicianUsers = await loadClinicianUsers(client, siteId);
 
+  // Step 22 — look back 180d on dated_on so March-dated / May-paid invoices are fetched in May.
+  const invoiceListParams = buildInvoiceListQueryParamsForPayPeriod(siteId, startDate, endDate);
+  requireDentallySiteId(invoiceListParams);
+
   const allInvoices: DentallyInvoiceRaw[] = [];
   await client.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
-    { site_id: siteId, dated_on_from: startDate, dated_on_to: apiEndDate },
+    invoiceListParams,
     (page) => {
       allInvoices.push(...page);
     }
@@ -448,7 +384,27 @@ export async function fetchDentallyForPayPeriod(
   }
 
   const appointmentMap = buildAppointmentMap(appointments);
-  const invoices = allInvoices.filter((inv) => isInvoiceInPeriod(inv, startDate, endDate));
+  // Step 22 — paid_on month for gross; dated open invoices for §4.3 flags.
+  const invoices = allInvoices.filter((inv) => isInvoiceRelevantForPayPeriod(inv, startDate, endDate));
+
+  // Step 5 — wide payments window for Finance (Tabeo) method detection.
+  const { datedAfter, datedBefore } = paymentWindowBounds(startDate, endDate);
+  const paymentListParams = buildPaymentsListQueryParams(siteId, datedAfter, datedBefore);
+  const allPayments: DentallyPaymentRaw[] = [];
+  try {
+    await client.paginate<DentallyPaymentRaw>(
+      "/payments",
+      "payments",
+      paymentListParams,
+      (page) => {
+        allPayments.push(...page);
+      }
+    );
+  } catch {
+    // Finance detection degrades to invoice-level heuristics if payments fail.
+  }
+  const invoicePaymentMethodMap = buildInvoicePaymentMethodMap(allPayments);
+  const patientFinanceSet = buildPatientFinanceSet(allPayments);
 
   type Bucket = {
     patients: DentallyPatientRow[];
@@ -459,7 +415,7 @@ export async function fetchDentallyForPayPeriod(
   };
 
   const totalsByDentist = new Map<string, Bucket>();
-  const unmatched = new Set<string>();
+  const unmatchedHits = new Map<string, UnmappedPractitionerHit>();
   const allPatientIds = new Set<string>();
   let skippedZero = 0;
   let skippedNhs = 0;
@@ -470,45 +426,172 @@ export async function fetchDentallyForPayPeriod(
 
   const pendingByDentist = new Map<
     string,
-    Array<{ inv: DentallyInvoiceRaw; privateAmount: number; patientId: string }>
+    Array<{
+      inv: DentallyInvoiceRaw;
+      privateAmount: number;
+      patientId: string;
+      treatmentDescription?: string;
+      forceFlagged?: boolean;
+      flagReason?: string;
+    }>
   >();
 
-  for (const inv of invoices) {
+  const excludeReasonCounts: Partial<Record<LineExcludeReason, number>> = {};
+
+  // Therapists must never receive associate private gross even if mis-seeded as dentists.
+  const dentistIdByUserId = new Map<string, string>();
+  const dentistIdByPractitioner = new Map<string, string>();
+  for (const [userId, dentist] of dentistByPractitioner) {
+    dentistIdByPractitioner.set(userId, dentist.id);
+    if (therapistIds.has(userId)) continue;
+    dentistIdByUserId.set(userId, dentist.id);
+  }
+  const classifyCtx = defaultClassifyContext({
+    dentistIdByUserId,
+    therapistIds,
+    nhsBandAmountsGbp: Array.from(nhsAmounts),
+    excludedTreatments,
+  });
+
+  // Step 6 — hydrate line items; Step 7 — ordered classify per line.
+  const hydratedInvoices = await Promise.all(
+    invoices.map((inv) => hydrateInvoiceItems(client, inv))
+  );
+
+  for (const inv of hydratedInvoices) {
     const totalAmount = parseAmount(inv.amount);
-    if (totalAmount <= 0) {
+    if (shouldDiscardInvoiceAmount(totalAmount)) {
       skippedZero++;
-      continue;
-    }
-
-    const practitionerId = invoicePractitionerId(inv);
-    if (!practitionerId) continue;
-
-    const userInfo = clinicianUsers.get(practitionerId);
-    if (userInfo && !userInfo.isClinician) {
-      skippedNonClinician++;
-      continue;
-    }
-
-    const dentist = dentistByPractitioner.get(practitionerId);
-    if (!dentist) {
-      unmatched.add(practitionerId);
-      continue;
-    }
-
-    const privateAmount = privateAmountFromInvoice(inv, nhsAmounts);
-    if (privateAmount <= 0) {
-      skippedNhs++;
       continue;
     }
 
     const patientId = String(inv.patient_id ?? "");
     if (patientId) allPatientIds.add(patientId);
 
-    if (!pendingByDentist.has(dentist.id)) pendingByDentist.set(dentist.id, []);
-    pendingByDentist.get(dentist.id)!.push({ inv, privateAmount, patientId });
+    const items = inv.invoice_items ?? [];
+    if (items.length === 0) {
+      // Fallback: invoice-level private total when Dentally returns no items.
+      const practitionerId = invoicePractitionerId(inv);
+      const userInfo = clinicianUsers.get(practitionerId);
+      const attr = attributeEmptyInvoicePractitioner({
+        practitionerId,
+        therapistIds,
+        dentistIdByPractitioner,
+        isNonClinician: Boolean(userInfo && !userInfo.isClinician),
+      });
+      if (attr.action === "skip") {
+        if (attr.reason === "THERAPIST_LINE") {
+          skippedNonClinician++;
+          excludeReasonCounts.THERAPIST_LINE = (excludeReasonCounts.THERAPIST_LINE ?? 0) + 1;
+        } else if (attr.reason === "NON_CLINICIAN") {
+          skippedNonClinician++;
+        }
+        continue;
+      }
+      if (attr.action === "unmapped") {
+        excludeReasonCounts.UNMAPPED_PRACTITIONER =
+          (excludeReasonCounts.UNMAPPED_PRACTITIONER ?? 0) + 1;
+        const privateAmount = privateAmountFromInvoice(inv, nhsAmounts);
+        recordUnmappedPractitioner(unmatchedHits, {
+          practitionerId: attr.practitionerId,
+          amountPence: parsePence(privateAmount > 0 ? privateAmount : totalAmount),
+          treatment: "",
+          invoiceDate: inv.dated_on || "",
+          invoiceId: String(inv.id),
+          patientId: patientId || undefined,
+        });
+        continue;
+      }
+      const dentist = dentistByPractitioner.get(attr.practitionerId);
+      if (!dentist) continue;
+      const privateAmount = privateAmountFromInvoice(inv, nhsAmounts);
+      if (privateAmount <= 0) {
+        skippedNhs++;
+        continue;
+      }
+      if (!pendingByDentist.has(dentist.id)) pendingByDentist.set(dentist.id, []);
+      pendingByDentist.get(dentist.id)!.push({ inv, privateAmount, patientId });
+      continue;
+    }
+
+    for (const item of items) {
+      const classified = classifyPrivateLine(item, inv, classifyCtx);
+      if (classified.action === "exclude") {
+        excludeReasonCounts[classified.reason] = (excludeReasonCounts[classified.reason] ?? 0) + 1;
+        if (
+          classified.reason === "NHS_CHARGE" ||
+          classified.reason === "NHS_KEYWORD" ||
+          classified.reason === "NHS_BAND_PRICE" ||
+          classified.reason === "NHS_PLAN" ||
+          classified.reason === "EXCLUDED_TREATMENT" ||
+          classified.reason === "ZERO_PRICE"
+        ) {
+          skippedNhs++;
+        } else if (classified.reason === "THERAPIST_LINE") {
+          skippedNonClinician++;
+        } else if (
+          classified.reason === "UNMAPPED_PRACTITIONER" ||
+          classified.reason === "MISSING_PRACTITIONER"
+        ) {
+          const pid =
+            classified.reason === "MISSING_PRACTITIONER"
+              ? ""
+              : item.practitioner_id != null
+                ? String(item.practitioner_id)
+                : "";
+          if (pid) {
+            const amt = Math.round(
+              parseInvoiceAmount(item.total_price ?? item.amount) * 100
+            );
+            recordUnmappedPractitioner(unmatchedHits, {
+              practitionerId: pid,
+              amountPence: amt,
+              treatment: item.name || "",
+              invoiceDate: inv.dated_on || "",
+              invoiceId: String(inv.id),
+              patientId: patientId || undefined,
+            });
+          }
+        }
+        continue;
+      }
+
+      const dentist = dentistByPractitioner.get(classified.practitionerUserId);
+      if (therapistIds.has(classified.practitionerUserId)) {
+        skippedNonClinician++;
+        excludeReasonCounts.THERAPIST_LINE = (excludeReasonCounts.THERAPIST_LINE ?? 0) + 1;
+        continue;
+      }
+      if (!dentist) {
+        recordUnmappedPractitioner(unmatchedHits, {
+          practitionerId: classified.practitionerUserId,
+          amountPence: classified.amountPence,
+          treatment: classified.name,
+          invoiceDate: inv.dated_on || "",
+          invoiceId: String(inv.id),
+          patientId: patientId || undefined,
+        });
+        continue;
+      }
+      if (!pendingByDentist.has(dentist.id)) pendingByDentist.set(dentist.id, []);
+      pendingByDentist.get(dentist.id)!.push({
+        inv,
+        privateAmount: classified.amountPence / 100,
+        patientId,
+        treatmentDescription: classified.name || undefined,
+        forceFlagged: classified.action === "flag",
+        flagReason: classified.action === "flag" ? classified.reason : undefined,
+      });
+    }
   }
 
   const patientNames = await fetchPatientNames(client, Array.from(allPatientIds));
+  for (const hit of unmatchedHits.values()) {
+    if (hit.patientId && !hit.patientName) {
+      hit.patientName = patientNames.get(hit.patientId);
+    }
+  }
+  const unmappedPractitioners = unmappedHitsToList(unmatchedHits);
 
   for (const [dentistId, rows] of pendingByDentist) {
     const bucket: Bucket = {
@@ -518,11 +601,19 @@ export async function fetchDentallyForPayPeriod(
       outstanding: 0,
       financeCount: 0,
     };
+    /** Same invoice + amount → occurrence suffix so paid-log / finance keys do not collide. */
+    const amountOccByInvoice = new Map<string, number>();
 
-    for (const { inv, privateAmount, patientId } of rows) {
+    for (const { inv, privateAmount, patientId, treatmentDescription, forceFlagged, flagReason } of rows) {
       const payment = getPaymentStatus(inv, privateAmount);
-      const invoiceDate = inv.dated_on || inv.created_at?.substring(0, 10) || "";
-      const isFinance = isFinancePayment(inv);
+      const invoiceDate = inv.dated_on || "";
+      const isFinance =
+        invoiceIsFinanceFromPayments(
+          String(inv.id),
+          patientId,
+          invoicePaymentMethodMap,
+          patientFinanceSet
+        ) || isFinancePayment(inv);
       if (isFinance) {
         financePayments++;
         bucket.financeCount++;
@@ -531,7 +622,7 @@ export async function fetchDentallyForPayPeriod(
       const aptKey = `${patientId}_${invoiceDate}`;
       const patientAppointments = appointmentMap.get(aptKey) || [];
       let durationMins = 0;
-      let treatment = "";
+      let treatment = treatmentDescription || "";
       let appointmentTime: string | undefined;
       for (const apt of patientAppointments) {
         durationMins += getAppointmentDuration(apt);
@@ -545,8 +636,32 @@ export async function fetchDentallyForPayPeriod(
       }
 
       const hourlyRate = durationMins > 0 ? privateAmount / (durationMins / 60) : undefined;
+      const amountPence = parsePence(privateAmount);
+      const occKey = `${String(inv.id)}:${amountPence}`;
+      const amountOccurrence = amountOccByInvoice.get(occKey) ?? 0;
+      amountOccByInvoice.set(occKey, amountOccurrence + 1);
+      const alreadyPaid = isAlreadyPaidInOtherPeriod(
+        {
+          dentallyInvoiceId: String(inv.id),
+          dentallyPatientId: patientId || undefined,
+          treatmentDescription: treatment || undefined,
+          amountPence,
+          amountOccurrence,
+        },
+        paidLogLookup,
+        payPeriodId,
+        dentistId
+      );
+      const status = alreadyPaid && !forceFlagged ? payment.status : forceFlagged ? payment.status : payment.status;
+      // Keep real paid/outstanding even when flagged for review (partial must not become unpaid/0).
+      const amountPaid = payment.amountPaid;
+      const amountOutstanding = payment.amountOutstanding;
       const flagged =
-        payment.status === "unpaid" || payment.status === "partial" || (isFinance && payment.status !== "paid");
+        forceFlagged === true ||
+        Boolean(alreadyPaid) ||
+        status === "unpaid" ||
+        status === "partial" ||
+        (isFinance && status !== "paid");
       if (flagged) flaggedForReview++;
 
       bucket.patients.push({
@@ -554,28 +669,43 @@ export async function fetchDentallyForPayPeriod(
         date: invoiceDate,
         time: appointmentTime,
         amount: privateAmount,
-        amountPaid: payment.amountPaid,
-        amountOutstanding: payment.amountOutstanding,
-        status: payment.status,
+        amountPaid,
+        amountOutstanding,
+        status,
         finance: isFinance,
         invoiceId: String(inv.id),
         patientId,
         flagged,
-        flagReason: flagged
-          ? payment.status === "unpaid"
-            ? "Unpaid invoice"
-            : payment.status === "partial"
-              ? "Partial payment"
-              : "Finance payment"
-          : undefined,
+        flagReason: alreadyPaid
+          ? `Already paid in prior period ${alreadyPaid.payPeriodId}`
+          : flagReason
+            ? flagReason
+            : flagged
+              ? status === "unpaid"
+                ? "Unpaid invoice"
+                : status === "partial"
+                  ? "Partial payment"
+                  : "Finance payment"
+              : undefined,
         durationMins: durationMins || undefined,
         treatment: treatment || undefined,
         hourlyRate: hourlyRate ? Math.round(hourlyRate * 100) / 100 : undefined,
+        amountOccurrence,
       });
 
-      bucket.invoiced += privateAmount;
-      bucket.paid += payment.amountPaid;
-      bucket.outstanding += payment.amountOutstanding;
+      // §4.3 + Step 22 — gross only when fully paid with paid_on in this period (and not already logged).
+      const eligibleGross =
+        !forceFlagged &&
+        !alreadyPaid &&
+        status === "paid" &&
+        isInvoiceEligibleForGrossInPeriod(inv, startDate, endDate);
+      if (eligibleGross) {
+        bucket.invoiced += privateAmount;
+        bucket.paid += amountPaid;
+        bucket.outstanding += amountOutstanding;
+      } else {
+        bucket.outstanding += amountOutstanding;
+      }
       processed++;
     }
 
@@ -588,123 +718,166 @@ export async function fetchDentallyForPayPeriod(
     totalsByDentist.set(dentistId, bucket);
   }
 
-  const therapyByDentist = await calculateTherapyBreakdown(
-    client,
-    appointments,
-    startDate,
-    endDate,
-    siteId,
-    therapistIds,
-    therapyRate,
-    new Map(
-      Array.from(dentistByPractitioner.entries()).map(([k, v]) => [k, { id: v.id, name: v.name }])
-    ),
-    clinicianUsers,
-    patientNames
-  );
+  // Step 18 — therapy minutes are ops-manual only. Do not auto-fill from Dentally appointments.
 
   let dentistsUpdated = 0;
   const summary: Record<string, DentallyFetchSummaryEntry> = {};
 
-  for (const [dentistId, data] of totalsByDentist) {
-    const dentist = dentists.find((d) => d.id === dentistId);
-    if (!dentist || dentist.payType === "HOURLY") continue;
+  // Step 3 — all dentist payslip + line writes in one transaction so a mid-loop
+  // failure cannot leave a half-updated period (re-fetch resumes from clean prior state).
+  await db.$transaction(
+    async (tx) => {
+      for (const [dentistId, data] of totalsByDentist) {
+        const dentist = dentists.find((d) => d.id === dentistId);
+        if (!dentist || dentist.payType === "HOURLY") continue;
 
-    const split = Number(dentist.privateSplitPercent ?? 0);
-    const analytics = calculateDentistAnalytics(
-      data.patients.map((p) => ({
-        name: p.name,
-        amount: p.amount,
-        durationMins: p.durationMins,
-        treatment: p.treatment,
-        hourlyRate: p.hourlyRate,
-      })),
-      split
-    );
-    const therapyItems = therapyByDentist.get(dentistId) || [];
-    const totalTherapyMinutes = therapyItems.reduce((sum, t) => sum + t.minutes, 0);
+        const split = Number(dentist.privateSplitPercent ?? 0);
+        const analytics = calculateDentistAnalytics(
+          data.patients.map((p) => ({
+            name: p.name,
+            amount: p.amount,
+            durationMins: p.durationMins,
+            treatment: p.treatment,
+            hourlyRate: p.hourlyRate,
+          })),
+          split
+        );
 
-    const discrepancies = data.patients
-      .filter((p) => p.status === "unpaid" || p.status === "partial")
-      .map((p) => ({
-        type: p.status === "unpaid" ? "invoiced_not_paid" : "partial_payment",
-        patientName: p.name,
-        patientId: p.patientId,
-        invoiceId: p.invoiceId,
-        invoicedAmount: p.amount,
-        paidAmount: p.amountPaid,
-        date: p.date,
-        notes: p.flagReason || "",
-      }));
+        const paymentFlags = buildPaymentFlagsFromLines(
+          data.patients.map((p) => ({
+            patientName: p.name,
+            amountPence: parsePence(p.amount),
+            treatmentDescription: p.treatment,
+            invoiceDate: p.date,
+            amountOutstandingPence: parsePence(p.amountOutstanding),
+            paymentStatus: p.status,
+            flagged: p.flagged,
+            flagReason: p.flagReason,
+            dentallyInvoiceId: p.invoiceId,
+            dentallyPatientId: p.patientId,
+          }))
+        );
+        const discrepancies = paymentFlagsToDiscrepancies(paymentFlags);
 
-    const payslip = await db.payslipEntry.upsert({
-      where: { payPeriodId_dentistId: { payPeriodId, dentistId } },
-      create: {
-        practiceId,
-        payPeriodId,
-        dentistId,
-        payType: "PERCENTAGE_SPLIT",
-        grossPrivateRevenuePence: parsePence(data.invoiced),
-        therapyMinutes: totalTherapyMinutes,
-        therapyRatePerMinute: therapyRate,
-        dentallyPatientsJson: data.patients as unknown as Prisma.InputJsonValue,
-        dentallyAnalyticsJson: analytics as unknown as Prisma.InputJsonValue,
-        dentallyTherapyJson: therapyItems as unknown as Prisma.InputJsonValue,
-        dentallyDiscrepanciesJson: discrepancies as unknown as Prisma.InputJsonValue,
-      },
-      update: {
-        grossPrivateRevenuePence: parsePence(data.invoiced),
-        therapyMinutes: totalTherapyMinutes,
-        therapyRatePerMinute: therapyRate,
-        dentallyPatientsJson: data.patients as unknown as Prisma.InputJsonValue,
-        dentallyAnalyticsJson: analytics as unknown as Prisma.InputJsonValue,
-        dentallyTherapyJson: therapyItems as unknown as Prisma.InputJsonValue,
-        dentallyDiscrepanciesJson: discrepancies as unknown as Prisma.InputJsonValue,
-      },
-    });
+        const payslip = await tx.payslipEntry.upsert({
+          where: { payPeriodId_dentistId: { payPeriodId, dentistId } },
+          create: {
+            practiceId,
+            payPeriodId,
+            dentistId,
+            payType: "PERCENTAGE_SPLIT",
+            grossPrivateRevenuePence: parsePence(data.invoiced),
+            dentallyPatientsJson: data.patients as unknown as Prisma.InputJsonValue,
+            dentallyAnalyticsJson: analytics as unknown as Prisma.InputJsonValue,
+            dentallyDiscrepanciesJson: discrepancies as unknown as Prisma.InputJsonValue,
+          },
+          update: {
+            grossPrivateRevenuePence: parsePence(data.invoiced),
+            // Preserve ops-entered therapyMinutes / therapyRatePerMinute (Step 18).
+            dentallyPatientsJson: data.patients as unknown as Prisma.InputJsonValue,
+            dentallyAnalyticsJson: analytics as unknown as Prisma.InputJsonValue,
+            dentallyDiscrepanciesJson: discrepancies as unknown as Prisma.InputJsonValue,
+          },
+        });
 
-    await db.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });
-    for (const p of data.patients) {
-      await db.privateRevenueLineItem.create({
-        data: {
-          payslipEntryId: payslip.id,
-          amountPence: parsePence(p.amount),
-          excludedAsConsultation: false,
-          patientName: p.name,
-          invoiceDate: p.date,
-          dentallyInvoiceId: p.invoiceId,
-          dentallyPatientId: p.patientId,
-          durationMins: p.durationMins ?? null,
-          isFinance: p.finance,
-          paymentStatus: p.status,
-          amountPaidPence: parsePence(p.amountPaid),
-          amountOutstandingPence: parsePence(p.amountOutstanding),
-          treatmentDescription: p.treatment ?? null,
-          hourlyRatePence: p.hourlyRate != null ? parsePence(p.hourlyRate) : null,
-          flagged: Boolean(p.flagged),
-          flagReason: p.flagReason ?? null,
-        },
-      });
-    }
+        const priorLines = await tx.privateRevenueLineItem.findMany({
+          where: { payslipEntryId: payslip.id },
+          select: {
+            dentallyInvoiceId: true,
+            dentallyLineKey: true,
+            amountPence: true,
+            financeTermMonths: true,
+            financeFeePence: true,
+            financeFeeManual: true,
+          },
+        });
+        const priorFinance = buildPriorFinanceOpsLookup(priorLines);
 
-    summary[dentist.name] = {
-      invoicedPence: parsePence(data.invoiced),
-      paidPence: parsePence(data.paid),
-      outstandingPence: parsePence(data.outstanding),
-      invoiceCount: data.patients.length,
-      financeCount: data.financeCount,
-      flaggedCount: data.patients.filter((p) => p.flagged).length,
-      chairMins: analytics.totalChairMins,
-      grossPerHour: analytics.grossPerHour,
-      netPerHour: analytics.netPerHour,
-      utilizationPercent: analytics.utilizationPercent,
-    };
-    dentistsUpdated++;
-  }
+        await tx.privateRevenueLineItem.deleteMany({ where: { payslipEntryId: payslip.id } });
+        const lineRowsForProvisional: Array<{
+          isFinance: boolean;
+          amountPence: number;
+          financeFeePence: number | null;
+          financeTermMonths: number | null;
+        }> = [];
+        const lineCreates: Prisma.PrivateRevenueLineItemCreateManyInput[] = [];
+        for (const p of data.patients) {
+          const amountPence = parsePence(p.amount);
+          const source = dentallyLineSourceFields({
+            dentallyInvoiceId: p.invoiceId,
+            amountPence,
+            amountOccurrence: p.amountOccurrence ?? 0,
+          });
+          const financeOps = mergeFinanceOpsOntoFetchedLine(
+            {
+              dentallyInvoiceId: source.dentallyInvoiceId,
+              dentallyLineKey: source.dentallyLineKey,
+              amountPence,
+              isFinance: Boolean(p.finance),
+            },
+            priorFinance
+          );
+          lineCreates.push({
+            payslipEntryId: payslip.id,
+            amountPence,
+            excludedAsConsultation: false,
+            patientName: p.name,
+            invoiceDate: p.date,
+            dentallyInvoiceId: source.dentallyInvoiceId,
+            dentallyLineKey: source.dentallyLineKey,
+            sourceType: source.sourceType,
+            dentallyPatientId: p.patientId,
+            durationMins: p.durationMins ?? null,
+            isFinance: p.finance,
+            paymentStatus: p.status,
+            amountPaidPence: parsePence(p.amountPaid),
+            amountOutstandingPence: parsePence(p.amountOutstanding),
+            treatmentDescription: p.treatment ?? null,
+            hourlyRatePence: p.hourlyRate != null ? parsePence(p.hourlyRate) : null,
+            flagged: Boolean(p.flagged),
+            flagReason: p.flagReason ?? null,
+            financeTermMonths: financeOps.financeTermMonths,
+            financeFeePence: financeOps.financeFeePence,
+            financeFeeManual: financeOps.financeFeeManual,
+          });
+          lineRowsForProvisional.push({
+            isFinance: Boolean(p.finance),
+            amountPence,
+            financeFeePence: financeOps.financeFeePence,
+            financeTermMonths: financeOps.financeTermMonths,
+          });
+        }
+        if (lineCreates.length > 0) {
+          await tx.privateRevenueLineItem.createMany({ data: lineCreates });
+        }
+
+        // Step 29 — provisional when finance lines still lack term/fee after merge.
+        await tx.payslipEntry.update({
+          where: { id: payslip.id },
+          data: { provisional: payslipIsProvisional(lineRowsForProvisional) },
+        });
+
+        summary[dentist.name] = {
+          invoicedPence: parsePence(data.invoiced),
+          paidPence: parsePence(data.paid),
+          outstandingPence: parsePence(data.outstanding),
+          invoiceCount: data.patients.length,
+          financeCount: data.financeCount,
+          flaggedCount: data.patients.filter((p) => p.flagged).length,
+          chairMins: analytics.totalChairMins,
+          grossPerHour: analytics.grossPerHour,
+          netPerHour: analytics.netPerHour,
+          utilizationPercent: analytics.utilizationPercent,
+        };
+        dentistsUpdated++;
+      }
+    },
+    { timeout: 120_000, maxWait: 30_000 }
+  );
 
   return {
     ok: true,
-    message: `Fetched ${invoices.length} invoices + ${appointments.length} appointments; updated ${dentistsUpdated} dentist(s).`,
+    message: `Fetched ${invoices.length} invoices, ${allPayments.length} payments, ${appointments.length} appointments; updated ${dentistsUpdated} dentist(s).`,
     debug: {
       totalInvoicesFromApi: allInvoices.length,
       invoicesInDateRange: invoices.length,
@@ -715,7 +888,11 @@ export async function fetchDentallyForPayPeriod(
       financePayments,
       flaggedForReview,
       appointmentsFetched: appointments.length,
-      unmatchedClinicianIds: Array.from(unmatched),
+      paymentsFetched: allPayments.length,
+      paymentWindow: { datedAfter, datedBefore },
+      excludeReasonCounts,
+      unmatchedClinicianIds: unmappedPractitioners.map((h) => h.practitionerId),
+      unmappedPractitioners,
       dateRange: { start: startDate, end: endDate },
     },
     summary,

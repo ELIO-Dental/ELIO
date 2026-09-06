@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@elio/auth";
-import { scopedDb } from "@elio/db";
+import { scopedDb, type Role } from "@elio/db";
 import {
   EmptyState,
   PageContent,
@@ -17,7 +17,7 @@ import {
   formatMoneyGBPOrDash,
   parseTablePage,
 } from "@elio/ui";
-import { redirectToLogin } from "@/lib/session";
+import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { formatLegacyPeriodLabel, legacyPayslipSummary, parseLegacyPayslipRow } from "@/lib/legacy-payslip-archive";
 
 export default async function LegacyPayslipsPage({
@@ -27,7 +27,7 @@ export default async function LegacyPayslipsPage({
 }) {
   const session = await auth();
   if (!session?.practiceId) return redirectToLogin();
-
+  await redirectUnlessPayViewAll(session.role as Role);
   const params = await searchParams;
   const { page, skip, pageSize } = parseTablePage(params);
   const dentist = params.dentist?.trim();

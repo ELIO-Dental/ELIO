@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { UnauthorizedError, ForbiddenError } from "./session";
+import { UnauthorizedError, ForbiddenError } from "./errors";
 
 /** Shared route-handler error -> NextResponse mapping (ENGINEERING_CONVENTIONS.md). */
 export function errorResponse(err: unknown) {
