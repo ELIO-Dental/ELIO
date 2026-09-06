@@ -10,6 +10,8 @@ describe("parseFlowSettingsJson", () => {
       paidConversionThresholdPence: 45000,
       appDisplayName: "",
       logoUrl: "",
+      companyName: "",
+      primaryColor: "",
     });
   });
 
@@ -20,6 +22,8 @@ describe("parseFlowSettingsJson", () => {
         depositThresholdPence: 7500,
         appDisplayName: "Aura Flow",
         logoUrl: "https://cdn.example/logo.png",
+        companyName: "Aura Dental",
+        primaryColor: "#3b82f6",
       })
     ).toMatchObject({
       planDisplayName: "ElioCare",
@@ -27,6 +31,8 @@ describe("parseFlowSettingsJson", () => {
       paidConversionThresholdPence: 45000,
       appDisplayName: "Aura Flow",
       logoUrl: "https://cdn.example/logo.png",
+      companyName: "Aura Dental",
+      primaryColor: "#3b82f6",
     });
   });
 });
@@ -37,10 +43,14 @@ describe("mergeFlowSettingsInput", () => {
     const merged = mergeFlowSettingsInput(current, {
       cosmeticConsultReason: "Smile Consultation",
       paidConversionThresholdPence: 50000,
+      companyName: "Aura Dental Clinic",
+      primaryColor: "#0891b2",
     });
     expect(merged.cosmeticConsultReason).toBe("Smile Consultation");
     expect(merged.paidConversionThresholdPence).toBe(50000);
     expect(merged.planDisplayName).toBe("AuraCare");
+    expect(merged.companyName).toBe("Aura Dental Clinic");
+    expect(merged.primaryColor).toBe("#0891b2");
   });
 });
 

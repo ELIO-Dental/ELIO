@@ -7,6 +7,8 @@ export interface ShellLayoutProps {
   userEmail?: string;
   brandTitle?: string;
   brandLogoUrl?: string;
+  companyName?: string;
+  primaryColor?: string;
   children: React.ReactNode;
 }
 
@@ -15,22 +17,35 @@ export function ShellLayout({
   userEmail,
   brandTitle = "ELIO FLOW",
   brandLogoUrl,
+  companyName,
+  primaryColor,
   children,
 }: ShellLayoutProps) {
   return (
-    <ModuleAppLayout
-      brandTitle={brandTitle}
-      brandLogoUrl={brandLogoUrl}
-      moduleId="flow"
-      navItems={FLOW_MODULE_NAV}
-      userEmail={userEmail}
-      resolveActiveId={(pathname, defaultId) =>
-        pathname.startsWith("/consults") ? "pipeline" : pathname.startsWith("/dashboard") ? "dashboard" : defaultId
-      }
-      pwaAppId="flow"
+    <div
+      className="contents"
+      style={primaryColor ? ({ ["--color-brand"]: primaryColor } as React.CSSProperties) : undefined}
+      title={companyName || undefined}
     >
-      <FlowBrandingHead brandName={brandTitle} logoUrl={brandLogoUrl} />
-      {children}
-    </ModuleAppLayout>
+      <ModuleAppLayout
+        brandTitle={brandTitle}
+        brandLogoUrl={brandLogoUrl}
+        moduleId="flow"
+        navItems={FLOW_MODULE_NAV}
+        userEmail={userEmail}
+        resolveActiveId={(pathname, defaultId) =>
+          pathname.startsWith("/consults") ? "pipeline" : pathname.startsWith("/dashboard") ? "dashboard" : defaultId
+        }
+        pwaAppId="flow"
+      >
+        <FlowBrandingHead
+          brandName={brandTitle}
+          logoUrl={brandLogoUrl}
+          companyName={companyName}
+          primaryColor={primaryColor}
+        />
+        {children}
+      </ModuleAppLayout>
+    </div>
   );
 }

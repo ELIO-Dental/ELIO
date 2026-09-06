@@ -64,6 +64,8 @@ export function FlowSettingsClient({
           paidConversionThresholdPence: Number(settings.paidConversionThresholdPence),
           appDisplayName: settings.appDisplayName,
           logoUrl: settings.logoUrl,
+          companyName: settings.companyName,
+          primaryColor: settings.primaryColor,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -148,6 +150,19 @@ export function FlowSettingsClient({
               </div>
             </div>
             <div>
+              <Label htmlFor="companyName">Company name</Label>
+              <Input
+                id="companyName"
+                value={settings.companyName}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, companyName: e.target.value }))}
+                placeholder="Your company name"
+              />
+              <p className="mt-1 text-caption text-(--color-text-tertiary)">
+                Legacy ElioFlow company label stored with Flow branding.
+              </p>
+            </div>
+            <div>
               <Label htmlFor="appDisplayName">App display name</Label>
               <Input
                 id="appDisplayName"
@@ -169,6 +184,29 @@ export function FlowSettingsClient({
                 onChange={(e) => setSettings((s) => ({ ...s, logoUrl: e.target.value }))}
                 placeholder="https://example.com/logo.png"
               />
+            </div>
+            <div>
+              <Label htmlFor="primaryColor">Primary color</Label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="color"
+                  id="primaryColor"
+                  value={/^#[0-9A-Fa-f]{6}$/.test(settings.primaryColor) ? settings.primaryColor : "#3b82f6"}
+                  disabled={!canEdit}
+                  onChange={(e) => setSettings((s) => ({ ...s, primaryColor: e.target.value }))}
+                  className="h-10 w-14 cursor-pointer rounded border border-(--color-border)"
+                />
+                <Input
+                  value={settings.primaryColor}
+                  disabled={!canEdit}
+                  onChange={(e) => setSettings((s) => ({ ...s, primaryColor: e.target.value }))}
+                  placeholder="#3b82f6"
+                  className="font-mono"
+                />
+              </div>
+              <p className="mt-1 text-caption text-(--color-text-tertiary)">
+                Optional hex accent applied as the Flow brand color. Leave blank for the default theme.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -89,7 +89,16 @@ test.describe("Flow verification (F4)", () => {
     const chunks: Buffer[] = [];
     for await (const chunk of stream) chunks.push(Buffer.from(chunk));
     const csv = Buffer.concat(chunks).toString("utf8");
-    for (const header of ["Name", "Phone", "Email", "Dentist", "Booked by", "Plan Signed Up"]) {
+    for (const header of [
+      "Name",
+      "Phone",
+      "Email",
+      "Dentist",
+      "Booked by",
+      "Consultation Date",
+      "Appointment State",
+      "Plan Signed Up",
+    ]) {
       expect(csv).toContain(header);
     }
   });

@@ -16,7 +16,12 @@ export async function getFlowSettings(practiceId: string): Promise<FlowSettings>
 }
 
 /** F3.3 — header branding for Flow shell (legacy appName + logoUrl, practice name fallback). */
-export async function getFlowBranding(practiceId: string): Promise<{ brandTitle: string; logoUrl?: string }> {
+export async function getFlowBranding(practiceId: string): Promise<{
+  brandTitle: string;
+  logoUrl?: string;
+  companyName?: string;
+  primaryColor?: string;
+}> {
   const practice = await prisma.practice.findUniqueOrThrow({
     where: { id: practiceId },
     select: { name: true, flowSettingsJson: true },
@@ -26,6 +31,8 @@ export async function getFlowBranding(practiceId: string): Promise<{ brandTitle:
   return {
     brandTitle,
     logoUrl: settings.logoUrl || undefined,
+    companyName: settings.companyName || undefined,
+    primaryColor: settings.primaryColor || undefined,
   };
 }
 

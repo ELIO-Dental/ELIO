@@ -46,6 +46,8 @@ test("dashboard CSV export uses legacy column headers", async ({ page }) => {
   for await (const chunk of content) chunks.push(Buffer.from(chunk));
   const csv = Buffer.concat(chunks).toString("utf8");
   expect(csv).toContain("Name");
+  expect(csv).toContain("Consultation Date");
+  expect(csv).toContain("Appointment State");
   expect(csv).toContain("Plan Signed Up");
   expect(csv).toContain("Booked by");
 });

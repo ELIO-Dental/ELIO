@@ -1593,6 +1593,10 @@ model Consult {
   // ElioPlans data, which modules should not do across boundaries.
   planSignedUp          Boolean             @default(false)
   notes                 String?
+  // Manual override of reminder-derived touch-point count (legacy ElioFlow
+  // Pipeline sheet `touchPoints`). When null, dashboard uses COUNT(Reminder
+  // WHERE sentAt IS NOT NULL); when set, the manual value wins.
+  touchPointsOverride   Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

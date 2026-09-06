@@ -34,6 +34,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       input.notes = typeof body.notes === "string" && body.notes.length > 0 ? body.notes : null;
     }
     if ("planSignedUp" in body) input.planSignedUp = Boolean(body.planSignedUp);
+    if ("touchPointsOverride" in body) {
+      input.touchPointsOverride =
+        body.touchPointsOverride === null || body.touchPointsOverride === undefined
+          ? null
+          : Number(body.touchPointsOverride);
+    }
     if ("legacyStatus" in body) {
       const status = String(body.legacyStatus);
       legacyStatusToOutcome(status); // validate before save

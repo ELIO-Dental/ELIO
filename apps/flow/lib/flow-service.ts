@@ -7,6 +7,7 @@ import { writeAuditLog } from "@elio/auth";
 import {
   getAppointments,
   getFlowSettings,
+  getLatestDentallySyncRun,
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
 } from "@elio/dentally";
@@ -173,6 +174,7 @@ export async function updateConsultDetails(
     notes?: string | null;
     planSignedUp?: boolean;
     legacyStatus?: string;
+    touchPointsOverride?: number | null;
   },
 ) {
   const db = scopedDb(practiceId);
@@ -192,6 +194,12 @@ export async function updateConsultDetails(
   }
   if ("notes" in input) data.notes = input.notes;
   if ("planSignedUp" in input) data.planSignedUp = input.planSignedUp;
+  if ("touchPointsOverride" in input) {
+    data.touchPointsOverride =
+      input.touchPointsOverride === null || input.touchPointsOverride === undefined
+        ? null
+        : Math.max(0, Math.round(Number(input.touchPointsOverride)) || 0);
+  }
 
   if (input.legacyStatus !== undefined) {
     const mapped = legacyStatusToOutcome(input.legacyStatus);
@@ -525,6 +533,7 @@ export interface FlowDashboardRow {
   dentistName: string;
   bookedBy: string | null;
   consultationDate: string | null;
+  appointmentState: string | null;
   planValuePence: number;
   quotePence: number | null;
   quotePenceOverride: number | null;
@@ -548,6 +557,7 @@ export interface FlowDashboardData {
   planDisplayName: string;
   appDisplayName: string;
   practitionerScope: { viewAll: boolean; dentistId: string | null };
+  lastSyncedAt: string | null;
 }
 
 function planValuePence(c: { quotePenceOverride: number | null; quotePence: number | null }) {
@@ -597,7 +607,10 @@ export async function getFlowDashboard(
   opts?: { from?: Date; to?: Date; dentistId?: string | null; scope?: FlowPractitionerScope }
 ): Promise<FlowDashboardData> {
   const db = scopedDb(practiceId);
-  const settings = await getFlowSettings(practiceId);
+  const [settings, latestSync] = await Promise.all([
+    getFlowSettings(practiceId),
+    getLatestDentallySyncRun(practiceId),
+  ]);
   const dentistFilter = opts?.scope
     ? resolveEffectiveDentistFilter(opts.scope, opts.dentistId ?? null)
     : opts?.dentistId ?? null;
@@ -641,6 +654,7 @@ export async function getFlowDashboard(
       dentistName: c.practitionerDentist?.name ?? "Unassigned",
       bookedBy: c.bookedBy,
       consultationDate: d.toISOString().slice(0, 10),
+      appointmentState: c.appointment?.dentallyState ?? null,
       planValuePence: planValue,
       quotePence: c.quotePence,
       quotePenceOverride: c.quotePenceOverride,
@@ -653,7 +667,7 @@ export async function getFlowDashboard(
       statusLabel: label,
       statusKey: key,
       planSignedUp: c.planSignedUp,
-      touchPoints: c.reminders.filter((r) => r.sentAt != null).length,
+      touchPoints: c.touchPointsOverride ?? c.reminders.filter((r) => r.sentAt != null).length,
       notes: c.notes,
     };
   });
@@ -688,7 +702,18 @@ export async function getFlowDashboard(
     ? { viewAll: opts.scope.viewAll, dentistId: opts.scope.dentistId }
     : { viewAll: true, dentistId: null };
 
-  return { stats, rows, dentists, planDisplayName: settings.planDisplayName, appDisplayName: settings.appDisplayName, practitionerScope };
+  const syncAt = latestSync?.finishedAt ?? latestSync?.startedAt ?? null;
+  const lastSyncedAt = syncAt ? syncAt.toISOString() : null;
+
+  return {
+    stats,
+    rows,
+    dentists,
+    planDisplayName: settings.planDisplayName,
+    appDisplayName: settings.appDisplayName,
+    practitionerScope,
+    lastSyncedAt,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -54,6 +54,7 @@ export function DashboardEditDialog({
   const [practitionerDentistId, setPractitionerDentistId] = React.useState(NONE);
   const [quoteOverride, setQuoteOverride] = React.useState("");
   const [planSignedUp, setPlanSignedUp] = React.useState(false);
+  const [touchPoints, setTouchPoints] = React.useState(0);
   const [notes, setNotes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
@@ -63,6 +64,7 @@ export function DashboardEditDialog({
     setPractitionerDentistId(row.dentistId ?? NONE);
     setQuoteOverride(row.quotePenceOverride !== null ? String(row.quotePenceOverride / 100) : "");
     setPlanSignedUp(row.planSignedUp);
+    setTouchPoints(row.touchPoints);
     setNotes(row.notes ?? "");
   }, [row]);
 
@@ -79,6 +81,7 @@ export function DashboardEditDialog({
           practitionerDentistId: practitionerDentistId === NONE ? null : practitionerDentistId,
           quotePenceOverride: quoteOverride.trim() === "" ? null : Math.round(Number(quoteOverride) * 100),
           planSignedUp,
+          touchPointsOverride: touchPoints,
           notes: notes.trim() === "" ? null : notes,
         }),
       });
@@ -155,10 +158,37 @@ export function DashboardEditDialog({
               </p>
             </div>
 
+            <div>
+              <Label>Touch points</Label>
+              <div className="mt-1 flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="size-10 shrink-0 px-0"
+                  onClick={() => setTouchPoints((n) => Math.max(0, n - 1))}
+                  aria-label="Decrease touch points"
+                >
+                  -
+                </Button>
+                <span className="w-8 text-center text-body font-semibold tabular-nums" data-testid="edit-touch-points">
+                  {touchPoints}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="size-10 shrink-0 px-0"
+                  onClick={() => setTouchPoints((n) => n + 1)}
+                  aria-label="Increase touch points"
+                >
+                  +
+                </Button>
+                <span className="text-caption text-(--color-text-tertiary)">times contacted</span>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2">
               <div>
                 <Label htmlFor="edit-plan-signed-up">Plan signed up (elioCare)</Label>
-                <p className="text-caption text-(--color-text-tertiary)">Touch points: {row.touchPoints} (sent reminders)</p>
               </div>
               <Switch id="edit-plan-signed-up" checked={planSignedUp} onCheckedChange={setPlanSignedUp} />
             </div>

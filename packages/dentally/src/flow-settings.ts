@@ -9,6 +9,10 @@ export interface FlowSettings {
   appDisplayName: string;
   /** F3.3 — optional logo URL shown in Flow sidebar (legacy logoUrl). */
   logoUrl: string;
+  /** Legacy companyName — practice/company label stored in Flow settings JSON. */
+  companyName: string;
+  /** Legacy primaryColor — hex brand accent; when set, applied as `--color-brand`. */
+  primaryColor: string;
 }
 
 export const DEFAULT_FLOW_SETTINGS: FlowSettings = {
@@ -18,6 +22,8 @@ export const DEFAULT_FLOW_SETTINGS: FlowSettings = {
   paidConversionThresholdPence: 45_000,
   appDisplayName: "",
   logoUrl: "",
+  companyName: "",
+  primaryColor: "",
 };
 
 export function parseFlowSettingsJson(raw: unknown): FlowSettings {
@@ -39,6 +45,8 @@ export function parseFlowSettingsJson(raw: unknown): FlowSettings {
     ),
     appDisplayName: typeof row.appDisplayName === "string" ? row.appDisplayName.trim() : "",
     logoUrl: typeof row.logoUrl === "string" ? row.logoUrl.trim() : "",
+    companyName: typeof row.companyName === "string" ? row.companyName.trim() : "",
+    primaryColor: typeof row.primaryColor === "string" ? row.primaryColor.trim() : "",
   };
 }
 
@@ -68,6 +76,8 @@ export function mergeFlowSettingsInput(
   }
   if (typeof input.appDisplayName === "string") next.appDisplayName = input.appDisplayName.trim();
   if (typeof input.logoUrl === "string") next.logoUrl = input.logoUrl.trim();
+  if (typeof input.companyName === "string") next.companyName = input.companyName.trim();
+  if (typeof input.primaryColor === "string") next.primaryColor = input.primaryColor.trim();
   return next;
 }
 

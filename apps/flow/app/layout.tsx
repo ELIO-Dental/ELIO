@@ -71,6 +71,8 @@ export default async function RootLayout({
             userEmail={session.user?.email ?? undefined}
             brandTitle={branding.brandTitle}
             brandLogoUrl={branding.logoUrl}
+            companyName={branding.companyName}
+            primaryColor={branding.primaryColor}
           >
             <PageTransition>{children}</PageTransition>
           </ShellLayout>

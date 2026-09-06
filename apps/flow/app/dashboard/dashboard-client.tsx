@@ -4,6 +4,12 @@ import * as React from "react";
 import {
   Badge,
   Button,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Input,
   Label,
@@ -35,6 +41,7 @@ const DATE_PRESETS = [
   { id: "3m", label: "3 months" },
   { id: "6m", label: "6 months" },
   { id: "12m", label: "12 months" },
+  { id: "custom", label: "Custom range" },
 ] as const;
 
 const STATUS_FILTERS = [
@@ -50,8 +57,21 @@ const STATUS_FILTERS = [
   { id: "completed", label: "Completed" },
 ] as const;
 
+type SortField =
+  | "patient"
+  | "dentist"
+  | "date"
+  | "value"
+  | "paid"
+  | "days"
+  | "status"
+  | "touchpoints";
+type SortDirection = "asc" | "desc";
+
+type SyncLogLine = { message: string; at: string };
+
 function presetRange(preset: string): { from?: string; to?: string } {
-  if (preset === "all") return {};
+  if (preset === "all" || preset === "custom") return {};
   const now = new Date();
   const start = new Date(now);
   const end = new Date(now);
@@ -106,6 +126,19 @@ function presetRange(preset: string): { from?: string; to?: string } {
   }
 }
 
+function appointmentStateClass(attended: boolean, state: string | null) {
+  if (attended) return "text-(--color-success)";
+  if (state === "DNA" || state === "Did Not Attend") return "text-red-600";
+  if (state === "Cancelled") return "text-orange-500";
+  if (state === "Confirmed") return "text-blue-600";
+  return "text-(--color-text-tertiary)";
+}
+
+function appointmentStateLabel(attended: boolean, state: string | null) {
+  if (attended) return "Attended";
+  return state || "Pending";
+}
+
 function ProgressDots({
   attended,
   hasPlan,
@@ -138,6 +171,7 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
     "Dentist",
     "Booked by",
     "Consultation Date",
+    "Appointment State",
     "Plan Value",
     "Paid",
     "Status",
@@ -152,6 +186,7 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
     r.dentistName,
     r.bookedBy ?? "",
     r.consultationDate ?? "",
+    appointmentStateLabel(r.attended, r.appointmentState),
     (r.planValuePence / 100).toFixed(2),
     (r.totalPaidPence / 100).toFixed(2),
     r.statusLabel,
@@ -175,9 +210,13 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
 export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [data, setData] = React.useState(initial);
   const [preset, setPreset] = React.useState("all");
+  const [customFrom, setCustomFrom] = React.useState("");
+  const [customTo, setCustomTo] = React.useState("");
   const [dentistId, setDentistId] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
+  const [sortField, setSortField] = React.useState<SortField>("date");
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const [syncingPayments, setSyncingPayments] = React.useState(false);
@@ -185,11 +224,25 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [view, setView] = React.useState<"table" | "charts">("table");
   const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
   const [detailRow, setDetailRow] = React.useState<FlowDashboardRow | null>(null);
+  const [syncLogOpen, setSyncLogOpen] = React.useState(false);
+  const [syncLog, setSyncLog] = React.useState<SyncLogLine[]>([]);
 
-  async function loadDashboard(nextPreset = preset, nextDentist = dentistId) {
+  function appendSyncLog(message: string) {
+    setSyncLog((prev) => [...prev, { message, at: new Date().toISOString() }]);
+    setSyncLogOpen(true);
+  }
+
+  async function loadDashboard(
+    nextPreset = preset,
+    nextDentist = dentistId,
+    nextFrom = customFrom,
+    nextTo = customTo,
+  ) {
+    if (nextPreset === "custom" && (!nextFrom || !nextTo)) return;
     setLoading(true);
     try {
-      const range = presetRange(nextPreset);
+      const range =
+        nextPreset === "custom" ? { from: nextFrom, to: nextTo } : presetRange(nextPreset);
       const params = new URLSearchParams();
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
@@ -208,18 +261,19 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
 
   async function importFromDentally() {
     setImporting(true);
+    appendSyncLog("Import from Dentally started…");
     try {
       const res = await fetch("/flow/api/sync/consults", { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Import failed");
-      toast.success("Import complete", {
-        description: `${body.created ?? 0} new, ${body.updated ?? 0} updated consult(s).`,
-      });
+      const summary = `${body.created ?? 0} new, ${body.updated ?? 0} updated consult(s).`;
+      appendSyncLog(body.message ? String(body.message) : `Import complete — ${summary}`);
+      toast.success("Import complete", { description: summary });
       await loadDashboard();
     } catch (err) {
-      toast.error("Dentally import failed", {
-        description: err instanceof Error ? err.message : "Run Portal sync first if data is stale.",
-      });
+      const msg = err instanceof Error ? err.message : "Run Portal sync first if data is stale.";
+      appendSyncLog(`Import failed: ${msg}`);
+      toast.error("Dentally import failed", { description: msg });
     } finally {
       setImporting(false);
     }
@@ -227,6 +281,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
 
   async function syncPaymentsFromDentally() {
     setSyncingPayments(true);
+    appendSyncLog("Payment sync started…");
     try {
       const res = await fetch("/flow/api/sync/dentally", {
         method: "POST",
@@ -235,20 +290,24 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 202) {
+        appendSyncLog(body.message ?? "Payment sync started in the background.");
         toast.success("Payment sync started", {
           description: body.message ?? "Refreshing financial fields for all consults in the background.",
         });
         return;
       }
       if (!res.ok) throw new Error(body.error ?? "Payment sync failed");
+      appendSyncLog(
+        body.message ?? `Payment sync complete — updated ${body.updated ?? 0} of ${body.total ?? 0}.`,
+      );
       toast.success("Payment sync complete", {
         description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s).`,
       });
       await loadDashboard();
     } catch (err) {
-      toast.error("Payment sync failed", {
-        description: err instanceof Error ? err.message : "Run Portal sync first if data is stale.",
-      });
+      const msg = err instanceof Error ? err.message : "Run Portal sync first if data is stale.";
+      appendSyncLog(`Payment sync failed: ${msg}`);
+      toast.error("Payment sync failed", { description: msg });
     } finally {
       setSyncingPayments(false);
     }
@@ -256,6 +315,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
 
   async function syncFullFromDentally() {
     setSyncingFull(true);
+    appendSyncLog("Full Dentally sync started…");
     try {
       const res = await fetch("/flow/api/sync/dentally", {
         method: "POST",
@@ -264,39 +324,93 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 202) {
+        appendSyncLog(body.message ?? "Full sync started — check Portal Integrations for progress.");
         toast.success("Full sync started", {
           description: body.message ?? "Check Portal Integrations for progress.",
         });
         return;
       }
       if (!res.ok) throw new Error(body.error ?? "Full sync failed");
+      appendSyncLog(body.message ?? "Full sync started.");
       toast.success("Full sync started");
     } catch (err) {
-      toast.error("Full sync failed", {
-        description: err instanceof Error ? err.message : "Check Portal Integrations settings.",
-      });
+      const msg = err instanceof Error ? err.message : "Check Portal Integrations settings.";
+      appendSyncLog(`Full sync failed: ${msg}`);
+      toast.error("Full sync failed", { description: msg });
     } finally {
       setSyncingFull(false);
     }
   }
 
-  const filteredRows = data.rows.filter((row) => {
-    if (statusFilter === "stuck") {
-      if (row.statusKey !== "stuck" && !["thinking", "failed-finance", "price-shopping", "bad-experience", "out-of-budget"].includes(row.statusKey)) {
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  }
+
+  const sortedRows = React.useMemo(() => {
+    const filtered = data.rows.filter((row) => {
+      if (statusFilter === "stuck") {
+        if (
+          row.statusKey !== "stuck" &&
+          !["thinking", "failed-finance", "price-shopping", "bad-experience", "out-of-budget"].includes(row.statusKey)
+        ) {
+          return false;
+        }
+      } else if (statusFilter !== "all" && row.statusKey !== statusFilter) {
         return false;
       }
-    } else if (statusFilter !== "all" && row.statusKey !== statusFilter) {
-      return false;
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const hay = [row.patientName, row.patientEmail, row.patientPhone].filter(Boolean).join(" ").toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [row.patientName, row.patientEmail, row.patientPhone].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
 
-  const tablePagination = useClientTablePagination(filteredRows, 25, [statusFilter, search, preset, dentistId]);
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "patient":
+          comparison = a.patientName.localeCompare(b.patientName);
+          break;
+        case "dentist":
+          comparison = a.dentistName.localeCompare(b.dentistName);
+          break;
+        case "date":
+          comparison = (a.consultationDate ?? "").localeCompare(b.consultationDate ?? "");
+          break;
+        case "value":
+          comparison = a.planValuePence - b.planValuePence;
+          break;
+        case "paid":
+          comparison = a.totalPaidPence - b.totalPaidPence;
+          break;
+        case "days":
+          comparison = a.daysSinceConsult - b.daysSinceConsult;
+          break;
+        case "status":
+          comparison = a.statusLabel.localeCompare(b.statusLabel);
+          break;
+        case "touchpoints":
+          comparison = a.touchPoints - b.touchPoints;
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [data.rows, statusFilter, search, sortField, sortDirection]);
+
+  const tablePagination = useClientTablePagination(sortedRows, 25, [
+    statusFilter,
+    search,
+    preset,
+    dentistId,
+    sortField,
+    sortDirection,
+  ]);
 
   const statusCounts = React.useMemo(() => {
     const counts: Record<string, number> = { all: data.rows.length };
@@ -309,6 +423,32 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     return counts;
   }, [data.rows]);
 
+  function SortableHead({
+    field,
+    children,
+    className,
+  }: {
+    field: SortField;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const active = sortField === field;
+    return (
+      <TableHead className={className}>
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          className="inline-flex items-center gap-1 select-none hover:text-(--color-text-primary)"
+        >
+          <span>{children}</span>
+          <span className="text-(--color-text-tertiary)" aria-hidden>
+            {active ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+          </span>
+        </button>
+      </TableHead>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end gap-3 rounded-(--radius-lg) border border-(--color-border) p-4">
@@ -319,8 +459,9 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             className="mt-1 block h-10 rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
             value={preset}
             onChange={(e) => {
-              setPreset(e.target.value);
-              void loadDashboard(e.target.value, dentistId);
+              const next = e.target.value;
+              setPreset(next);
+              if (next !== "custom") void loadDashboard(next, dentistId);
             }}
           >
             {DATE_PRESETS.map((p) => (
@@ -330,6 +471,35 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             ))}
           </select>
         </div>
+        {preset === "custom" ? (
+          <>
+            <div>
+              <Label htmlFor="custom-from">From</Label>
+              <Input
+                id="custom-from"
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="custom-to">To</Label>
+              <Input
+                id="custom-to"
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+              />
+            </div>
+            <Button
+              loading={loading}
+              disabled={!customFrom || !customTo}
+              onClick={() => loadDashboard("custom", dentistId, customFrom, customTo)}
+            >
+              Apply
+            </Button>
+          </>
+        ) : null}
         <div>
           <Label htmlFor="dentist-filter">Dentist</Label>
           {data.practitionerScope.viewAll ? (
@@ -374,6 +544,15 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         >
           Sync status (Portal)
         </a>
+        {data.lastSyncedAt ? (
+          <p className="w-full text-caption text-(--color-text-tertiary)" data-testid="flow-last-synced">
+            Last sync: {new Date(data.lastSyncedAt).toLocaleString("en-GB")}
+          </p>
+        ) : (
+          <p className="w-full text-caption text-(--color-text-tertiary)" data-testid="flow-last-synced">
+            Last sync: never
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -414,7 +593,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </button>
           </div>
           {view === "table" ? (
-            <Button variant="secondary" onClick={() => exportRowsCsv(filteredRows, data.planDisplayName, data.appDisplayName)} data-testid="flow-export-csv">
+            <Button variant="secondary" onClick={() => exportRowsCsv(sortedRows, data.planDisplayName, data.appDisplayName)} data-testid="flow-export-csv">
               Export CSV
             </Button>
           ) : null}
@@ -466,7 +645,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             ) : undefined
           }
         >
-          {filteredRows.length === 0 ? (
+          {sortedRows.length === 0 ? (
             <EmptyState
               title="No patients in this view"
               description="Import cosmetic consults from Dentally or adjust your filters."
@@ -477,17 +656,23 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Dentist</TableHead>
+                    <SortableHead field="patient">Patient</SortableHead>
+                    <SortableHead field="dentist">Dentist</SortableHead>
                     <TableHead>Booked by</TableHead>
-                    <TableHead>Touchpoints</TableHead>
+                    <SortableHead field="touchpoints">Touchpoints</SortableHead>
                     <TableHead>Plan</TableHead>
-                    <TableHead>Consult date</TableHead>
-                    <TableHead className="text-right">Plan value</TableHead>
-                    <TableHead className="text-right">Paid</TableHead>
+                    <SortableHead field="date">Consult date</SortableHead>
+                    <SortableHead field="value" className="text-right">
+                      Plan value
+                    </SortableHead>
+                    <SortableHead field="paid" className="text-right">
+                      Paid
+                    </SortableHead>
                     <TableHead>Progress</TableHead>
-                    <TableHead className="text-right">Days</TableHead>
-                    <TableHead>Status</TableHead>
+                    <SortableHead field="days" className="text-right">
+                      Days
+                    </SortableHead>
+                    <SortableHead field="status">Status</SortableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -510,7 +695,12 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                       <TableCell>{row.bookedBy ?? "—"}</TableCell>
                       <TableCell>{row.touchPoints}</TableCell>
                       <TableCell>{row.planSignedUp ? <Badge variant="success">Signed up</Badge> : "—"}</TableCell>
-                      <TableCell>{row.consultationDate ?? "—"}</TableCell>
+                      <TableCell>
+                        <div>{row.consultationDate ?? "—"}</div>
+                        <div className={`text-caption font-medium ${appointmentStateClass(row.attended, row.appointmentState)}`}>
+                          {appointmentStateLabel(row.attended, row.appointmentState)}
+                        </div>
+                      </TableCell>
                       <TableCellMoney>{formatMoneyGBPOrDash(row.planValuePence)}</TableCellMoney>
                       <TableCellMoney>{formatMoneyGBPOrDash(row.totalPaidPence)}</TableCellMoney>
                       <TableCell>
@@ -539,6 +729,25 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </div>
           )}
         </TablePanel>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-caption text-(--color-text-tertiary)">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-full bg-(--color-success)" />
+            Attended
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-full bg-(--color-success)" />
+            Has Active Plan
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-full bg-(--color-success)" />
+            Deposit Paid
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-full bg-(--color-success)" />
+            Treatment Booked
+          </span>
+        </div>
           </>
         )}
       </div>
@@ -561,6 +770,38 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         }}
         onEdit={(row) => setEditRow(row)}
       />
+
+      <Dialog open={syncLogOpen} onOpenChange={setSyncLogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Sync log</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <div
+              className="max-h-64 overflow-y-auto rounded-(--radius-md) bg-(--color-bg-subtle) p-3 font-mono text-caption"
+              data-testid="flow-sync-log"
+            >
+              {syncLog.length === 0 ? (
+                <p className="text-(--color-text-tertiary)">No sync activity yet.</p>
+              ) : (
+                syncLog.map((line, i) => (
+                  <div key={`${line.at}-${i}`} className="mb-1 last:mb-0">
+                    <span className="text-(--color-text-tertiary)">
+                      {new Date(line.at).toLocaleTimeString("en-GB")}
+                    </span>{" "}
+                    {line.message}
+                  </div>
+                ))
+              )}
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setSyncLogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
