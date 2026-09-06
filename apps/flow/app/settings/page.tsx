@@ -7,7 +7,7 @@ import { FlowSettingsClient } from "./settings-client";
 export default async function FlowSettingsPage() {
   const session = await requirePermission("flow:view");
   const settings = await getFlowSettings(session.practiceId);
-  const canEdit = can({ role: session.role as Role }, "practice:manage");
+  const canEdit = can({ role: session.role as Role }, "flow:edit-settings");
 
   return <FlowSettingsClient initialSettings={settings} canEdit={canEdit} />;
 }

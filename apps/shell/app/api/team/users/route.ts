@@ -6,27 +6,46 @@ import { requireOwnerSession, requireTeamViewSession } from "@/lib/require-owner
 const VALID_ROLES: Role[] = ["OWNER", "ADMIN", "FINANCE", "STAFF", "AUDITOR"];
 
 // GET: list users in the caller's practice (OWNER or ADMIN view-only, per
-// PERMISSIONS_MATRIX.md §2 — server-side enforced).
+// PERMISSIONS_MATRIX.md §2 — server-side enforced). Also returns dentists for
+// optional user↔Dentist.userId linking (Pay STAFF own-payslip scope).
 export async function GET() {
   const session = await requireTeamViewSession();
   if (!session) {
     return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 });
   }
 
-  const users = await prisma.user.findMany({
-    where: { practiceId: session.practiceId, role: { not: "SUPER_ADMIN" } },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      active: true,
-      mfaEnabled: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const [users, dentists] = await Promise.all([
+    prisma.user.findMany({
+      where: { practiceId: session.practiceId, role: { not: "SUPER_ADMIN" } },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        active: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.dentist.findMany({
+      where: { practiceId: session.practiceId },
+      select: { id: true, name: true, userId: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-  return NextResponse.json({ users });
+  const dentistByUserId = new Map<string, { id: string; name: string }>();
+  for (const d of dentists) {
+    if (d.userId) dentistByUserId.set(d.userId, { id: d.id, name: d.name });
+  }
+
+  return NextResponse.json({
+    users: users.map((u) => ({
+      ...u,
+      dentistId: dentistByUserId.get(u.id)?.id ?? null,
+      dentistName: dentistByUserId.get(u.id)?.name ?? null,
+    })),
+    dentists: dentists.map((d) => ({ id: d.id, name: d.name, userId: d.userId })),
+  });
 }
 
 // POST: invite a new user into the caller's practice.

@@ -41,6 +41,20 @@ export default function SettingsPage() {
           <AppearanceSettings />
         </CardContent>
       </Card>
+
+      <Card className="mt-8 border-(--color-border-subtle) shadow-(--shadow-sm)">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle>Audit log</CardTitle>
+            <p className="mt-1 text-body-sm text-(--color-text-secondary)">
+              Practice activity recorded in ElioPlans (invites, settings, plan changes).
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" asChild>
+            <Link href="/plans/audit-log">Open</Link>
+          </Button>
+        </CardHeader>
+      </Card>
     </PageContent>
   );
 }

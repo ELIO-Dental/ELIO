@@ -20,7 +20,8 @@ const LINKS = [
 ];
 
 /**
- * Module-local sub-nav — mirrors apps/pay/components/pay-nav.tsx's pattern.
+ * Module-local sub-nav — mirrors the former apps/pay/components/pay-nav.tsx pattern
+ * (Pay now uses PAY_MODULE_NAV via ModuleAppLayout).
  * All 12 MASTER_BUILD_GUIDE.md §1.7 screens are real links.
  */
 export function PlansNav() {

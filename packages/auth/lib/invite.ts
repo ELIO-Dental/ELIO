@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 import { prisma, type Role } from "@elio/db";
 import { Resend } from "resend";
 
-const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour, same as password reset
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (invite only — password reset stays 1 hour)
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -85,7 +85,7 @@ async function sendInviteEmail(to: string, setUrl: string): Promise<void> {
     from,
     to,
     subject: "You've been invited to ELIO",
-    html: `<p>You've been invited to join your practice's ELIO account. Click the link below to set your password and sign in. This link expires in 1 hour and can only be used once.</p>
+    html: `<p>You've been invited to join your practice's ELIO account. Click the link below to set your password and sign in. This link expires in 7 days and can only be used once.</p>
 <p><a href="${setUrl}">${setUrl}</a></p>
 <p>If you weren't expecting this, you can safely ignore this email.</p>`,
   });

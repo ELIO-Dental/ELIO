@@ -4,7 +4,7 @@ import { scopedDb } from "@elio/db";
 import { formatMoneyGBP } from "@elio/ui";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
-import { increasePlanPrice } from "@/lib/plans-service";
+import { increasePlanPrice, updateGoCardlessSubscriptionsForPriceIncrease } from "@/lib/plans-service";
 import { sendPriceIncreaseEmail } from "@/lib/email";
 import { logPlanEmail } from "@/lib/patient-correspondence";
 
@@ -37,7 +37,14 @@ export async function POST(req: Request, { params }: RouteParams) {
     const oldPriceFormatted = formatMoneyGBP(result.oldMonthlyPricePence);
     const newPriceFormatted = formatMoneyGBP(result.newMonthlyPricePence);
 
-    const errors: string[] = [];
+    // Update any existing GC Subscriptions (legacy / hybrid). Cron createCharge
+    // practices often have none — we only update live ones, never invent success.
+    const gcUpdate = await updateGoCardlessSubscriptionsForPriceIncrease(
+      result.patients,
+      result.newMonthlyPricePence,
+    );
+
+    const errors: string[] = [...gcUpdate.errors];
     let emailsSent = 0;
     for (const patient of result.patients) {
       if (!patient.email) continue;
@@ -81,6 +88,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         newMonthlyPricePence: result.newMonthlyPricePence,
         effectiveDate: result.effectiveDate,
         emailsSent,
+        subscriptionsUpdated: gcUpdate.subscriptionsUpdated,
         totalPatients: result.totalPatients,
       },
     });
@@ -91,7 +99,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       newPlanId: result.newPlanId,
       totalPatients: result.totalPatients,
       emailsSent,
-      subscriptionsUpdated: 0,
+      subscriptionsUpdated: gcUpdate.subscriptionsUpdated,
       errors,
     });
   } catch (e) {

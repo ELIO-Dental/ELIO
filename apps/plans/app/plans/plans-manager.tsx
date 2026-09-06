@@ -141,6 +141,7 @@ export function PlansManager({
     message: string;
     totalPatients: number;
     emailsSent: number;
+    subscriptionsUpdated: number;
     errors: string[];
   } | null>(null);
 
@@ -259,6 +260,7 @@ export function PlansManager({
         message: data.message,
         totalPatients: data.totalPatients,
         emailsSent: data.emailsSent,
+        subscriptionsUpdated: data.subscriptionsUpdated ?? 0,
         errors: data.errors ?? [],
       });
       router.refresh();
@@ -704,6 +706,7 @@ export function PlansManager({
               <ul className="text-body-sm text-(--color-text-secondary)">
                 <li>Patients affected: {priceResult.totalPatients}</li>
                 <li>Emails sent: {priceResult.emailsSent}</li>
+                <li>GoCardless subscriptions updated: {priceResult.subscriptionsUpdated}</li>
               </ul>
               {priceResult.errors.length > 0 && (
                 <ul className="text-caption text-(--color-danger)">

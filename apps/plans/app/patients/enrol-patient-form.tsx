@@ -38,6 +38,7 @@ export function EnrolPatientForm({
   plans,
   parentMembers,
   initialPatientId,
+  highlightFromFlow,
 }: {
   patients: CorePatient[];
   plans: PlanOption[];
@@ -46,6 +47,8 @@ export function EnrolPatientForm({
    * signup" button, APPLICATION_FLOW.md §8/§12 — UI shortcut only, this
    * component still submits through the normal enrolment route). */
   initialPatientId?: string;
+  /** ElioFlow handoff — visually emphasize the enrol form. */
+  highlightFromFlow?: boolean;
 }) {
   const router = useRouter();
   const [patientId, setPatientId] = React.useState<string>(initialPatientId ?? "");
@@ -56,6 +59,12 @@ export function EnrolPatientForm({
   const [signupUrl, setSignupUrl] = React.useState<string | null>(null);
 
   const selectedPlan = plans.find((p) => p.id === planId);
+
+  React.useEffect(() => {
+    if (!highlightFromFlow) return;
+    const el = document.getElementById("enrol-patient-form");
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [highlightFromFlow]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,7 +111,7 @@ export function EnrolPatientForm({
 
   if (patients.length === 0) {
     return (
-      <Card>
+      <Card id="enrol-patient-form">
         <CardHeader>
           <CardTitle>Enrol a patient</CardTitle>
         </CardHeader>
@@ -116,7 +125,10 @@ export function EnrolPatientForm({
   }
 
   return (
-    <Card>
+    <Card
+      id="enrol-patient-form"
+      className={highlightFromFlow ? "ring-2 ring-(--color-info)/50" : undefined}
+    >
       <CardHeader>
         <CardTitle>Enrol a patient</CardTitle>
       </CardHeader>

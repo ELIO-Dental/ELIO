@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { requireMfaComplete } from "@/lib/require-mfa-complete";
 import { Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, PageHeader } from "@elio/ui";
 import { TenantActions } from "./tenant-actions";
+import { TenantUserActions } from "./tenant-user-actions";
 
 const SYNC_STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   SUCCESS: "success",
@@ -132,6 +133,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Impersonate</TableHead>
+                <TableHead>Access</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -153,6 +155,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                           Impersonate
                         </button>
                       </form>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {u.role !== "SUPER_ADMIN" && (
+                      <TenantUserActions practiceId={practice.id} userId={u.id} email={u.email} />
                     )}
                   </TableCell>
                 </TableRow>

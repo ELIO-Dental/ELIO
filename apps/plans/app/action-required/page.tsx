@@ -124,11 +124,16 @@ export default async function ActionRequiredPage() {
 
             {failedPayments.length > 0 && (
               <Card accentColor="var(--color-danger)">
-                <CardHeader className="flex items-center justify-between">
+                <CardHeader className="flex items-center justify-between gap-3">
                   <CardTitle>Failed / charged-back payments ({failedPayments.length})</CardTitle>
-                  <Link href="/payments?status=FAILED">
-                    <Button variant="secondary" size="sm">Review in Payments</Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/payments?status=FAILED">
+                      <Button variant="secondary" size="sm">Review failed</Button>
+                    </Link>
+                    <Link href="/payments?status=CHARGED_BACK">
+                      <Button variant="secondary" size="sm">Charged back</Button>
+                    </Link>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ul className="divide-y divide-(--color-border-subtle)">
@@ -138,7 +143,12 @@ export default async function ActionRequiredPage() {
                         "Unknown patient";
                       return (
                         <li key={p.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
+                          <Link
+                            href={`/patients/${p.planPatientId}`}
+                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
+                          >
+                            {name}
+                          </Link>
                           <Badge variant="danger">{p.status}</Badge>
                         </li>
                       );
@@ -164,7 +174,12 @@ export default async function ActionRequiredPage() {
                         "Unknown patient";
                       return (
                         <li key={r.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
+                          <Link
+                            href={`/patients/${r.planPatientId}`}
+                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
+                          >
+                            {name}
+                          </Link>
                           <span className="text-body-sm text-(--color-text-secondary)">{r.document.title}</span>
                         </li>
                       );

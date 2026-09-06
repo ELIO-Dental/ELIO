@@ -46,7 +46,7 @@ export default async function PatientsPage({
   const canExport = can({ role }, "plans:view-payments") || can({ role }, "plans:view-payments:readonly");
 
   const params = await searchParams;
-  const { q, status, patientId: prefillPatientId } = params;
+  const { q, status, patientId: prefillPatientId, fromFlow } = params;
   const { page, skip, pageSize } = parseTablePage(params);
 
   const where = buildPlanPatientListWhere(practiceId, { q, status });
@@ -90,6 +90,20 @@ export default async function PatientsPage({
     <PageContent>
       <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
 
+      {fromFlow && (
+        <div
+          id="enrol-from-flow"
+          className="mt-6 rounded-(--radius-md) border border-(--color-info)/40 bg-(--color-info-bg) p-4 text-body-sm text-(--color-text-primary)"
+        >
+          <p className="font-medium">Continue enrolment from ElioFlow</p>
+          <p className="mt-1 text-(--color-text-secondary)">
+            {prefillPatientId
+              ? "The patient below is pre-selected — choose a plan and enrol to send their signup link."
+              : "Choose a patient and plan below to start their membership signup."}
+          </p>
+        </div>
+      )}
+
       {canInvite && (
         <div className="mt-8">
           <PatientsDentallyTools
@@ -99,7 +113,7 @@ export default async function PatientsPage({
         </div>
       )}
 
-      <div className={`mt-8 ${canInvite ? "grid gap-6 lg:grid-cols-2" : ""}`}>
+      <div className={`mt-8 ${canInvite ? "grid gap-6 lg:grid-cols-2" : ""}`} id={fromFlow ? "enrol-section" : undefined}>
         {canInvite && (
           <AddPatientForm
             plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
@@ -116,6 +130,7 @@ export default async function PatientsPage({
           plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
           parentMembers={parentMembers}
           initialPatientId={prefillPatientId}
+          highlightFromFlow={Boolean(fromFlow)}
         />
       </div>
 

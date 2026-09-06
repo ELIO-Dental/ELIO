@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
 import { savePaySettings } from "@/lib/pay-settings-service";
 import { errorResponse } from "@/lib/api-error";
+import { storeUploadedFile } from "@/lib/blob-upload";
 
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp"]);
 const MAX_SIZE = 2 * 1024 * 1024;
 
-/** Clinic logo upload — local placeholder URL (legacy Vercel Blob deferred). */
+/** Clinic logo upload — Vercel Blob when token present, else local public/. */
 export async function POST(req: Request) {
   try {
     const session = await requirePermission("practice:manage");
@@ -24,7 +25,13 @@ export async function POST(req: Request) {
     }
 
     const ext = file.name.split(".").pop() || "png";
-    const url = `local://settings/logo/${session.practiceId}/${Date.now()}.${ext}`;
+    const pathname = `settings/logo/${session.practiceId}/logo.${ext}`;
+    const url = await storeUploadedFile({
+      pathname,
+      data: file,
+      contentType: file.type,
+      req,
+    });
     await savePaySettings(session.practiceId, { clinic_logo_url: url });
 
     return NextResponse.json({ ok: true, url });

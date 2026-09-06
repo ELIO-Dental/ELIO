@@ -5,7 +5,8 @@ import { requireOwnerSession } from "@/lib/require-owner";
 
 const VALID_ROLES: Role[] = ["OWNER", "ADMIN", "FINANCE", "STAFF", "AUDITOR"];
 
-// PATCH: change a user's role and/or active (deactivate/reactivate) state.
+// PATCH: change a user's role and/or active (deactivate/reactivate) state,
+// and/or link them to a Dentist row via Dentist.userId.
 // Takes effect immediately — every request re-reads role/active from the DB
 // (config.ts's authorize() and the JWT session both derive from the DB row at
 // sign-in time; downstream module routes that call `can()` per-request also
@@ -46,11 +47,54 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  if (Object.keys(data).length === 0) {
+  let dentistLinkChanged = false;
+  if ("dentistId" in body) {
+    const nextDentistId = body.dentistId === null || body.dentistId === "" ? null : String(body.dentistId);
+
+    if (nextDentistId) {
+      const dentist = await prisma.dentist.findFirst({
+        where: { id: nextDentistId, practiceId: session.practiceId },
+        select: { id: true, userId: true },
+      });
+      if (!dentist) {
+        return NextResponse.json({ error: { code: "DENTIST_NOT_FOUND" } }, { status: 400 });
+      }
+      if (dentist.userId && dentist.userId !== id) {
+        return NextResponse.json({ error: { code: "DENTIST_ALREADY_LINKED" } }, { status: 409 });
+      }
+    }
+
+    const currentlyLinked = await prisma.dentist.findFirst({
+      where: { practiceId: session.practiceId, userId: id },
+      select: { id: true },
+    });
+    const fromId = currentlyLinked?.id ?? null;
+    if (fromId !== nextDentistId) {
+      dentistLinkChanged = true;
+      changes.dentistId = { from: fromId, to: nextDentistId };
+
+      await prisma.$transaction(async (tx) => {
+        // Clear any existing link for this user.
+        await tx.dentist.updateMany({
+          where: { practiceId: session.practiceId, userId: id },
+          data: { userId: null },
+        });
+        if (nextDentistId) {
+          await tx.dentist.update({
+            where: { id: nextDentistId },
+            data: { userId: id },
+          });
+        }
+      });
+    }
+  }
+
+  if (Object.keys(data).length === 0 && !dentistLinkChanged) {
     return NextResponse.json({ ok: true, user: target });
   }
 
-  const updated = await prisma.user.update({ where: { id }, data });
+  const updated =
+    Object.keys(data).length > 0 ? await prisma.user.update({ where: { id }, data }) : target;
 
   await writeAuditLog({
     ...resolveAuditActor(session),

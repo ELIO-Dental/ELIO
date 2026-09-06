@@ -519,6 +519,7 @@ export interface FlowDashboardStats {
   stuck: number;
   totalPlannedPence: number;
   totalPaidPence: number;
+  totalPipelineValuePence: number;
   planSignUps: number;
   conversionRate: number;
 }
@@ -589,8 +590,9 @@ function dashboardStatusLabel(
     if (c.stuckReason === "PRICE_SHOPPING") return { label: "Price Shopping", key: "price-shopping" };
     if (c.stuckReason === "BAD_EXPERIENCE") return { label: "Bad Experience", key: "bad-experience" };
     if (c.stuckReason === "OUT_OF_BUDGET") return { label: "Out of Budget", key: "out-of-budget" };
-    if (c.outcome === "THINKING") return { label: "Thinking", key: "thinking" };
-    return { label: "Stuck", key: "stuck" };
+    // Attended with no conversion / no named stuck reason → still deciding
+    // (legacy "Stuck" filter maps to this key set; default label is Thinking).
+    return { label: "Thinking", key: "thinking" };
   }
   if (c.outcome === "DECLINED") {
     if (c.stuckReason === "FAILED_FINANCE") return { label: "Failed Finance", key: "failed-finance" };
@@ -678,6 +680,10 @@ export async function getFlowDashboard(
     (c) => c.attended === true && !isLegacyConverted(c, settings.paidConversionThresholdPence)
   ).length;
 
+  const totalPipelineValuePence = filtered
+    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcome !== "DECLINED")
+    .reduce((sum, c) => sum + planValuePence(c), 0);
+
   const stats: FlowDashboardStats = {
     totalConsultations: filtered.length,
     attended,
@@ -685,6 +691,7 @@ export async function getFlowDashboard(
     stuck,
     totalPlannedPence: filtered.reduce((sum, c) => sum + planValuePence(c), 0),
     totalPaidPence: filtered.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0),
+    totalPipelineValuePence,
     planSignUps: filtered.filter((c) => c.planSignedUp).length,
     conversionRate: attended > 0 ? Math.round((converted / attended) * 100) : 0,
   };
@@ -734,15 +741,21 @@ export async function getConversionReport(
 ) {
   const db = scopedDb(practiceId);
   const settings = await getFlowSettings(practiceId);
-  const where = dateRange ? { createdAt: { gte: dateRange.from, lte: dateRange.to } } : {};
 
-  const consults = await db.consult.findMany({
+  const allConsults = await db.consult.findMany({
     where: {
-      ...where,
       ...(scope && !scope.viewAll && scope.dentistId ? { practitionerDentistId: scope.dentistId } : {}),
     },
-    include: { practitionerDentist: true },
+    include: { practitionerDentist: true, appointment: true },
   });
+
+  // Same date basis as the dashboard: appointment.startsAt ?? createdAt.
+  const consults = dateRange
+    ? allConsults.filter((c) => {
+        const d = consultDate(c);
+        return d >= dateRange.from && d <= dateRange.to;
+      })
+    : allConsults;
 
   const totalConsultations = consults.length;
   const attended = consults.filter((c) => c.attended === true).length;
@@ -768,7 +781,7 @@ export async function getConversionReport(
     convertedWithDates.length > 0
       ? Math.round(
           convertedWithDates.reduce(
-            (sum, c) => sum + (c.outcomeAt!.getTime() - c.createdAt.getTime()) / 86_400_000,
+            (sum, c) => sum + (c.outcomeAt!.getTime() - consultDate(c).getTime()) / 86_400_000,
             0,
           ) / convertedWithDates.length,
         )

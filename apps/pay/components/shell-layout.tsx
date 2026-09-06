@@ -26,7 +26,7 @@ export function ShellLayout({
     ? PAY_MODULE_NAV.filter((item) => CLINICIAN_NAV_IDS.has(item.id))
     : isOwner
       ? PAY_MODULE_NAV
-      : PAY_MODULE_NAV.filter((item) => item.id !== "settings");
+      : PAY_MODULE_NAV.filter((item) => item.id !== "settings" && item.id !== "setup");
 
   return (
     <ModuleAppLayout

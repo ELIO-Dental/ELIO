@@ -15,7 +15,7 @@ const ALLOWED_TYPES = [
 /** F3.3 — upload logo as base64 data URL (legacy ElioFlow settings, max 1MB). */
 export async function POST(req: Request) {
   try {
-    await requirePermission("practice:manage");
+    await requirePermission("flow:edit-settings");
     const formData = await req.formData();
     const file = formData.get("file");
 

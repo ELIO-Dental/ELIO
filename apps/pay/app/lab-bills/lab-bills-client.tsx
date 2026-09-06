@@ -126,9 +126,11 @@ export function LabBillsClient({
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const amount = Number(form.get("amount"));
     const billDate = String(form.get("billDate") ?? "");
+    const file = form.get("file");
     const body: Record<string, unknown> = {
       amountPence: Math.round(amount * 100),
       description: form.get("description") || null,
@@ -143,16 +145,37 @@ export function LabBillsClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    setSubmitting(false);
     if (!res.ok) {
+      setSubmitting(false);
       const data = await res.json().catch(() => ({}));
       const msg = data.error ?? "Failed to create lab bill";
       setError(msg);
       toast.error(msg);
       return;
     }
+    const data = (await res.json().catch(() => ({}))) as {
+      labBill?: { id: string; labName?: string | null };
+    };
+    const created = data.labBill;
+    if (created?.id && file instanceof File && file.size > 0) {
+      const uploadForm = new FormData();
+      uploadForm.append("file", file);
+      uploadForm.append("labBillId", created.id);
+      uploadForm.append("entity_name", created.labName ?? (formLabName.trim() || "lab"));
+      const uploadRes = await fetch("/pay/api/lab-bills/upload", { method: "POST", body: uploadForm });
+      if (!uploadRes.ok) {
+        setSubmitting(false);
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        const msg = uploadData.error ?? "Lab bill created but file upload failed";
+        setError(msg);
+        toast.error(msg);
+        router.refresh();
+        return;
+      }
+    }
+    setSubmitting(false);
     toast.success("Lab bill added");
-    (e.target as HTMLFormElement).reset();
+    formEl.reset();
     setFormDentistId("__none__");
     setFormSavedLabId("__none__");
     setFormLabName("");
@@ -273,6 +296,10 @@ export function LabBillsClient({
               <div className="sm:col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Input id="description" name="description" placeholder="e.g. Crown - John Smith" />
+              </div>
+              <div>
+                <Label htmlFor="file">Attachment (optional)</Label>
+                <Input id="file" name="file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" />
               </div>
               <div className="sm:col-span-3">
                 {error ? <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p> : null}

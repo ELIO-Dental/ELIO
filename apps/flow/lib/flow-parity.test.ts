@@ -22,6 +22,7 @@ describe("compareFlowDashboardParity", () => {
       stuck: 4,
       totalPlannedPence: 4_500_000,
       totalPaidPence: 800_000,
+      totalPipelineValuePence: 1_200_000,
       planSignUps: 2,
       conversionRate: 38,
     });
@@ -36,6 +37,7 @@ describe("compareFlowDashboardParity", () => {
       stuck: 4,
       totalPlannedPence: 4_500_000,
       totalPaidPence: 800_000,
+      totalPipelineValuePence: 1_200_000,
       planSignUps: 2,
       conversionRate: 38,
     });

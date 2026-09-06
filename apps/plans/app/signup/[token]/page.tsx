@@ -89,8 +89,11 @@ function PublicSignupContent() {
           return;
         }
         setData(body);
-        if (body.hasMandate) setStepIndex(3);
+        // If DD already exists but T&Cs are not signed, force Terms — never
+        // jump straight to Complete and skip acceptance.
+        if (body.hasMandate && body.alreadySigned) setStepIndex(3);
         else if (body.alreadySigned) setStepIndex(2);
+        else if (body.hasMandate) setStepIndex(1);
       })
       .catch(() => setLoadError("Could not reach the server. Check your connection and retry."))
       .finally(() => setLoading(false));
@@ -260,7 +263,7 @@ function SignupSteps({
     return <DetailsStep data={data} onNext={() => setStepIndex(1)} />;
   }
   if (stepIndex === 1) {
-    return <TermsStep token={token} data={data} onNext={() => setStepIndex(2)} />;
+    return <TermsStep token={token} data={data} onNext={() => setStepIndex(data.hasMandate ? 3 : 2)} />;
   }
   if (stepIndex === 2) {
     return <MandateStep token={token} onDone={() => setStepIndex(3)} />;

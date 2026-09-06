@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await requirePermission("practice:manage");
+    const session = await requirePermission("flow:edit-settings");
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const settings = await saveFlowSettings(session.practiceId, body);
     await writeAuditLog({

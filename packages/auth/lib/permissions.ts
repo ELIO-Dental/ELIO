@@ -45,10 +45,12 @@ const PLANS_PERMISSIONS: Record<Role, string[]> = {
 };
 
 // ElioFlow permissions (PERMISSIONS_MATRIX.md section 5).
+// flow:edit-settings mirrors plans:edit-settings — OWNER + ADMIN (not practice:manage,
+// which is OWNER-only and would lock Admins out of Flow branding / thresholds).
 const FLOW_PERMISSIONS: Record<Role, string[]> = {
   SUPER_ADMIN: [],
-  OWNER: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff"],
-  ADMIN: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff"],
+  OWNER: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff", "flow:edit-settings"],
+  ADMIN: ["flow:view", "flow:view-all-patients", "flow:capture-enquiry", "flow:trigger-handoff", "flow:edit-settings"],
   FINANCE: ["flow:view:readonly", "flow:view-all-patients"],
   STAFF: ["flow:view", "flow:capture-enquiry", "flow:trigger-handoff"],
   AUDITOR: ["flow:view:readonly", "flow:view-all-patients"],

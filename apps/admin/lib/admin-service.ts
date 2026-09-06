@@ -8,8 +8,13 @@
 import { prisma, type ModuleId } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 
-export async function listTenants(opts?: { skip?: number; take?: number }) {
+export async function listTenants(opts?: { skip?: number; take?: number; q?: string }) {
+  const q = opts?.q?.trim();
+  const where = q
+    ? { name: { contains: q, mode: "insensitive" as const } }
+    : undefined;
   const practices = await prisma.practice.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
       licences: true,
@@ -20,8 +25,12 @@ export async function listTenants(opts?: { skip?: number; take?: number }) {
   return practices;
 }
 
-export async function countTenants() {
-  return prisma.practice.count();
+export async function countTenants(opts?: { q?: string }) {
+  const q = opts?.q?.trim();
+  const where = q
+    ? { name: { contains: q, mode: "insensitive" as const } }
+    : undefined;
+  return prisma.practice.count({ where });
 }
 
 export async function getTenantStats() {

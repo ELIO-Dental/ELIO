@@ -133,9 +133,11 @@ export function SupplierInvoicesClient({
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const amount = Number(form.get("amount"));
     const invoiceDate = String(form.get("invoiceDate") ?? "");
+    const file = form.get("file");
     const body: Record<string, unknown> = {
       amountPence: Math.round(amount * 100),
       description: form.get("description") || null,
@@ -150,16 +152,41 @@ export function SupplierInvoicesClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    setSubmitting(false);
     if (!res.ok) {
+      setSubmitting(false);
       const data = await res.json().catch(() => ({}));
       const msg = data.error ?? "Failed to create supplier invoice";
       setError(msg);
       toast.error(msg);
       return;
     }
+    const data = (await res.json().catch(() => ({}))) as {
+      supplierInvoice?: { id: string; supplierName?: string | null };
+    };
+    const created = data.supplierInvoice;
+    if (created?.id && file instanceof File && file.size > 0) {
+      const selectedSupplier = suppliers.find((s) => s.id === formSupplierId);
+      const uploadForm = new FormData();
+      uploadForm.append("file", file);
+      uploadForm.append("supplierInvoiceId", created.id);
+      uploadForm.append("entity_name", selectedSupplier?.name ?? "supplier");
+      const uploadRes = await fetch("/pay/api/supplier-invoices/upload", {
+        method: "POST",
+        body: uploadForm,
+      });
+      if (!uploadRes.ok) {
+        setSubmitting(false);
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        const msg = uploadData.error ?? "Invoice created but file upload failed";
+        setError(msg);
+        toast.error(msg);
+        router.refresh();
+        return;
+      }
+    }
+    setSubmitting(false);
     toast.success("Supplier invoice added");
-    (e.target as HTMLFormElement).reset();
+    formEl.reset();
     setFormSupplierId(NO_SUPPLIER);
     setFormDentistId(NO_DENTIST);
     router.refresh();
@@ -290,6 +317,10 @@ export function SupplierInvoicesClient({
               <div className="sm:col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Input id="description" name="description" placeholder="e.g. Dental supplies order" />
+              </div>
+              <div>
+                <Label htmlFor="file">Attachment (optional)</Label>
+                <Input id="file" name="file" type="file" accept=".pdf,image/jpeg,image/png,image/webp" />
               </div>
               <div className="sm:col-span-3">
                 {error ? <p className="mb-2 text-body-sm text-(--color-danger)">{error}</p> : null}

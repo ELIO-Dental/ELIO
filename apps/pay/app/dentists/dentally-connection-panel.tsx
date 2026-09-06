@@ -43,8 +43,11 @@ export function DentallyConnectionPanel() {
           <div>
             <p className="text-sm font-medium text-(--color-text-primary)">Dentally practitioner IDs</p>
             <p className="mt-1 text-xs text-(--color-text-secondary)">
-              Each dentist needs a Dentally practitioner ID for invoice fetch attribution. Use bulk import on Setup or
-              edit IDs below.
+              Each dentist needs a Dentally practitioner ID for invoice fetch attribution. Use bulk import on{" "}
+              <a href="/pay/setup" className="font-medium text-(--color-brand) underline-offset-2 hover:underline">
+                Setup
+              </a>{" "}
+              or edit IDs below.
             </p>
           </div>
           <Button size="sm" variant="outline" onClick={() => void checkConnection()} disabled={loading}>

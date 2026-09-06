@@ -1,9 +1,8 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { NextResponse } from "next/server";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
 import { updateSupplierInvoice } from "@/lib/pay-service";
 import { errorResponse } from "@/lib/api-error";
+import { storeUploadedFile } from "@/lib/blob-upload";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
@@ -12,7 +11,7 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/webp": "webp",
 };
 
-/** Supplier invoice file upload — writes under public/supplier-invoices. */
+/** Supplier invoice file upload — Vercel Blob when token present, else public/supplier-invoices. */
 export async function POST(req: Request) {
   try {
     const session = await requirePermission("pay:edit-bills");
@@ -37,16 +36,13 @@ export async function POST(req: Request) {
       .replace(/[^a-zA-Z0-9]/g, "_")
       .slice(0, 30);
     const filename = `${safeName}.${ext}`;
-    const relDir = path.join("supplier-invoices", session.practiceId, supplierInvoiceId);
-    const publicDir = path.join(process.cwd(), "public", relDir);
-    await mkdir(publicDir, { recursive: true });
-    const buf = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(publicDir, filename), buf);
-
-    // App basePath is /pay — store absolute URL so PDF links are clickable.
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3001";
-    const proto = req.headers.get("x-forwarded-proto") ?? "http";
-    const fileUrl = `${proto}://${host}/pay/${relDir.replace(/\\/g, "/")}/${filename}`;
+    const pathname = `supplier-invoices/${session.practiceId}/${supplierInvoiceId}/${filename}`;
+    const fileUrl = await storeUploadedFile({
+      pathname,
+      data: file,
+      contentType: file.type,
+      req,
+    });
 
     const supplierInvoice = await updateSupplierInvoice(session.practiceId, supplierInvoiceId, {
       fileUrl,

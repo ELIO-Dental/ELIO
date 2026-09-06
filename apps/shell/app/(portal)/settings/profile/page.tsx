@@ -52,7 +52,6 @@ export default async function ProfileSettingsPage() {
       email: true,
       displayName: true,
       role: true,
-      mfaEnabled: true,
       createdAt: true,
       practice: { select: { name: true } },
     },
@@ -87,12 +86,6 @@ export default async function ProfileSettingsPage() {
                     <dt className="text-caption font-medium text-(--color-text-tertiary)">Role</dt>
                     <dd>
                       <Badge variant="neutral">{roleLabel(role)}</Badge>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-caption font-medium text-(--color-text-tertiary)">Two-factor auth</dt>
-                    <dd>
-                      <Badge variant={user.mfaEnabled ? "success" : "neutral"}>{user.mfaEnabled ? "Enabled" : "Not enabled"}</Badge>
                     </dd>
                   </div>
                   <div>

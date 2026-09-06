@@ -6,9 +6,11 @@ import {
   sendPatientInviteEmail,
   sendTermsSigningEmail,
   sendDdSetupEmail,
+  sendPaymentFailedEmail,
 } from "./email";
 import { logPlanEmail } from "./patient-correspondence";
 import { BadRequestError } from "./api-error";
+import { getAllPlanSettings, SettingKeys } from "./plans-settings";
 import {
   idempotentCreate,
   billingPeriodFromDate,
@@ -32,12 +34,16 @@ import {
   listPaymentsByChargeDate,
   listCustomersByEmail,
   listMandatesForCustomer,
+  listSubscriptionsForMandate,
+  findReusableSubscription,
+  updateSubscriptionAmount,
   cancelMandate,
   mapMandateStatus,
   mapPaymentStatus,
   verifyWebhookSignature,
   classifyGcMandatePollStatus,
 } from "@elio/plans-engine";
+import { formatMoneyGBP } from "@elio/ui";
 
 // Deliberately duck-typed on `.code` rather than `instanceof
 // Prisma.PrismaClientKnownRequestError`: confirmed live (real Playwright e2e
@@ -381,8 +387,44 @@ export async function increasePlanPrice(
       email: e.planPatient.patient.email,
       firstName: e.planPatient.patient.firstName,
       lastName: e.planPatient.patient.lastName,
+      gocardlessMandateId: e.planPatient.mandates[0]?.gocardlessMandateId ?? null,
     })),
   };
+}
+
+/**
+ * Update live GoCardless Subscription amounts for patients on a price increase.
+ * Billing model note: most practices use payment-page + cron `createCharge`
+ * (no GC Subscription). This only updates subscriptions that already exist —
+ * it never creates them. Returns how many were updated vs skipped/failed.
+ */
+export async function updateGoCardlessSubscriptionsForPriceIncrease(
+  patients: Array<{
+    firstName: string | null;
+    lastName: string | null;
+    gocardlessMandateId: string | null;
+  }>,
+  newMonthlyPricePence: number,
+): Promise<{ subscriptionsUpdated: number; errors: string[] }> {
+  let subscriptionsUpdated = 0;
+  const errors: string[] = [];
+
+  for (const patient of patients) {
+    if (!patient.gocardlessMandateId) continue;
+    const name = [patient.firstName, patient.lastName].filter(Boolean).join(" ") || "Member";
+    try {
+      const existing = await listSubscriptionsForMandate(patient.gocardlessMandateId);
+      const live = findReusableSubscription(existing);
+      if (!live?.id) continue;
+      await updateSubscriptionAmount(String(live.id), newMonthlyPricePence);
+      subscriptionsUpdated++;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`Failed to update subscription for ${name}: ${message}`);
+    }
+  }
+
+  return { subscriptionsUpdated, errors };
 }
 
 // ---------------------------------------------------------------------------
@@ -1275,14 +1317,92 @@ async function handleBillingRequestEvent(action: string, billingRequestId: strin
   await recordMandateAndActivate(planPatient.practiceId, planPatientId, gocardlessMandateId);
 }
 
+/**
+ * Port of OLD ElioPlans `handleNewMandateFromGoCardless`: when a mandate
+ * arrives via payment-page / GoCardless before we have a local row, match the
+ * GC customer email to a PlanPatient and record + activate.
+ *
+ * Billing model: do NOT create a GoCardless Subscription here. Recurring
+ * charges are created by `/api/cron/create-charges` via `createCharge`.
+ * Creating a GC Subscription on link would double-charge alongside the cron.
+ */
+async function handleNewMandateFromGoCardless(gocardlessMandateId: string, action: string) {
+  try {
+    const gcMandate = await getMandate(gocardlessMandateId);
+    const customerId = gcMandate?.links?.customer as string | undefined;
+    if (!customerId) {
+      console.log(`[GoCardless Webhook] No customer linked to mandate: ${gocardlessMandateId}`);
+      return;
+    }
+
+    const gcCustomer = await getCustomer(customerId);
+    const customerEmail = typeof gcCustomer?.email === "string" ? gcCustomer.email.trim() : "";
+    if (!customerEmail) {
+      console.log(`[GoCardless Webhook] No email for customer: ${customerId}`);
+      return;
+    }
+
+    const planPatient = await prisma.planPatient.findFirst({
+      where: {
+        patient: { email: { equals: customerEmail, mode: "insensitive" } },
+        mandates: { none: { status: "ACTIVE" } },
+        OR: [{ status: { in: ["INVITED", "SIGNED", "ACTIVE", "PAUSED"] } }, { patientPlans: { some: { status: { in: ["PENDING", "ACTIVE"] } } } }],
+      },
+      include: {
+        planModel: { select: { monthlyPricePence: true } },
+        patientPlans: {
+          where: { status: { in: ["PENDING", "ACTIVE"] } },
+          take: 1,
+          include: { plan: { select: { monthlyPricePence: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!planPatient) {
+      console.log(`[GoCardless Webhook] No matching PlanPatient for email: ${customerEmail}`);
+      return;
+    }
+
+    const monthlyPricePence =
+      planPatient.planModel?.monthlyPricePence ??
+      planPatient.patientPlans[0]?.plan.monthlyPricePence ??
+      0;
+    if (monthlyPricePence <= 0 && !planPatient.patientPlans[0] && !planPatient.planModel) {
+      console.log(`[GoCardless Webhook] PlanPatient ${planPatient.id} has no plan — skipping auto-link`);
+      return;
+    }
+
+    await recordMandateAndActivate(planPatient.practiceId, planPatient.id, gocardlessMandateId);
+    console.log(
+      `[GoCardless Webhook] Auto-linked mandate ${gocardlessMandateId} to PlanPatient ${planPatient.id} (${customerEmail}) action=${action}`,
+    );
+  } catch (err) {
+    console.error(`[GoCardless Webhook] Auto-link failed for mandate ${gocardlessMandateId}:`, err);
+  }
+}
+
 async function handleMandateEvent(action: string, gocardlessMandateId: string) {
-  const mandate = await prisma.planMandate.findUnique({
+  let mandate = await prisma.planMandate.findUnique({
     where: { gocardlessMandateId },
     include: { planPatient: true },
   });
+
+  // Payment-page flow: GoCardless may notify before our redirect/callback
+  // recorded the mandate — match by customer email (OLD handleNewMandateFromGoCardless).
   if (!mandate) {
-    console.log(`[GoCardless Webhook] Mandate not in DB: ${gocardlessMandateId} — no local match, skipping`);
-    return;
+    console.log(`[GoCardless Webhook] Mandate not in DB: ${gocardlessMandateId}, attempting auto-link...`);
+    if (action === "created" || action === "active") {
+      await handleNewMandateFromGoCardless(gocardlessMandateId, action);
+      mandate = await prisma.planMandate.findUnique({
+        where: { gocardlessMandateId },
+        include: { planPatient: true },
+      });
+    }
+    if (!mandate) {
+      console.log(`[GoCardless Webhook] Mandate not in DB: ${gocardlessMandateId} — no local match, skipping`);
+      return;
+    }
   }
 
   const newStatus = mapMandateStatus(action === "active" ? "active" : action) as
@@ -1348,7 +1468,56 @@ async function handlePaymentEvent(action: string, gocardlessPaymentId: string, d
 
   if (action === "failed" && payment.planPatientId) {
     await db.planPatient.update({ where: { id: payment.planPatientId }, data: { status: "PAUSED" } });
+    await notifyPaymentFailed(payment.practiceId, payment.planPatientId, payment.amountPence).catch((err) =>
+      console.error(`[GoCardless Webhook] payment failed email error:`, err),
+    );
   }
+}
+
+async function notifyPaymentFailed(practiceId: string, planPatientId: string, amountPence: number) {
+  const db = scopedDb(practiceId);
+  const planPatient = await db.planPatient.findUnique({
+    where: { id: planPatientId },
+    include: { patient: true, planModel: true },
+  });
+  if (!planPatient?.patient.email) return;
+
+  const settings = await getAllPlanSettings(practiceId);
+  const practice = await db.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
+  const practiceName = practice?.name ?? settings[SettingKeys.PRACTICE_NAME] ?? "your practice";
+  const retryDay = parseInt(settings[SettingKeys.GOCARDLESS_RETRY_DAY] || "11", 10);
+  const retryDate = new Date();
+  retryDate.setDate(retryDate.getDate() + Math.max(retryDay - 1, 1));
+  const retryDateFormatted = retryDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const patientName =
+    [planPatient.patient.firstName, planPatient.patient.lastName].filter(Boolean).join(" ") || "there";
+  const planName = planPatient.planModel?.name ?? "membership plan";
+  const supportEmail = settings[SettingKeys.PRACTICE_SUPPORT_EMAIL] || undefined;
+
+  const result = await sendPaymentFailedEmail({
+    to: planPatient.patient.email,
+    patientName,
+    planName,
+    practiceName,
+    amountFormatted: formatMoneyGBP(amountPence),
+    retryDateFormatted,
+    supportEmail,
+  });
+
+  await logPlanEmail({
+    practiceId,
+    planPatientId,
+    to: planPatient.patient.email,
+    subject: `Payment failed — ${planName} — ${practiceName}`,
+    type: "payment_failed",
+    status: result.success ? "sent" : "failed",
+    messageId: result.messageId ?? null,
+    error: result.error ?? null,
+  }).catch((e) => console.error("[plans] failed to log payment_failed email:", e));
 }
 
 /**
@@ -1437,8 +1606,12 @@ async function handleSubscriptionEvent(action: string, gocardlessSubscriptionId:
 }
 
 // ---------------------------------------------------------------------------
-// Cron: signup subscription helper (used by the mandate-active auto-link path
-// and by the /api/cron/reconcile-payments route's own callers where needed).
+// GoCardless Subscription helper — NOT used by link/check-gc / payment-page
+// auto-link. Current billing model is payment-page + cron `createCharge`
+// (`/api/cron/create-charges`). Calling ensureSubscription on those paths
+// would create a GC Subscription that charges in parallel with the cron
+// (double-charge risk). Kept for any practice that deliberately uses native
+// GC Subscriptions instead of the cron.
 // ---------------------------------------------------------------------------
 
 export async function ensureSubscription(
@@ -1909,7 +2082,7 @@ export async function discoverAndLinkGoCardlessMandate(practiceId: string, planP
   const db = scopedDb(practiceId);
   const planPatient = await db.planPatient.findUnique({
     where: { id: planPatientId },
-    include: { patient: true, planModel: true },
+    include: { patient: true },
   });
   if (!planPatient) throw new Error("Plan patient not found");
 
@@ -1933,23 +2106,13 @@ export async function discoverAndLinkGoCardlessMandate(practiceId: string, planP
         continue;
       }
 
+      // Billing model: record mandate + activate only. Do NOT create a GC
+      // Subscription — cron createCharge owns recurring charges.
       await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
       linked++;
 
       if (status === "active") {
         await activatePlanMembershipAfterMandate(practiceId, planPatientId);
-        if (planPatient.planModel && planPatient.planModel.monthlyPricePence > 0) {
-          try {
-            await ensureSubscription(
-              gocardlessMandateId,
-              planPatient.planModel.monthlyPricePence,
-              planPatient.planModel.name,
-            );
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            errors.push(`Subscription for ${gocardlessMandateId}: ${message}`);
-          }
-        }
       }
     }
   }
@@ -1962,7 +2125,6 @@ export async function linkPlanPatientMandate(practiceId: string, planPatientId: 
   const db = scopedDb(practiceId);
   const planPatient = await db.planPatient.findUnique({
     where: { id: planPatientId },
-    include: { planModel: true },
   });
   if (!planPatient) throw new Error("Plan patient not found");
 
@@ -1971,13 +2133,12 @@ export async function linkPlanPatientMandate(practiceId: string, planPatientId: 
     throw new Error("This mandate is already linked to another patient");
   }
 
+  // Billing model: record mandate + activate only. Do NOT create a GC
+  // Subscription — cron createCharge owns recurring charges (avoids double-charge).
   const mandate = await recordMandate(practiceId, { planPatientId, gocardlessMandateId });
   const gcMandate = await getMandate(gocardlessMandateId);
   if (gcMandate?.status === "active") {
     await activatePlanMembershipAfterMandate(practiceId, planPatientId);
-    if (planPatient.planModel && planPatient.planModel.monthlyPricePence > 0) {
-      await ensureSubscription(gocardlessMandateId, planPatient.planModel.monthlyPricePence, planPatient.planModel.name);
-    }
   }
   return mandate;
 }

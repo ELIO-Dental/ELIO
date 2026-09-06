@@ -11,7 +11,6 @@ import {
   Label,
   Skeleton,
   useSkeleton,
-  Switch,
   Badge,
   EmptyState,
   Table,
@@ -35,16 +34,24 @@ import { Users } from "lucide-react";
 
 type Role = "OWNER" | "ADMIN" | "FINANCE" | "STAFF" | "AUDITOR";
 
+interface TeamDentist {
+  id: string;
+  name: string;
+  userId: string | null;
+}
+
 interface TeamUser {
   id: string;
   email: string;
   role: Role;
   active: boolean;
-  mfaEnabled: boolean;
   createdAt: string;
+  dentistId: string | null;
+  dentistName: string | null;
 }
 
 const ROLES: Role[] = ["OWNER", "ADMIN", "FINANCE", "STAFF", "AUDITOR"];
+const NONE_DENTIST = "__none__";
 
 const ROLE_ACCESS: { role: Role; summary: string; can: string; cannot: string }[] = [
   {
@@ -106,11 +113,11 @@ function RoleAccessBanner() {
   );
 }
 
-async function fetchUsers(): Promise<TeamUser[]> {
+async function fetchTeam(): Promise<{ users: TeamUser[]; dentists: TeamDentist[] }> {
   const res = await fetch("/api/team/users");
   if (!res.ok) throw new Error(`Failed to load users (${res.status})`);
   const data = await res.json();
-  return data.users;
+  return { users: data.users, dentists: data.dentists ?? [] };
 }
 
 export function TeamClient({
@@ -127,7 +134,10 @@ export function TeamClient({
    * this is UX only, not the actual security boundary. */
   canManage: boolean;
 }) {
+  void initialRequireMfaForAllStaff;
+
   const [users, setUsers] = React.useState<TeamUser[] | null>(null);
+  const [dentists, setDentists] = React.useState<TeamDentist[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const showSkeleton = useSkeleton(loading);
@@ -137,32 +147,24 @@ export function TeamClient({
   const [inviting, setInviting] = React.useState(false);
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
-  const [mfaToggle, setMfaToggle] = React.useState(initialRequireMfaForAllStaff);
-  const [mfaPending, setMfaPending] = React.useState(false);
-
-  // F.4 Final QA (2026-08-29): the effect below used to call a shared
-  // `load()` helper that itself called setLoading(true)/setError(null)
-  // synchronously before its first await — eslint(react-hooks/
-  // set-state-in-effect) correctly flags synchronous setState reachable
-  // from an effect's body, even through an intermediate function call, once
-  // this app's genuinely-broken ESLint config (see eslint.config.mjs's own
-  // comment) actually ran for the first time. `refetch` (used by
-  // handleInvite's event handler, where synchronous setState is fine) keeps
-  // the old eager behavior; the effect instead only calls the plain async
-  // fetch and defers its OWN state updates to a microtask via `.then()`,
-  // which the rule doesn't flag (only synchronous-in-body calls are).
   const refetch = React.useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchUsers()
-      .then((u) => setUsers(u))
+    fetchTeam()
+      .then(({ users: u, dentists: d }) => {
+        setUsers(u);
+        setDentists(d);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   React.useEffect(() => {
-    fetchUsers()
-      .then((u) => setUsers(u))
+    fetchTeam()
+      .then(({ users: u, dentists: d }) => {
+        setUsers(u);
+        setDentists(d);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -195,10 +197,27 @@ export function TeamClient({
     }
   }
 
-  async function updateUser(id: string, patch: { role?: Role; active?: boolean }) {
-    const prev = users;
+  async function updateUser(id: string, patch: { role?: Role; active?: boolean; dentistId?: string | null }) {
+    const prevUsers = users;
+    const prevDentists = dentists;
     setUpdatingId(id);
-    setUsers((u) => u?.map((x) => (x.id === id ? { ...x, ...patch } : x)) ?? u);
+
+    if (patch.role !== undefined || patch.active !== undefined) {
+      setUsers((u) => u?.map((x) => (x.id === id ? { ...x, ...patch } : x)) ?? u);
+    }
+    if ("dentistId" in patch) {
+      const nextId = patch.dentistId ?? null;
+      const nextName = nextId ? dentists.find((d) => d.id === nextId)?.name ?? null : null;
+      setUsers((u) => u?.map((x) => (x.id === id ? { ...x, dentistId: nextId, dentistName: nextName } : x)) ?? u);
+      setDentists((ds) =>
+        ds.map((d) => {
+          if (d.userId === id) return { ...d, userId: null };
+          if (nextId && d.id === nextId) return { ...d, userId: id };
+          return d;
+        })
+      );
+    }
+
     try {
       const res = await fetch(`/api/team/users/${id}`, {
         method: "PATCH",
@@ -206,8 +225,20 @@ export function TeamClient({
         body: JSON.stringify(patch),
       });
       if (!res.ok) {
-        setUsers(prev);
-        toast.error(patch.active === false ? "Could not deactivate user." : patch.active === true ? "Could not reactivate user." : "Could not update role.");
+        setUsers(prevUsers);
+        setDentists(prevDentists);
+        const data = await res.json().catch(() => ({}));
+        const msg =
+          data?.error?.code === "DENTIST_ALREADY_LINKED"
+            ? "That dentist is already linked to another user."
+            : patch.active === false
+              ? "Could not deactivate user."
+              : patch.active === true
+                ? "Could not reactivate user."
+                : "dentistId" in patch
+                  ? "Could not link dentist."
+                  : "Could not update role.";
+        toast.error(msg);
         return;
       }
       toast.success(
@@ -217,31 +248,18 @@ export function TeamClient({
             ? "User deactivated."
             : patch.active === true
               ? "User reactivated."
-              : "User updated."
+              : "dentistId" in patch
+                ? "Dentist link updated."
+                : "User updated."
       );
     } catch {
-      setUsers(prev);
+      setUsers(prevUsers);
+      setDentists(prevDentists);
       toast.error("Could not update user.");
     } finally {
       setUpdatingId(null);
     }
   }
-
-  async function toggleMfa(enabled: boolean) {
-    setMfaPending(true);
-    const prev = mfaToggle;
-    setMfaToggle(enabled);
-    const res = await fetch("/api/team/mfa-toggle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled }),
-    });
-    if (!res.ok) setMfaToggle(prev);
-    setMfaPending(false);
-  }
-  void mfaToggle;
-  void mfaPending;
-  void toggleMfa;
 
   return (
     <div className="mt-8 space-y-6">
@@ -286,32 +304,6 @@ export function TeamClient({
         </Card>
       )}
 
-      {/* PORTAL MFA SKIPPED — re-enable with docs/reference/PORTAL_MFA_SKIPPED.md
-      {canManage && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Security</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-body font-medium text-(--color-text-primary)">Require MFA for all staff</p>
-                <p className="text-body-sm text-(--color-text-secondary)">
-                  Enforced on next login for anyone without MFA configured.
-                </p>
-              </div>
-              <Switch
-                checked={mfaToggle}
-                pending={mfaPending}
-                onCheckedChange={toggleMfa}
-                data-testid="mfa-toggle"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      */}
-
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
@@ -335,6 +327,7 @@ export function TeamClient({
           ) : (
             <TeamUsersTable
               users={users}
+              dentists={dentists}
               canManage={canManage}
               currentUserId={currentUserId}
               updatingId={updatingId}
@@ -350,6 +343,7 @@ export function TeamClient({
 
 function TeamUsersTable({
   users,
+  dentists,
   canManage,
   currentUserId,
   updatingId,
@@ -357,13 +351,18 @@ function TeamUsersTable({
   onRefresh,
 }: {
   users: TeamUser[];
+  dentists: TeamDentist[];
   canManage: boolean;
   currentUserId: string;
   updatingId: string | null;
-  onUpdate: (id: string, patch: { role?: Role; active?: boolean }) => void;
+  onUpdate: (id: string, patch: { role?: Role; active?: boolean; dentistId?: string | null }) => void;
   onRefresh: () => void;
 }) {
   const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(users, 25);
+
+  function dentistOptionsFor(user: TeamUser): TeamDentist[] {
+    return dentists.filter((d) => !d.userId || d.userId === user.id);
+  }
 
   return (
     <TablePanel
@@ -379,7 +378,7 @@ function TeamUsersTable({
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>MFA</TableHead>
+            <TableHead>Dentist</TableHead>
             <TableHead>Status</TableHead>
             {canManage && <TableHead>Deactivate</TableHead>}
           </TableRow>
@@ -411,7 +410,27 @@ function TeamUsersTable({
                 )}
               </TableCell>
               <TableCell>
-                <Badge variant={u.mfaEnabled ? "success" : "neutral"}>{u.mfaEnabled ? "Enabled" : "Not set up"}</Badge>
+                {canManage ? (
+                  <Select
+                    value={u.dentistId ?? NONE_DENTIST}
+                    onValueChange={(v) => onUpdate(u.id, { dentistId: v === NONE_DENTIST ? null : v })}
+                    disabled={updatingId === u.id}
+                  >
+                    <SelectTrigger className="h-8 w-44" data-testid={`dentist-select-${u.email}`}>
+                      <SelectValue placeholder="Not linked" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE_DENTIST}>Not linked</SelectItem>
+                      {dentistOptionsFor(u).map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  u.dentistName ?? "—"
+                )}
               </TableCell>
               <TableCell>
                 <Badge variant={u.active ? "success" : "danger"}>{u.active ? "Active" : "Deactivated"}</Badge>

@@ -561,6 +561,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         <FlowStatCard label="Converted" value={data.stats.converted} />
         <FlowStatCard label="Stuck" value={data.stats.stuck} />
         <FlowStatCard label="Total planned" value={data.stats.totalPlannedPence} money />
+        <FlowStatCard label="Pipeline value" value={data.stats.totalPipelineValuePence} money />
         <FlowStatCard label="Total paid" value={data.stats.totalPaidPence} money />
         <FlowStatCard label={`${data.planDisplayName} sign-ups`} value={data.stats.planSignUps} />
         <FlowStatCard label="Conversion" value={data.stats.conversionRate} suffix="%" />

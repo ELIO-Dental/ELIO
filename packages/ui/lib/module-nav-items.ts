@@ -11,6 +11,7 @@ import {
   ScrollText,
   UserCog,
   Settings,
+  Wrench,
   Link2,
   BookOpen,
   FlaskConical,
@@ -34,6 +35,7 @@ export const PAY_MODULE_NAV: ModuleNavLink[] = [
   { id: "pay-periods", label: "Pay Periods", href: "/pay-periods", icon: Calendar },
   { id: "legacy-payslips", label: "Legacy Archive", href: "/legacy-payslips", icon: Archive },
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
+  { id: "setup", label: "Setup", href: "/setup", icon: Wrench },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -150,6 +150,45 @@ export async function sendTermsSigningEmail(input: {
   return { success: true, messageId: result.data?.id };
 }
 
+export async function sendPaymentFailedEmail(input: {
+  to: string;
+  patientName: string;
+  planName: string;
+  practiceName: string;
+  amountFormatted: string;
+  retryDateFormatted: string;
+  supportEmail?: string;
+}): Promise<EmailSendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
+  const subject = `Payment failed — ${input.planName} — ${input.practiceName}`;
+  const support = input.supportEmail?.trim();
+
+  if (!input.to) return { success: false, error: "No recipient email" };
+
+  if (!apiKey) {
+    console.warn(`[plans] RESEND_API_KEY not set — payment failed email for ${input.to} not sent`);
+    return { success: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from,
+    to: input.to,
+    subject,
+    html: `<p>Hi ${input.patientName},</p>
+<p>We were unable to collect your payment of <strong>${input.amountFormatted}</strong> for your <strong>${input.planName}</strong> membership at ${input.practiceName}.</p>
+<p>We will automatically retry this payment on <strong>${input.retryDateFormatted}</strong>. Please ensure sufficient funds are available in your account.</p>
+${support ? `<p>If you have any questions or need to update your payment details, please contact us at <a href="mailto:${support}">${support}</a>.</p>` : `<p>If you have any questions, please contact the practice.</p>`}`,
+  });
+  if (result.error) {
+    console.error(`[plans] payment failed email to ${input.to} failed:`, result.error);
+    return { success: false, error: result.error.message };
+  }
+  console.log(`[plans] payment failed email sent to ${input.to}, id=${result.data?.id}`);
+  return { success: true, messageId: result.data?.id };
+}
+
 export async function sendDdSetupEmail(input: {
   to: string;
   patientName: string;

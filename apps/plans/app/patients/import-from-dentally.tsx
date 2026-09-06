@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Badge,
@@ -181,7 +180,8 @@ export function ImportFromDentally({
           <div className="rounded-(--radius-md) border border-(--color-warning)/40 bg-(--color-warning-subtle) p-3 text-body-sm text-(--color-text-primary)">
             <p>Dentally is not configured. Add your API key in Portal → Settings → Integrations.</p>
             <Button variant="secondary" size="sm" className="mt-3" asChild>
-              <Link href="/settings/integrations">Go to Integrations</Link>
+              {/* Absolute shell path — Next Link would prefix /plans */}
+              <a href="/settings/integrations">Go to Integrations</a>
             </Button>
           </div>
         )}

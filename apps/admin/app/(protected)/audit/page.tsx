@@ -17,6 +17,7 @@ import {
 import { ScrollText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { requireMfaComplete } from "@/lib/require-mfa-complete";
+import { AuditMetadataCell } from "./audit-metadata-cell";
 
 /** Super-admin audit browser — unscoped AuditLog across all practices. */
 export default async function AdminAuditPage({
@@ -32,7 +33,10 @@ export default async function AdminAuditPage({
   const { page, skip, pageSize } = parseTablePage(await searchParams);
   const [logs, totalCount] = await Promise.all([
     prisma.auditLog.findMany({
-      include: { actor: { select: { email: true } } },
+      include: {
+        actor: { select: { email: true } },
+        practice: { select: { name: true } },
+      },
       orderBy: { createdAt: "desc" },
       skip,
       take: pageSize,
@@ -69,6 +73,7 @@ export default async function AdminAuditPage({
                 <TableHead>Practice</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Target</TableHead>
+                <TableHead>Metadata</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -78,13 +83,25 @@ export default async function AdminAuditPage({
                     {log.createdAt.toISOString().replace("T", " ").slice(0, 19)}
                   </TableCell>
                   <TableCell>{log.actor?.email ?? "—"}</TableCell>
-                  <TableCell className="font-(--font-mono) text-body-sm text-(--color-text-secondary)">
-                    {log.practiceId ?? "—"}
+                  <TableCell>
+                    {log.practice?.name ? (
+                      <span className="text-body-sm text-(--color-text-primary)">{log.practice.name}</span>
+                    ) : (
+                      <span className="text-(--color-text-tertiary)">—</span>
+                    )}
+                    {log.practiceId && (
+                      <span className="mt-0.5 block font-(--font-mono) text-caption text-(--color-text-tertiary)">
+                        {log.practiceId}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="font-(--font-mono) text-body-sm">{log.action}</TableCell>
                   <TableCell className="text-(--color-text-secondary)">
                     {log.targetType}
                     <span className="ml-1 text-(--color-text-tertiary)">{log.targetId}</span>
+                  </TableCell>
+                  <TableCell>
+                    <AuditMetadataCell metadata={log.metadata} />
                   </TableCell>
                 </TableRow>
               ))}

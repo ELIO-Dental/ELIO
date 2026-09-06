@@ -150,6 +150,9 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
           <CardTitle>Feature flags</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-body-sm text-(--color-text-secondary)" data-testid="feature-flags-note">
+            Flags are stored; module gates pending — toggling here persists to the database but does not yet gate product behaviour.
+          </p>
           {flagState.length === 0 && <p className="text-body-sm text-(--color-text-secondary)">No feature flags defined yet.</p>}
           {flagState.map((f) => (
             <div key={f.id} className="flex items-center justify-between">
