@@ -921,7 +921,7 @@ export interface SavePayslipEntryInput {
   labDeductionPence?: number;
   superannuationPence?: number;
   therapyMinutes?: number;
-  therapyRatePerMinute?: number;
+  therapyRatePerMinute?: number | null;
   manualAdjustmentsPence?: number;
   adjustmentReason?: string | null;
   hoursWorked?: number;
