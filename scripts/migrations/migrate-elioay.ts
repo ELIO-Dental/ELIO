@@ -213,8 +213,22 @@ async function main() {
           amountPence: centsToStructuredPence(Number(lb.amount))!,
           description: lb.description ? String(lb.description) : null,
           fileUrl: lb.file_url ? String(lb.file_url) : null,
-          billDate: lb.date ? new Date(String(lb.date)) : null,
-          paid: lb.paid === 1 || lb.paid === true,
+          billDate: (() => {
+            const year = Number(lb.year);
+            const month = Number(lb.month);
+            if (Number.isFinite(year) && year > 2000 && Number.isFinite(month) && month >= 1 && month <= 12) {
+              let day = 1;
+              const dateStr = lb.date != null ? String(lb.date) : "";
+              const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+              if (m) {
+                const d = Number(m[3]);
+                if (d >= 1 && d <= 31) day = d;
+              }
+              return new Date(Date.UTC(year, month - 1, day));
+            }
+            return lb.date ? new Date(String(lb.date)) : null;
+          })(),
+          paid: lb.paid === 1 || lb.paid === true || lb.paid === "1",
           paidAt: lb.paid_date ? new Date(String(lb.paid_date)) : null,
         },
       });
@@ -250,8 +264,22 @@ async function main() {
           amountPence: centsToStructuredPence(Number(si.amount))!,
           description: si.description ? String(si.description) : null,
           invoiceNumber: si.invoice_number ? String(si.invoice_number) : null,
-          invoiceDate: si.date ? new Date(String(si.date)) : null,
-          paid: si.paid === 1 || si.paid === true,
+          invoiceDate: (() => {
+            const year = Number(si.year);
+            const month = Number(si.month);
+            if (Number.isFinite(year) && year > 2000 && Number.isFinite(month) && month >= 1 && month <= 12) {
+              let day = 1;
+              const dateStr = si.date != null ? String(si.date) : "";
+              const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+              if (m) {
+                const d = Number(m[3]);
+                if (d >= 1 && d <= 31) day = d;
+              }
+              return new Date(Date.UTC(year, month - 1, day));
+            }
+            return si.date ? new Date(String(si.date)) : null;
+          })(),
+          paid: si.paid === 1 || si.paid === true || si.paid === "1",
           paidAt: si.paid_date ? new Date(String(si.paid_date)) : null,
           fileUrl: si.file_url ? String(si.file_url) : null,
         },
