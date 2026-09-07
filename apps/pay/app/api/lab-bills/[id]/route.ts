@@ -49,18 +49,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const labBill = await updateLabBill(session.practiceId, id, {
-      dentistId: (body.dentistId ?? body.dentist_id) as string | null | undefined,
-      savedLabId: body.savedLabId as string | null | undefined,
-      labName: (body.labName ?? body.lab_name) as string | null | undefined,
+      dentistId:
+        "dentistId" in body
+          ? ((body.dentistId as string | null) ?? null)
+          : "dentist_id" in body
+            ? ((body.dentist_id as string | null) ?? null)
+            : undefined,
+      savedLabId:
+        "savedLabId" in body ? ((body.savedLabId as string | null) ?? null) : undefined,
+      labName:
+        "labName" in body
+          ? ((body.labName as string | null) ?? null)
+          : "lab_name" in body
+            ? ((body.lab_name as string | null) ?? null)
+            : undefined,
       amountPence:
         body.amountPence != null
           ? Number(body.amountPence)
           : body.amount != null
             ? Math.round(Number(body.amount) * 100)
             : undefined,
-      description: body.description as string | null | undefined,
-      fileUrl: (body.fileUrl ?? body.file_url) as string | null | undefined,
-      billDate: (body.billDate ?? body.date) as string | null | undefined,
+      description:
+        "description" in body ? ((body.description as string | null) ?? null) : undefined,
+      fileUrl:
+        "fileUrl" in body
+          ? ((body.fileUrl as string | null) ?? null)
+          : "file_url" in body
+            ? ((body.file_url as string | null) ?? null)
+            : undefined,
+      billDate:
+        "billDate" in body
+          ? ((body.billDate as string | null) ?? null)
+          : "date" in body
+            ? ((body.date as string | null) ?? null)
+            : undefined,
     });
     await recordPayAudit(session, {
       action: "pay.lab_bill.updated",
