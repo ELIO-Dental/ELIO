@@ -5,17 +5,17 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
 /** Legacy quick actions row (P3.3). */
 export function DashboardQuickActions() {
   const actions = [
-    {
-      href: "/patients",
+      {
+      href: "/patients?openEnrol=1",
       icon: Users,
       title: "Add patient",
       description: "Enrol or import from Dentally",
     },
     {
-      href: "/patients",
+      href: "/patients?status=INVITED",
       icon: CreditCard,
       title: "Send invite",
-      description: "Invite to sign up",
+      description: "Invite pending patients",
     },
     {
       href: "/payments?status=FAILED",

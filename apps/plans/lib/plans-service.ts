@@ -967,7 +967,11 @@ export async function listRedeems(practiceId: string, status?: string) {
   const db = scopedDb(practiceId);
   return db.planRedeem.findMany({
     where: { ...(status ? { status: status as "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "PARTIALLY_EARNED" } : {}) },
-    include: { planPatient: { include: { patient: true } }, redeemRule: true },
+    include: {
+      planPatient: { include: { patient: true } },
+      redeemRule: true,
+      patientPlanEnrolment: { include: { plan: { select: { name: true } } } },
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
@@ -1480,7 +1484,7 @@ async function notifyPaymentFailed(practiceId: string, planPatientId: string, am
     where: { id: planPatientId },
     include: { patient: true, planModel: true },
   });
-  if (!planPatient?.patient.email) return;
+  if (!planPatient?.patient.email) return { success: false as const, error: "No patient email" };
 
   const settings = await getAllPlanSettings(practiceId);
   const practice = await db.practice.findUnique({ where: { id: practiceId }, select: { name: true } });
@@ -1518,6 +1522,19 @@ async function notifyPaymentFailed(practiceId: string, planPatientId: string, am
     messageId: result.messageId ?? null,
     error: result.error ?? null,
   }).catch((e) => console.error("[plans] failed to log payment_failed email:", e));
+
+  return result;
+}
+
+/** Ops “Notify” on failed payment row — reuses webhook failure email. */
+export async function resendPaymentFailedNotification(practiceId: string, paymentId: string) {
+  const db = scopedDb(practiceId);
+  const payment = await db.planPayment.findFirst({
+    where: { id: paymentId, practiceId },
+  });
+  if (!payment) throw new BadRequestError("Payment not found");
+  if (payment.status !== "FAILED") throw new BadRequestError("Only failed payments can be notified");
+  return notifyPaymentFailed(practiceId, payment.planPatientId, payment.amountPence);
 }
 
 /**

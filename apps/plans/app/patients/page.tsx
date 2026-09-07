@@ -18,10 +18,10 @@ import {
   parseTablePage,
 } from "@elio/ui";
 import { FilterBar } from "@/components/filter-bar";
-import { EnrolPatientForm } from "./enrol-patient-form";
-import { AddPatientForm } from "./add-patient-form";
 import { PatientsDentallyTools } from "./patients-dentally-tools";
 import { PatientsListToolbar } from "./patients-list-toolbar";
+import { PatientsEnrolSection } from "./patients-enrol-section";
+import { PatientRowActions } from "./patient-row-actions";
 import { buildPlanPatientListWhere, derivePatientDisplayStatus } from "@/lib/patient-list-filters";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
@@ -36,7 +36,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; patientId?: string; fromFlow?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; patientId?: string; fromFlow?: string; page?: string; openEnrol?: string }>;
 }) {
   const session = await requireLicensedSession();
   const practiceId = session.practiceId;
@@ -46,7 +46,7 @@ export default async function PatientsPage({
   const canExport = can({ role }, "plans:view-payments") || can({ role }, "plans:view-payments:readonly");
 
   const params = await searchParams;
-  const { q, status, patientId: prefillPatientId, fromFlow } = params;
+  const { q, status, patientId: prefillPatientId, fromFlow, openEnrol } = params;
   const { page, skip, pageSize } = parseTablePage(params);
 
   const where = buildPlanPatientListWhere(practiceId, { q, status });
@@ -85,6 +85,7 @@ export default async function PatientsPage({
 
   const enrolledIds = new Set(enrolledPatientIds.map((p) => p.patientId));
   const unenrolledPatients = corePatients.filter((p) => !enrolledIds.has(p.id));
+  const planOptions = plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }));
 
   return (
     <PageContent>
@@ -105,34 +106,27 @@ export default async function PatientsPage({
       )}
 
       {canInvite && (
-        <div className="mt-8">
-          <PatientsDentallyTools
-            plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
-            parentMembers={parentMembers}
-          />
+        <div className="mt-6">
+          <PatientsDentallyTools plans={planOptions} parentMembers={parentMembers} />
         </div>
       )}
 
-      <div className={`mt-8 ${canInvite ? "grid gap-6 lg:grid-cols-2" : ""}`} id={fromFlow ? "enrol-section" : undefined}>
-        {canInvite && (
-          <AddPatientForm
-            plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
-            parentMembers={parentMembers}
-          />
-        )}
-        <EnrolPatientForm
-          patients={unenrolledPatients.map((p) => ({
+      {(canInvite || unenrolledPatients.length > 0) && (
+        <PatientsEnrolSection
+          canInvite={canInvite}
+          plans={planOptions}
+          parentMembers={parentMembers}
+          unenrolledPatients={unenrolledPatients.map((p) => ({
             id: p.id,
             firstName: p.firstName,
             lastName: p.lastName,
             email: p.email,
           }))}
-          plans={plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }))}
-          parentMembers={parentMembers}
           initialPatientId={prefillPatientId}
-          highlightFromFlow={Boolean(fromFlow)}
+          fromFlow={Boolean(fromFlow)}
+          openEnrol={openEnrol === "1" || openEnrol === "true"}
         />
-      </div>
+      )}
 
       <div className="mt-8">
         <TablePanel
@@ -145,7 +139,11 @@ export default async function PatientsPage({
           footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
         >
           {planPatients.length === 0 ? (
-            <EmptyState title="No patients match" description="Enrol a patient above, or clear your filters." className="py-12" />
+            <EmptyState
+              title="No patients match"
+              description="Use Add / Enrol patient above, or clear your filters."
+              className="py-12"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -156,6 +154,7 @@ export default async function PatientsPage({
                   <TableHead>Status</TableHead>
                   <TableHead>T&amp;Cs</TableHead>
                   <TableHead>Joined</TableHead>
+                  {canInvite ? <TableHead className="text-right">Actions</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -191,6 +190,15 @@ export default async function PatientsPage({
                       </TableCell>
                       <TableCell>{pp.documentAcceptances.length > 0 ? "Signed" : "—"}</TableCell>
                       <TableCell>{pp.createdAt.toLocaleDateString("en-GB")}</TableCell>
+                      {canInvite ? (
+                        <TableCell className="text-right">
+                          <PatientRowActions
+                            planPatientId={pp.id}
+                            status={displayStatus}
+                            hasEmail={Boolean(pp.patient.email?.trim())}
+                          />
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}

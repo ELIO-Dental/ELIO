@@ -64,7 +64,9 @@ export default async function DashboardPage() {
         }
         actions={
           <Link href="/patients">
-            <Button variant="primary">Enrol a patient</Button>
+            <Button variant="primary">
+              Add a new patient
+            </Button>
           </Link>
         }
       />

@@ -56,6 +56,27 @@ export default async function ActionRequiredPage() {
         actions={totalCount > 0 ? <Badge variant="danger">{totalCount} item(s)</Badge> : undefined}
       />
 
+      {totalCount > 0 ? (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="px-4 py-3">
+            <p className="text-2xl font-bold tabular-nums">{pendingRedeems.length}</p>
+            <p className="text-caption text-(--color-text-secondary)">Pending redeems</p>
+          </Card>
+          <Card className="px-4 py-3">
+            <p className="text-2xl font-bold tabular-nums">{failedPayments.length}</p>
+            <p className="text-caption text-(--color-text-secondary)">Failed payments</p>
+          </Card>
+          <Card className="px-4 py-3">
+            <p className="text-2xl font-bold tabular-nums">{invitedPatients.length}</p>
+            <p className="text-caption text-(--color-text-secondary)">Invited</p>
+          </Card>
+          <Card className="px-4 py-3">
+            <p className="text-2xl font-bold tabular-nums">{unsignedRequests.length}</p>
+            <p className="text-caption text-(--color-text-secondary)">Unsigned docs</p>
+          </Card>
+        </div>
+      ) : null}
+
         {totalCount === 0 ? (
           <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
             <ActionRequiredEmptyState

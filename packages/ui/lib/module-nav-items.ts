@@ -42,17 +42,17 @@ export const PAY_MODULE_NAV: ModuleNavLink[] = [
 export const PLANS_MODULE_NAV: ModuleNavLink[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { id: "patients", label: "Patients", href: "/patients", icon: Users },
-  { id: "dentally", label: "Dentally", href: "/dentally", icon: Link2 },
   { id: "plans", label: "Plans", href: "/plans", icon: HeartHandshake },
+  { id: "redeems", label: "Redeems", href: "/redeems", icon: Gift },
   { id: "payments", label: "Payments", href: "/payments", icon: CreditCard },
   { id: "reconciliation", label: "Reconciliation", href: "/reconciliation", icon: Scale },
-  { id: "redeems", label: "Redeems", href: "/redeems", icon: Gift },
-  { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
+  { id: "dentally", label: "Dentally", href: "/dentally", icon: Link2 },
   { id: "documents", label: "Documents", href: "/documents", icon: FileText },
-  { id: "guide", label: "Guide", href: "/guide", icon: BookOpen },
+  { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
   { id: "action-required", label: "Action Required", href: "/action-required", icon: AlertCircle },
-  { id: "audit-log", label: "Audit Log", href: "/audit-log", icon: ScrollText },
+  { id: "guide", label: "Guide", href: "/guide", icon: BookOpen },
   { id: "users", label: "Users", href: "/users", icon: UserCog },
+  { id: "audit-log", label: "Audit Log", href: "/audit-log", icon: ScrollText },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 

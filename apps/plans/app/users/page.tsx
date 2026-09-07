@@ -11,7 +11,15 @@ export default async function UsersPage() {
     <PageContent>
       <PageHeader
         title="Users"
-        description="Everyone with access to your practice. User accounts are shared across every ELIO module — changes here apply everywhere, not just Plans."
+        description={
+          <>
+            Practice roster for Plans. Invite or create users in{" "}
+            <a href="/settings/team" className="font-medium text-(--color-primary-fg) hover:underline">
+              ELIO Portal → Team
+            </a>
+            ; here you can view roles and active status.
+          </>
+        }
       />
 
       <div className="mt-8">

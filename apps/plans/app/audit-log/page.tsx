@@ -81,11 +81,18 @@ export default async function AuditLogPage({
                   <TableHead>Module</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Target</TableHead>
+                  <TableHead>Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => {
                   const mod = moduleForAction(log.action);
+                  const details =
+                    log.metadata != null
+                      ? typeof log.metadata === "string"
+                        ? log.metadata
+                        : JSON.stringify(log.metadata)
+                      : null;
                   return (
                     <TableRow key={log.id}>
                       <TableCell className="text-(--color-text-tertiary)">
@@ -99,6 +106,9 @@ export default async function AuditLogPage({
                       <TableCell className="text-(--color-text-secondary)">
                         {log.targetType}
                         <span className="ml-1 text-(--color-text-tertiary)">{log.targetId}</span>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-caption text-(--color-text-tertiary)" title={details ?? undefined}>
+                        {details ?? "—"}
                       </TableCell>
                     </TableRow>
                   );

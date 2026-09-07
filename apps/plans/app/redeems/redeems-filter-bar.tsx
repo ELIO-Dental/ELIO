@@ -8,6 +8,7 @@ const STATUS_OPTIONS = [
   { value: "PENDING_APPROVAL", label: "Pending approval" },
   { value: "APPROVED", label: "Approved" },
   { value: "REJECTED", label: "Rejected" },
+  { value: "PARTIALLY_EARNED", label: "Partial" },
 ] as const;
 
 /** Status filter for Redeems — URL-driven so action-required deep links work. */
