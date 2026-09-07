@@ -10,6 +10,7 @@ import {
   type PayslipAdjustment,
   type PayslipLabBill,
 } from "@/lib/payslip-editable-fields";
+import { DEFAULT_THERAPY_RATE_PER_MINUTE } from "@/lib/private-revenue";
 
 function penceToPounds(pence: number | null): string {
   if (pence == null) return "";
@@ -19,6 +20,12 @@ function penceToPounds(pence: number | null): string {
 function poundsToNumber(value: string): number {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** AuraPay always shows a rate (default £0.5833/min = £35/hr). */
+function displayTherapyRate(value: number | null): string {
+  if (value != null && value > 0) return String(value);
+  return String(DEFAULT_THERAPY_RATE_PER_MINUTE);
 }
 
 interface FormSnapshot {
@@ -69,9 +76,7 @@ export function PayslipEditableFields({
 }) {
   const router = useRouter();
   const [therapyMins, setTherapyMins] = useState(therapyMinutes?.toString() ?? "");
-  const [therapyRate, setTherapyRate] = useState(
-    therapyRatePerMinute != null ? therapyRatePerMinute.toString() : ""
-  );
+  const [therapyRate, setTherapyRate] = useState(displayTherapyRate(therapyRatePerMinute));
   const [superannuation, setSuperannuation] = useState(penceToPounds(superannuationPence));
   const [grossPrivate, setGrossPrivate] = useState(penceToPounds(grossPrivateRevenuePence));
   const [financeFees, setFinanceFees] = useState(penceToPounds(financeFeesPence));
@@ -123,7 +128,7 @@ export function PayslipEditableFields({
       return;
     }
     setTherapyMins(therapyMinutes?.toString() ?? "");
-    setTherapyRate(therapyRatePerMinute != null ? therapyRatePerMinute.toString() : "");
+    setTherapyRate(displayTherapyRate(therapyRatePerMinute));
     setSuperannuation(penceToPounds(superannuationPence));
     setGrossPrivate(penceToPounds(grossPrivateRevenuePence));
     setFinanceFees(penceToPounds(financeFeesPence));
@@ -144,9 +149,13 @@ export function PayslipEditableFields({
     adjustmentsJson,
   ]);
 
-  if (locked) return null;
+  const fieldDisabled = locked;
+  const grossFinanceLocked = locked || hasPatientLines;
+  const inputClass =
+    "w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30 disabled:bg-(--color-surface-dim) disabled:text-(--color-text-secondary)";
 
   const save = async () => {
+    if (locked) return;
     pushUndo();
     setPending(true);
     setError(null);
@@ -155,7 +164,8 @@ export function PayslipEditableFields({
       const body: Record<string, unknown> = {
         payslipEntryId,
         therapy_minutes: therapyMins ? Number(therapyMins) : 0,
-        therapy_rate: therapyRate.trim() !== "" ? Number(therapyRate) : null,
+        therapy_rate:
+          therapyRate.trim() !== "" ? Number(therapyRate) : DEFAULT_THERAPY_RATE_PER_MINUTE,
         superannuation_deduction: poundsToNumber(superannuation),
         lab_bills: labBills.filter((b) => b.amount > 0 || b.lab_name.trim()),
         adjustments: adjustments
@@ -208,56 +218,83 @@ export function PayslipEditableFields({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">
-            Editable figures
+            Payslip figures
           </h4>
           <p className="mt-0.5 text-caption text-(--color-text-tertiary)">
-            Therapy, superannuation, lab bills, and manual adjustments while the period is in draft
+            {locked
+              ? "Period finalized — figures are read-only"
+              : "Gross, finance, therapy, lab bills, and adjustments"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {undoStack.length > 0 ? (
-            <Button type="button" size="sm" variant="outline" onClick={undo} data-testid="payslip-undo">
-              <Undo2 className="size-3" />
-              Undo ({undoStack.length})
+        {!locked ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {undoStack.length > 0 ? (
+              <Button type="button" size="sm" variant="outline" onClick={undo} data-testid="payslip-undo">
+                <Undo2 className="size-3" />
+                Undo ({undoStack.length})
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
+              <Save className="size-3" />
+              Save
             </Button>
-          ) : null}
-          <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
-            <Save className="size-3" />
-            Save changes
-          </Button>
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {error ? <p className="mb-3 text-caption text-(--color-danger)">{error}</p> : null}
       {message ? <p className="mb-3 text-caption text-(--color-success)">{message}</p> : null}
 
       <div className="space-y-5">
-        {!hasPatientLines ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Gross private income (£)</label>
+        {/* AuraPay: always show Gross + Finance (disabled when from patients / locked) */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+              Gross Private Income
+              {hasPatientLines ? (
+                <span className="ml-1 text-[10px] text-(--color-text-tertiary)">(from patients)</span>
+              ) : null}
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-(--color-text-tertiary)">
+                £
+              </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={grossPrivate}
                 onChange={(e) => setGrossPrivate(e.target.value)}
-                className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+                disabled={grossFinanceLocked}
+                className={`${inputClass} pl-7`}
+                data-testid="payslip-gross-private"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Finance fees total (£)</label>
+          </div>
+          <div>
+            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+              Finance Fees Total
+              {hasPatientLines ? (
+                <span className="ml-1 text-[10px] text-(--color-text-tertiary)">(from patients)</span>
+              ) : null}
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-(--color-text-tertiary)">
+                £
+              </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={financeFees}
                 onChange={(e) => setFinanceFees(e.target.value)}
-                className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+                disabled={grossFinanceLocked}
+                className={`${inputClass} pl-7`}
+                data-testid="payslip-finance-fees"
               />
             </div>
           </div>
-        ) : null}
+        </div>
 
         {isNhs ? (
           <div className="max-w-xs">
@@ -267,7 +304,8 @@ export function PayslipEditableFields({
               step="0.01"
               value={nhsUdas}
               onChange={(e) => setNhsUdas(e.target.value)}
-              className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+              disabled={fieldDisabled}
+              className={inputClass}
             />
           </div>
         ) : null}
@@ -275,7 +313,7 @@ export function PayslipEditableFields({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
-              Therapy minutes (manual each month)
+              Therapy Minutes
             </label>
             <input
               type="number"
@@ -283,39 +321,61 @@ export function PayslipEditableFields({
               value={therapyMins}
               onChange={(e) => setTherapyMins(e.target.value)}
               placeholder="0"
-              className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+              disabled={fieldDisabled}
+              className={inputClass}
+              data-testid="payslip-therapy-minutes"
             />
           </div>
           <div>
             <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
-              Rate per minute (£) — blank uses £35/hr
+              Rate per Minute
             </label>
-            <input
-              type="number"
-              step="0.0001"
-              min="0"
-              value={therapyRate}
-              onChange={(e) => setTherapyRate(e.target.value)}
-              className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-(--color-text-tertiary)">
+                £
+              </span>
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={therapyRate}
+                onChange={(e) => setTherapyRate(e.target.value)}
+                disabled={fieldDisabled}
+                className={`${inputClass} pl-7`}
+                data-testid="payslip-therapy-rate"
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-(--color-text-tertiary)">
+              Default £{DEFAULT_THERAPY_RATE_PER_MINUTE}/min (£35/hr)
+            </p>
           </div>
         </div>
 
         <div className="max-w-xs">
-          <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">Superannuation deduction (£)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={superannuation}
-            onChange={(e) => setSuperannuation(e.target.value)}
-            className="w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
-          />
+          <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+            Superannuation Deduction
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-(--color-text-tertiary)">
+              £
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={superannuation}
+              onChange={(e) => setSuperannuation(e.target.value)}
+              disabled={fieldDisabled}
+              className={`${inputClass} pl-7`}
+              data-testid="payslip-superannuation"
+            />
+          </div>
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">Lab bills</label>
+            {!locked ? (
             <button
               type="button"
               className="flex items-center gap-1 text-caption font-medium text-(--color-brand)"
@@ -326,6 +386,7 @@ export function PayslipEditableFields({
             >
               <Plus className="size-3" /> Add lab bill
             </button>
+            ) : null}
           </div>
           {labBills.length === 0 ? (
             <p className="text-caption text-(--color-text-tertiary) italic">No lab bills added</p>
@@ -337,12 +398,13 @@ export function PayslipEditableFields({
                     type="text"
                     placeholder="Lab name"
                     value={bill.lab_name}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const next = [...labBills];
                       next[i] = { ...bill, lab_name: e.target.value };
                       setLabBills(next);
                     }}
-                    className="min-w-32 flex-1 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                    className={`min-w-32 flex-1 ${inputClass}`}
                   />
                   <input
                     type="number"
@@ -350,24 +412,27 @@ export function PayslipEditableFields({
                     min="0"
                     placeholder="Amount"
                     value={bill.amount || ""}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const next = [...labBills];
                       next[i] = { ...bill, amount: poundsToNumber(e.target.value) };
                       setLabBills(next);
                     }}
-                    className="w-28 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                    className={`w-28 ${inputClass}`}
                   />
                   <input
                     type="url"
                     placeholder="Bill link (URL)"
                     value={bill.file_url ?? ""}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const next = [...labBills];
                       next[i] = { ...bill, file_url: e.target.value || undefined };
                       setLabBills(next);
                     }}
-                    className="min-w-40 flex-1 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                    className={`min-w-40 flex-1 ${inputClass}`}
                   />
+                  {!locked ? (
                   <label className="cursor-pointer rounded-(--radius-md) border border-(--color-border-subtle) px-2 py-2 text-caption text-(--color-brand) hover:bg-(--color-surface-dim)">
                     Upload
                     <input
@@ -405,6 +470,7 @@ export function PayslipEditableFields({
                       }}
                     />
                   </label>
+                  ) : null}
                   {bill.file_url ? (
                     <a
                       href={bill.file_url}
@@ -415,6 +481,7 @@ export function PayslipEditableFields({
                       Open
                     </a>
                   ) : null}
+                  {!locked ? (
                   <button
                     type="button"
                     className="text-(--color-danger)"
@@ -426,13 +493,14 @@ export function PayslipEditableFields({
                   >
                     <Trash2 className="size-4" />
                   </button>
+                  ) : null}
                 </div>
               ))}
             </div>
           )}
           {hasPatientLines ? (
             <p className="mt-1 text-caption text-(--color-text-tertiary)">
-              Gross private and finance fees are derived from patient lines above.
+              Gross private and finance fees are derived from private patient lines.
             </p>
           ) : null}
         </div>
@@ -442,6 +510,7 @@ export function PayslipEditableFields({
             <label className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">
               Manual adjustments
             </label>
+            {!locked ? (
             <button
               type="button"
               className="flex items-center gap-1 text-caption font-medium text-(--color-brand)"
@@ -455,6 +524,7 @@ export function PayslipEditableFields({
             >
               <Plus className="size-3" /> Add adjustment
             </button>
+            ) : null}
           </div>
           {adjustments.length === 0 ? (
             <p className="text-caption text-(--color-text-tertiary) italic">No adjustments</p>
@@ -467,21 +537,23 @@ export function PayslipEditableFields({
                     placeholder="Note (required)"
                     required
                     value={adj.description}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const next = [...adjustments];
                       next[i] = { ...adj, description: e.target.value };
                       setAdjustments(next);
                     }}
-                    className="min-w-32 flex-1 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                    className={`min-w-32 flex-1 ${inputClass}`}
                   />
                   <select
                     value={adj.type}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const next = [...adjustments];
                       next[i] = { ...adj, type: e.target.value as PayslipAdjustment["type"] };
                       setAdjustments(next);
                     }}
-                    className="rounded-(--radius-md) border border-(--color-border-subtle) px-2 py-2 text-body-sm"
+                    className={inputClass}
                   >
                     <option value="deduction">Deduction (−)</option>
                     <option value="addition">Addition (+)</option>
@@ -492,6 +564,7 @@ export function PayslipEditableFields({
                     min="0.01"
                     placeholder="£"
                     value={adj.amount || ""}
+                    disabled={fieldDisabled}
                     onChange={(e) => {
                       const pounds = poundsToNumber(e.target.value);
                       const next = [...adjustments];
@@ -502,8 +575,9 @@ export function PayslipEditableFields({
                       };
                       setAdjustments(next);
                     }}
-                    className="w-28 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+                    className={`w-28 ${inputClass}`}
                   />
+                  {!locked ? (
                   <button
                     type="button"
                     className="text-(--color-danger)"
@@ -514,6 +588,7 @@ export function PayslipEditableFields({
                   >
                     <Trash2 className="size-4" />
                   </button>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -526,8 +601,9 @@ export function PayslipEditableFields({
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            disabled={fieldDisabled}
             placeholder="Any notes for this payslip..."
-            className="w-full resize-none rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm outline-none focus:ring-2 focus:ring-(--color-brand)/30"
+            className={`${inputClass} resize-none`}
           />
         </div>
       </div>

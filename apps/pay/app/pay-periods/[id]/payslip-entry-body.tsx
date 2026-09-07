@@ -185,6 +185,27 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           labBillsJson={p.labBillsJson}
         />
       ) : null}
+      {/* AuraPay order: income fields (gross/finance/therapy rate/super) before patients */}
+      {p.payType === "PERCENTAGE_SPLIT" || p.payType === "HOURLY" ? (
+        <PayslipEditableFields
+          payPeriodId={p.payPeriodId}
+          payslipEntryId={p.payslipEntryId}
+          locked={p.locked}
+          isNhs={Boolean(p.isNhs)}
+          hasPatientLines={p.privateRevenueLineItems.length > 0}
+          udas={p.udas != null ? formatDecimalLabel(p.udas) : null}
+          therapyMinutes={p.therapyMinutes}
+          therapyRatePerMinute={p.therapyRatePerMinute}
+          superannuationPence={p.superannuationPence}
+          grossPrivateRevenuePence={p.grossPrivateRevenuePence}
+          financeFeesPence={
+            p.privateRevenueLineItems.reduce((sum, line) => sum + (line.financeFeePence ?? 0), 0) || null
+          }
+          adjustmentReason={p.adjustmentReason}
+          labBillsJson={p.labBillsJson}
+          adjustmentsJson={p.adjustmentsJson}
+        />
+      ) : null}
       <TablePanel>
         <Table>
           <TableHeader>
@@ -235,27 +256,36 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
                   </TableCellMoney>
                 </TableRow>
                 <TableRow>
+                  <TableCell>Therapy minutes</TableCell>
+                  <TableCellMoney>{p.therapyMinutes ?? 0}</TableCellMoney>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Rate per minute</TableCell>
+                  <TableCellMoney>
+                    £
+                    {(p.therapyRatePerMinute != null && p.therapyRatePerMinute > 0
+                      ? p.therapyRatePerMinute
+                      : 0.5833
+                    ).toFixed(4)}
+                  </TableCellMoney>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    Therapy deduction
+                    {p.therapyMinutes != null && p.therapyMinutes > 0
+                      ? ` (${p.therapyMinutes} mins)`
+                      : ""}
+                  </TableCell>
+                  <TableCellMoney>
+                    -{formatMoneyGBPOrDash(
+                      therapyDeductionPence(p.therapyMinutes, p.therapyRatePerMinute, p.therapyHourlyPence)
+                    )}
+                  </TableCellMoney>
+                </TableRow>
+                <TableRow>
                   <TableCell>Superannuation</TableCell>
                   <TableCellMoney>-{formatMoneyGBPOrDash(p.superannuationPence)}</TableCellMoney>
                 </TableRow>
-                {p.therapyMinutes != null && p.therapyMinutes > 0 ? (
-                  <TableRow>
-                    <TableCell>
-                      Therapy ({p.therapyMinutes} mins
-                      {p.therapyRatePerMinute != null && p.therapyRatePerMinute > 0
-                        ? ` @ £${p.therapyRatePerMinute.toFixed(4)}/min`
-                        : p.therapyHourlyPence != null && p.therapyHourlyPence > 0
-                          ? ` @ £${(p.therapyHourlyPence / 100).toFixed(2)}/hr`
-                          : " @ £35/hr default"}
-                      )
-                    </TableCell>
-                    <TableCellMoney>
-                      -{formatMoneyGBPOrDash(
-                        therapyDeductionPence(p.therapyMinutes, p.therapyRatePerMinute, p.therapyHourlyPence)
-                      )}
-                    </TableCellMoney>
-                  </TableRow>
-                ) : null}
               </>
             ) : (
               <>
@@ -284,26 +314,6 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           </TableBody>
         </Table>
       </TablePanel>
-      {p.payType === "PERCENTAGE_SPLIT" || p.payType === "HOURLY" ? (
-        <PayslipEditableFields
-          payPeriodId={p.payPeriodId}
-          payslipEntryId={p.payslipEntryId}
-          locked={p.locked}
-          isNhs={Boolean(p.isNhs)}
-          hasPatientLines={p.privateRevenueLineItems.length > 0}
-          udas={p.udas != null ? formatDecimalLabel(p.udas) : null}
-          therapyMinutes={p.therapyMinutes}
-          therapyRatePerMinute={p.therapyRatePerMinute}
-          superannuationPence={p.superannuationPence}
-          grossPrivateRevenuePence={p.grossPrivateRevenuePence}
-          financeFeesPence={
-            p.privateRevenueLineItems.reduce((sum, line) => sum + (line.financeFeePence ?? 0), 0) || null
-          }
-          adjustmentReason={p.adjustmentReason}
-          labBillsJson={p.labBillsJson}
-          adjustmentsJson={p.adjustmentsJson}
-        />
-      ) : null}
       {p.locked ? (
         <LockedAdjustmentsList adjustmentsJson={p.adjustmentsJson} />
       ) : null}
