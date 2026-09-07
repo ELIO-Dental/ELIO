@@ -20,6 +20,7 @@ import {
 } from "@elio/ui";
 import { canPayViewAll, canPayViewAny } from "@/lib/pay-scope";
 import { NewPayPeriodForm } from "./new-pay-period-form";
+import { formatPayPeriodMonthLabel, formatPayPeriodStatusLabel } from "@/lib/pay-dashboard-labels";
 
 export default async function PayPeriodsPage({
   searchParams,
@@ -83,11 +84,16 @@ export default async function PayPeriodsPage({
                   <TableRow key={p.id}>
                     <TableCell>
                       <Link href={`/pay-periods/${p.id}`} className="text-(--color-primary-500) hover:underline">
-                        {p.periodStart.toISOString().slice(0, 10)} – {p.periodEnd.toISOString().slice(0, 10)}
+                        {formatPayPeriodMonthLabel(p.periodStart)}
                       </Link>
+                      <p className="text-caption text-(--color-text-tertiary)">
+                        {p.periodStart.toISOString().slice(0, 10)} – {p.periodEnd.toISOString().slice(0, 10)}
+                      </p>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={p.status === "LOCKED" ? "success" : "neutral"}>{p.status}</Badge>
+                      <Badge variant={p.status === "LOCKED" ? "success" : "neutral"}>
+                        {formatPayPeriodStatusLabel(p.status)}
+                      </Badge>
                     </TableCell>
                     <TableCell>{p._count.compassStatements}</TableCell>
                     <TableCell>{p._count.payslipEntries}</TableCell>

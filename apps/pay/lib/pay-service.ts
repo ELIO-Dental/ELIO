@@ -4,6 +4,7 @@
 import { scopedDb } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 import {
+  getPayPeriodBoundaries,
   getPeriodForTriggerDate,
   parseCompassStatement,
   calculatePrivateEarnings,
@@ -637,23 +638,46 @@ export async function updateSupplierInvoicePaid(
 // Pay periods
 // ---------------------------------------------------------------------------
 
-/** §6.0 — creates the DRAFT period for "today"'s 15th-trigger (or an explicit month/year). */
-export async function createPayPeriodForTrigger(practiceId: string, triggerDate: string) {
+/**
+ * AuraPay create — explicit calendar month/year (unique per practice month).
+ * Stores half-open [1st, next 1st) in UTC so dashboard labels match month/year.
+ */
+export async function createPayPeriodForMonthYear(practiceId: string, month: number, year: number) {
   const db = scopedDb(practiceId);
-  const { startDate, endDate } = getPeriodForTriggerDate(triggerDate);
+  const { startDate, endDate } = getPayPeriodBoundaries(month, year);
+  const periodStart = new Date(`${startDate}T00:00:00.000Z`);
+  const periodEnd = new Date(`${endDate}T00:00:00.000Z`);
+
+  // Match any existing row for this calendar month (avoids Date equality misses → duplicates).
   const existing = await db.payPeriod.findFirst({
-    where: { periodStart: new Date(startDate), periodEnd: new Date(endDate) },
+    where: {
+      periodStart: { gte: periodStart, lt: periodEnd },
+    },
+    orderBy: { createdAt: "desc" },
   });
   if (existing) return existing;
+
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const triggerDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-15`;
+
   return db.payPeriod.create({
     data: {
       practiceId,
-      periodStart: new Date(startDate),
-      periodEnd: new Date(endDate),
+      periodStart,
+      periodEnd,
       status: "DRAFT",
-      triggeredAt: new Date(triggerDate),
+      triggeredAt: new Date(`${triggerDate}T00:00:00.000Z`),
     },
   });
+}
+
+/** §6.0 — creates the DRAFT period for a 15th-trigger date (previous calendar month). */
+export async function createPayPeriodForTrigger(practiceId: string, triggerDate: string) {
+  const { startDate } = getPeriodForTriggerDate(triggerDate);
+  const year = Number(startDate.substring(0, 4));
+  const month = Number(startDate.substring(5, 7));
+  return createPayPeriodForMonthYear(practiceId, month, year);
 }
 
 export async function listPayPeriods(practiceId: string) {

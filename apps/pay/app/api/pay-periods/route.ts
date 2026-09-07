@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requirePermission, UnauthorizedError, ForbiddenError } from "@/lib/session";
-import { listPayPeriods, createPayPeriodForTrigger } from "@/lib/pay-service";
+import {
+  listPayPeriods,
+  createPayPeriodForTrigger,
+  createPayPeriodForMonthYear,
+} from "@/lib/pay-service";
 
 export async function GET() {
   try {
@@ -14,17 +18,35 @@ export async function GET() {
   }
 }
 
-/** Creates the DRAFT period for a trigger date, e.g. `{ "triggerDate": "2026-07-15" }`
- * pays for June 1-30 per BUG-2's half-open interval (§6.0). */
+/**
+ * Create DRAFT pay period — AuraPay parity: `{ month, year }` (calendar month being paid).
+ * Also accepts `{ triggerDate: "YYYY-MM-DD" }` (§6.0 15th → previous month).
+ */
 export async function POST(req: Request) {
   try {
     const session = await requirePermission("pay:run-period");
-    const { triggerDate } = await req.json();
-    if (typeof triggerDate !== "string") {
-      return NextResponse.json({ error: "triggerDate (YYYY-MM-DD) required" }, { status: 400 });
+    const body = (await req.json()) as { month?: number; year?: number; triggerDate?: string };
+
+    if (typeof body.month === "number" && typeof body.year === "number") {
+      if (!Number.isInteger(body.month) || body.month < 1 || body.month > 12) {
+        return NextResponse.json({ error: "Invalid month (must be 1-12)" }, { status: 400 });
+      }
+      if (!Number.isInteger(body.year) || body.year < 2020 || body.year > 2100) {
+        return NextResponse.json({ error: "Invalid year" }, { status: 400 });
+      }
+      const period = await createPayPeriodForMonthYear(session.practiceId, body.month, body.year);
+      return NextResponse.json({ period }, { status: 201 });
     }
-    const period = await createPayPeriodForTrigger(session.practiceId, triggerDate);
-    return NextResponse.json({ period }, { status: 201 });
+
+    if (typeof body.triggerDate === "string") {
+      const period = await createPayPeriodForTrigger(session.practiceId, body.triggerDate);
+      return NextResponse.json({ period }, { status: 201 });
+    }
+
+    return NextResponse.json(
+      { error: "month and year (or triggerDate YYYY-MM-DD) required" },
+      { status: 400 }
+    );
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ error: e.message }, { status: 401 });
     if (e instanceof ForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
