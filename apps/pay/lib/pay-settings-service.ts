@@ -43,6 +43,7 @@ export async function savePaySettings(
   await db.practice.update({
     where: { id: practiceId },
     data: {
+      name: merged.clinic_name.trim() || undefined,
       paySettingsJson: paySettingsToJson(merged),
       cosmeticConsultationTreatmentCode: cosmeticCode,
     },

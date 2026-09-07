@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { SetupImportPanel } from "./setup-import-panel";
 
 export function SetupClient({
@@ -14,7 +15,7 @@ export function SetupClient({
     { id: "labs" as const, label: "Labs", count: counts.labs },
     { id: "suppliers" as const, label: "Suppliers", count: counts.suppliers },
     { id: "dentists" as const, label: "Dentists", count: counts.dentists },
-    { id: "settings" as const, label: "Settings", count: undefined },
+    { id: "settings" as const, label: "Settings CSV", count: undefined },
   ];
 
   return (
@@ -42,7 +43,12 @@ export function SetupClient({
       <SetupImportPanel type={tab} count={tab === "settings" ? undefined : counts[tab]} />
 
       <p className="text-body-sm text-(--color-text-secondary)">
-        Tip: export from AuraPay or Excel, edit offline, then import here once. Use Settings for rates and Dentally IDs.
+        Tip: export from AuraPay or Excel, edit offline, then import here once. Day-to-day rates, branding, and
+        Dentally live under{" "}
+        <Link href="/settings" className="font-medium text-(--color-brand) hover:underline">
+          Settings
+        </Link>
+        .
       </p>
     </div>
   );

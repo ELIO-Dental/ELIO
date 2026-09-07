@@ -16,7 +16,7 @@ export default async function PaySettingsPage() {
 
   return (
     <PageContent width="md">
-      <PageHeader title="Settings" description="Configure ElioPay settings for your practice." />
+      <PageHeader title="Settings" description="Configure Elio Pay system settings for your practice." />
       <SettingsClient initialSettings={settings} />
     </PageContent>
   );
