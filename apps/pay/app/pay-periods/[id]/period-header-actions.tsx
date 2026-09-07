@@ -43,17 +43,24 @@ export function PeriodHeaderActions() {
         Email All{anyProvisional ? " (provisional)" : ""}
       </Button>
       {!locked ? (
-        <Button onClick={fetchFromDentally} loading={fetching} disabled={fetching || locking} data-testid="header-fetch-dentally">
+        <Button
+          variant="primary"
+          onClick={fetchFromDentally}
+          loading={fetching}
+          disabled={fetching || locking}
+          data-testid="header-fetch-dentally"
+        >
           Fetch from Dentally
         </Button>
       ) : null}
       {locked ? (
-        <Button variant="secondary" onClick={unlockPeriod} loading={unlocking} disabled={unlocking} data-testid="reopen-period">
+        <Button variant="outline" onClick={unlockPeriod} loading={unlocking} disabled={unlocking} data-testid="reopen-period">
           Reopen
         </Button>
       ) : (
         <Button
-          variant="secondary"
+          variant="outline"
+          className="border-(--color-success) text-(--color-success) hover:bg-(--color-success)/10 hover:border-(--color-success) hover:text-(--color-success)"
           onClick={lockPeriod}
           loading={locking}
           disabled={locking || fetching || payslipCount === 0 || anyProvisional}

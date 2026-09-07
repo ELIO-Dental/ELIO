@@ -16,7 +16,7 @@ import {
   PageHeader,
   formatMoneyGBPOrDash,
 } from "@elio/ui";
-import { FileWarning } from "lucide-react";
+import { FileWarning, Calendar, Plus } from "lucide-react";
 import { canPayViewAll, canPayViewAny, resolvePayPractitionerScope } from "@/lib/pay-scope";
 import { filterPayslipsForScope } from "@/lib/pay-scope-utils";
 import { parseUnmappedFromFetchResult } from "@/lib/unmapped-practitioners";
@@ -124,7 +124,10 @@ export default async function PayDashboardPage() {
           viewAll ? (
             <div className="flex flex-wrap gap-2">
               <Link href="/pay-periods/new">
-                <Button variant="primary">New Period</Button>
+                <Button variant="primary">
+                  <Plus className="size-4" aria-hidden />
+                  New Period
+                </Button>
               </Link>
               {currentPeriod ? (
                 <Link href={`/pay-periods/${currentPeriod.id}`}>
@@ -146,9 +149,11 @@ export default async function PayDashboardPage() {
           {viewAll ? <StatCard label="Active Dentists" value={dentistCount} /> : null}
           {viewAll ? <StatCard label="Pay Periods" value={periodCount} /> : null}
           {viewAll ? (
-            <Card className="flex flex-col justify-center px-5 py-4">
-              <p className="text-h3 font-bold text-(--color-text-primary)">{latestPeriodLabel}</p>
-              <p className="mt-0.5 text-caption text-(--color-text-secondary)">Latest Period</p>
+            <Card className="flex flex-col gap-3">
+              <span className="text-caption font-medium text-(--color-text-secondary)">Latest Period</span>
+              <span className="tabular-nums font-(--font-mono) text-money-hero font-semibold text-(--color-text-primary)">
+                {latestPeriodLabel}
+              </span>
             </Card>
           ) : null}
         </div>
@@ -223,12 +228,14 @@ export default async function PayDashboardPage() {
             </CardHeader>
             <CardContent>
               {periods.length === 0 ? (
-                <div className="py-8 text-center">
+                <div className="py-10 text-center">
+                  <Calendar className="mx-auto mb-3 size-10 text-(--color-text-tertiary)" aria-hidden />
                   <p className="text-body-sm text-(--color-text-secondary)">No pay periods yet.</p>
                   <Link
                     href="/pay-periods/new"
-                    className="mt-3 inline-block text-body-sm font-medium text-(--color-primary-500) hover:underline"
+                    className="mt-3 inline-flex items-center gap-1.5 text-body-sm font-medium text-(--color-primary-500) hover:underline"
                   >
+                    <Plus className="size-3.5" aria-hidden />
                     Create your first pay period
                   </Link>
                   {dentistCount === 0 ? (

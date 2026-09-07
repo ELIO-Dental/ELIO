@@ -261,61 +261,9 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       {viewAll ? <OperationsReviewPanel items={opsReviewItems} /> : null}
 
       <div className="mt-8 flex flex-col gap-8">
-        {viewAll ? (
-          <>
-        <Card>
-          <CardHeader className="flex-col items-start gap-1">
-            <CardTitle>Compass statement</CardTitle>
-            <p className="text-body-sm text-(--color-text-secondary)">
-              Upload the NHSBSA Contract Monthly Pay Statement PDF for this period (§6.2).
-            </p>
-          </CardHeader>
-          <CardContent>
-            <CompassUploadForm payPeriodId={payPeriod.id} />
-            <ManualReviewList
-              lines={needsReviewLines.map((l) => ({
-                id: l.id,
-                performerNumber: l.performerNumber,
-                rawDentistName: l.rawDentistName,
-                udas: l.udas?.toString() ?? null,
-                superannuationPence: l.superannuationPence,
-              }))}
-              dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name }))}
-            />
-          </CardContent>
-        </Card>
-
-        {nhsDentists.length > 0 ? (
-          <NhsStatementPanel
-            payPeriodId={payPeriod.id}
-            locked={payPeriod.status === "LOCKED"}
-            nhsDentists={nhsDentists.map((d) => ({
-              id: d.id,
-              name: d.name,
-              performerNumber: d.nhsPerformerNumber,
-              udaRatePence: d.udaRatePence,
-            }))}
-            initialPeriodStart={nhsPeriodStart}
-            initialPeriodEnd={nhsPeriodEnd}
-          />
-        ) : null}
-
-        <Card>
-          <CardHeader className="flex-col items-start gap-1">
-            <CardTitle>Run calculation</CardTitle>
-            <p className="text-body-sm text-(--color-text-secondary)">
-              Enter private revenue per dentist, run the calculation, then finalize the period from the header when figures are final.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <CalculateAndLockPanel
-              payPeriodId={payPeriod.id}
-              dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
-              locked={payPeriod.status === "LOCKED"}
-            />
-          </CardContent>
-        </Card>
-          </>
+        {/* AuraPay order: totals banner → dentist payslips first; Compass / NHS / calc demoted below. */}
+        {viewAll && payPeriod.payslipEntries.length > 0 ? (
+          <PeriodPayrollTotalsBanner rows={summaryRows} />
         ) : null}
 
         <section>
@@ -334,7 +282,6 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
             </TablePanel>
           ) : (
             <PayslipAccordion className="mt-4">
-              <PeriodPayrollTotalsBanner rows={summaryRows} />
               <PeriodPayslipSummaryTable rows={summaryRows} />
               {payPeriod.payslipEntries.map((p) => {
                 const isNhs = Boolean(p.dentist.isNhs);
@@ -428,6 +375,63 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
             </PayslipAccordion>
           )}
         </section>
+
+        {viewAll ? (
+          <>
+            {nhsDentists.length > 0 ? (
+              <NhsStatementPanel
+                payPeriodId={payPeriod.id}
+                locked={payPeriod.status === "LOCKED"}
+                nhsDentists={nhsDentists.map((d) => ({
+                  id: d.id,
+                  name: d.name,
+                  performerNumber: d.nhsPerformerNumber,
+                  udaRatePence: d.udaRatePence,
+                }))}
+                initialPeriodStart={nhsPeriodStart}
+                initialPeriodEnd={nhsPeriodEnd}
+              />
+            ) : null}
+
+            <Card>
+              <CardHeader className="flex-col items-start gap-1">
+                <CardTitle>Compass Statement</CardTitle>
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  Upload the NHSBSA Contract Monthly Pay Statement PDF for this period (§6.2).
+                </p>
+              </CardHeader>
+              <CardContent>
+                <CompassUploadForm payPeriodId={payPeriod.id} />
+                <ManualReviewList
+                  lines={needsReviewLines.map((l) => ({
+                    id: l.id,
+                    performerNumber: l.performerNumber,
+                    rawDentistName: l.rawDentistName,
+                    udas: l.udas?.toString() ?? null,
+                    superannuationPence: l.superannuationPence,
+                  }))}
+                  dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name }))}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex-col items-start gap-1">
+                <CardTitle>Run Calculation</CardTitle>
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  Enter private revenue per dentist, run the calculation, then finalize the period from the header when figures are final.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <CalculateAndLockPanel
+                  payPeriodId={payPeriod.id}
+                  dentists={visibleDentists.map((d) => ({ id: d.id, name: d.name, payType: d.payType }))}
+                  locked={payPeriod.status === "LOCKED"}
+                />
+              </CardContent>
+            </Card>
+          </>
+        ) : null}
       </div>
     </PageContent>
     </PayPeriodActionsProvider>

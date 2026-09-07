@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Plus, Save, Trash2, Undo2 } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Plus, Trash2, Undo2 } from "lucide-react";
 import { Button, toast } from "@elio/ui";
 import {
   parsePayslipAdjustments,
@@ -11,6 +11,11 @@ import {
   type PayslipLabBill,
 } from "@/lib/payslip-editable-fields";
 import { DEFAULT_THERAPY_RATE_PER_MINUTE } from "@/lib/private-revenue";
+
+export type PayslipEditableFieldsHandle = {
+  save: () => Promise<void>;
+  pending: boolean;
+};
 
 function penceToPounds(pence: number | null): string {
   if (pence == null) return "";
@@ -42,40 +47,46 @@ interface FormSnapshot {
 
 const MAX_UNDO = 10;
 
-/** Editable draft payslip deductions (legacy Y2.9). */
-export function PayslipEditableFields({
-  payPeriodId,
-  payslipEntryId,
-  locked,
-  isNhs,
-  hasPatientLines,
-  udas,
-  udaRatePence,
-  therapyMinutes,
-  therapyRatePerMinute,
-  superannuationPence,
-  grossPrivateRevenuePence,
-  financeFeesPence,
-  adjustmentReason,
-  labBillsJson,
-  adjustmentsJson,
-}: {
-  payPeriodId: string;
-  payslipEntryId: string;
-  locked: boolean;
-  isNhs: boolean;
-  hasPatientLines: boolean;
-  udas: string | null;
-  udaRatePence?: number | null;
-  therapyMinutes: number | null;
-  therapyRatePerMinute: number | null;
-  superannuationPence: number | null;
-  grossPrivateRevenuePence: number | null;
-  financeFeesPence: number | null;
-  adjustmentReason: string | null;
-  labBillsJson: unknown;
-  adjustmentsJson: unknown;
-}) {
+/** Editable draft payslip deductions (legacy Y2.9). Save lives in the bottom PDF/Email bar. */
+export const PayslipEditableFields = forwardRef<
+  PayslipEditableFieldsHandle,
+  {
+    payPeriodId: string;
+    payslipEntryId: string;
+    locked: boolean;
+    isNhs: boolean;
+    hasPatientLines: boolean;
+    udas: string | null;
+    udaRatePence?: number | null;
+    therapyMinutes: number | null;
+    therapyRatePerMinute: number | null;
+    superannuationPence: number | null;
+    grossPrivateRevenuePence: number | null;
+    financeFeesPence: number | null;
+    adjustmentReason: string | null;
+    labBillsJson: unknown;
+    adjustmentsJson: unknown;
+  }
+>(function PayslipEditableFields(
+  {
+    payPeriodId,
+    payslipEntryId,
+    locked,
+    isNhs,
+    hasPatientLines,
+    udas,
+    udaRatePence,
+    therapyMinutes,
+    therapyRatePerMinute,
+    superannuationPence,
+    grossPrivateRevenuePence,
+    financeFeesPence,
+    adjustmentReason,
+    labBillsJson,
+    adjustmentsJson,
+  },
+  ref
+) {
   const router = useRouter();
   const [therapyMins, setTherapyMins] = useState(therapyMinutes?.toString() ?? "");
   const [therapyRate, setTherapyRate] = useState(displayTherapyRate(therapyRatePerMinute));
@@ -211,6 +222,13 @@ export function PayslipEditableFields({
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    save: () => save(),
+    get pending() {
+      return pending;
+    },
+  }));
+
   return (
     <section
       className="rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface) p-4 shadow-sm"
@@ -219,27 +237,19 @@ export function PayslipEditableFields({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">
-            Payslip figures
+            Payslip Figures
           </h4>
           <p className="mt-0.5 text-caption text-(--color-text-tertiary)">
             {locked
               ? "Period finalized — figures are read-only"
-              : "Gross, finance, therapy, lab bills, and adjustments"}
+              : "Gross, finance, therapy, lab bills, and adjustments — Save at the bottom"}
           </p>
         </div>
-        {!locked ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {undoStack.length > 0 ? (
-              <Button type="button" size="sm" variant="outline" onClick={undo} data-testid="payslip-undo">
-                <Undo2 className="size-3" />
-                Undo ({undoStack.length})
-              </Button>
-            ) : null}
-            <Button type="button" size="sm" loading={pending} onClick={() => void save()}>
-              <Save className="size-3" />
-              Save
-            </Button>
-          </div>
+        {!locked && undoStack.length > 0 ? (
+          <Button type="button" size="sm" variant="outline" onClick={undo} data-testid="payslip-undo">
+            <Undo2 className="size-3" />
+            Undo ({undoStack.length})
+          </Button>
         ) : null}
       </div>
 
@@ -621,4 +631,6 @@ export function PayslipEditableFields({
       </div>
     </section>
   );
-}
+});
+
+PayslipEditableFields.displayName = "PayslipEditableFields";

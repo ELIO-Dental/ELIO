@@ -109,7 +109,7 @@ export function NhsStatementPanel({
             <FileText className="size-5 text-(--color-primary-600)" />
           </div>
           <div>
-            <h3 className="text-body-sm font-semibold text-(--color-text-primary)">NHS statement</h3>
+            <h3 className="text-body-sm font-semibold text-(--color-text-primary)">NHS Statement</h3>
             <p className="text-caption text-(--color-text-secondary)">
               Upload FP17 / activity statement PDF or enter UDAs for{" "}
               {nhsDentists.map((d) => d.name).join(", ")}
@@ -127,7 +127,7 @@ export function NhsStatementPanel({
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-          {open ? "Close" : "Upload statement"}
+          {open ? "Close" : "Upload Statement"}
         </button>
       </div>
 
@@ -144,7 +144,7 @@ export function NhsStatementPanel({
       {open ? (
         <div className="mt-4 space-y-4 border-t border-(--color-border-subtle) pt-4">
           <div>
-            <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">Upload NHS statement PDF</label>
+            <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">Upload NHS Statement PDF</label>
             <label className="block cursor-pointer">
               <div
                 className={`flex items-center justify-center gap-2 rounded-(--radius-md) border-2 border-dashed px-4 py-6 transition ${
@@ -169,7 +169,7 @@ export function NhsStatementPanel({
                     </button>
                   </>
                 ) : (
-                  <span className="text-body-sm text-(--color-text-secondary)">Click to select NHS statement PDF</span>
+                  <span className="text-body-sm text-(--color-text-secondary)">Click to select NHS Statement PDF</span>
                 )}
               </div>
               <input

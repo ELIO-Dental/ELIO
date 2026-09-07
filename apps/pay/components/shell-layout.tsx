@@ -11,6 +11,8 @@ export interface ShellLayoutProps {
   viewAll?: boolean;
   /** Practice logo when uploaded in Pay settings; otherwise sidebar shows text "ELIO PAY". */
   brandLogoUrl?: string;
+  /** Clinic name under ELIO PAY (AuraPay parity). */
+  brandSubtitle?: string;
   children: React.ReactNode;
 }
 
@@ -20,6 +22,7 @@ export function ShellLayout({
   isOwner,
   viewAll = true,
   brandLogoUrl,
+  brandSubtitle,
   children,
 }: ShellLayoutProps) {
   const navItems = !viewAll
@@ -32,6 +35,7 @@ export function ShellLayout({
     <ModuleAppLayout
       brandTitle="ELIO PAY"
       brandLogoUrl={brandLogoUrl}
+      brandSubtitle={brandSubtitle}
       moduleId="pay"
       navItems={navItems}
       userEmail={userEmail}

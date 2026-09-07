@@ -41,11 +41,11 @@ export function PayslipExpandedSummary(
   return (
     <div className="space-y-4" data-testid="payslip-expanded-summary">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="Gross private" value={formatMoneyGBPOrDash(metrics.grossPrivatePence)} />
-        <MetricCard label="Net private" value={formatMoneyGBPOrDash(metrics.netPrivatePence)} />
-        <MetricCard label="NHS income" value={formatMoneyGBPOrDash(metrics.nhsIncomePence)} />
+        <MetricCard label="Gross Private" value={formatMoneyGBPOrDash(metrics.grossPrivatePence)} />
+        <MetricCard label="Net Private" value={formatMoneyGBPOrDash(metrics.netPrivatePence)} />
+        <MetricCard label="NHS Income" value={formatMoneyGBPOrDash(metrics.nhsIncomePence)} />
         <MetricCard
-          label="Total deductions"
+          label="Total Deductions"
           value={`-${formatMoneyGBPOrDash(metrics.totalDeductionsPence)}`}
           variant="danger"
         />
@@ -54,7 +54,7 @@ export function PayslipExpandedSummary(
       {showDeductions ? (
         <div className="rounded-(--radius-lg) border border-(--color-danger)/30 bg-(--color-danger)/5 p-4">
           <h4 className="text-caption font-semibold uppercase tracking-wide text-(--color-danger)">
-            Deductions breakdown
+            Deductions Breakdown
           </h4>
           <div className="mt-2 space-y-1.5 text-caption text-(--color-danger)">
             {labBills.length > 0 ? (

@@ -24,6 +24,8 @@ export interface ModuleAppLayoutProps {
   brandTitle: string;
   /** Optional practice logo beside the module title (F3.3 Flow branding). */
   brandLogoUrl?: string;
+  /** Optional clinic name under the module title (AuraPay parity). */
+  brandSubtitle?: string;
   moduleId: ModuleId;
   navItems: ModuleNavLink[];
   userEmail?: string;
@@ -63,7 +65,7 @@ function initialsFromEmail(email: string): string {
 }
 
 /** App-module chrome — sidebar with page tabs, ELIO Portal back link, profile-only footer. */
-export function ModuleAppLayout({ brandTitle, brandLogoUrl, moduleId, navItems, userEmail, resolveActiveId: resolveActiveIdOverride, pwaAppId, children }: ModuleAppLayoutProps) {
+export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, moduleId, navItems, userEmail, resolveActiveId: resolveActiveIdOverride, pwaAppId, children }: ModuleAppLayoutProps) {
   const pathname = usePathname() ?? "";
   const isMobile = useIsMobileViewport();
   const [userOverride, setUserOverride] = React.useState<boolean | null>(null);
@@ -97,6 +99,7 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, moduleId, navItems, 
           <SidebarBrand
             collapsed={collapsed}
             title={brandTitle}
+            subtitle={brandSubtitle}
             testId="module-brand"
             shortLabel={brandTitle.replace("ELIO ", "").slice(0, 2).toUpperCase()}
             logoUrl={brandLogoUrl}

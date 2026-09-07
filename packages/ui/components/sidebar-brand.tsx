@@ -5,6 +5,8 @@ import { Sparkles } from "lucide-react";
 
 export interface SidebarBrandProps {
   title: string;
+  /** Optional clinic / practice name under the module title (AuraPay parity). */
+  subtitle?: string;
   collapsed: boolean;
   testId?: string;
   /** Shown when the sidebar is collapsed — defaults to the first letter of `title`. */
@@ -63,6 +65,7 @@ function ThemeAwareLogo({
 /** Centered sidebar wordmark — ELIO PORTAL / ELIO PAY / ELIO PLANS / ELIO FLOW. */
 export function SidebarBrand({
   title,
+  subtitle,
   collapsed,
   testId,
   shortLabel,
@@ -120,7 +123,16 @@ export function SidebarBrand({
       {logoOnly ? (
         <span className="sr-only">{title}</span>
       ) : (
-        <span className="font-bold leading-tight tracking-[0.12em] text-(--color-text-primary)">{title}</span>
+        <span className="min-w-0 text-left">
+          <span className="block font-bold leading-tight tracking-[0.12em] text-(--color-text-primary)">
+            {title}
+          </span>
+          {subtitle ? (
+            <span className="mt-0.5 block truncate text-[10px] leading-none text-(--color-text-tertiary)">
+              {subtitle}
+            </span>
+          ) : null}
+        </span>
       )}
     </span>
   );

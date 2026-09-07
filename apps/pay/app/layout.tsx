@@ -53,6 +53,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   const paySettings = await getPaySettings(session.practiceId);
   const brandLogoUrl = paySettings.clinic_logo_url?.trim() || undefined;
+  const brandSubtitle = paySettings.clinic_name?.trim() || undefined;
   const viewAll = canPayViewAll({ role: session.role as Role });
 
   return (
@@ -67,6 +68,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           isOwner={session?.role === "OWNER"}
           viewAll={viewAll}
           brandLogoUrl={brandLogoUrl}
+          brandSubtitle={brandSubtitle}
         >
           <PageTransition>{children}</PageTransition>
         </ShellLayout>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef, useState } from "react";
 import {
   Table,
   TableBody,
@@ -15,7 +18,7 @@ import { parsePayslipAdjustments } from "@/lib/payslip-editable-fields";
 import { resolveFinanceFeesForDeduction } from "@/lib/finance-fee";
 import { DentistFetchDetails } from "./dentist-fetch-details";
 import { NhsPeriodBanner } from "./nhs-period-banner";
-import { PayslipEditableFields } from "./payslip-editable-fields";
+import { PayslipEditableFields, type PayslipEditableFieldsHandle } from "./payslip-editable-fields";
 import { PayslipEmailActions } from "./payslip-email-actions";
 import { PayslipExpandedSummary } from "./payslip-expanded-summary";
 
@@ -149,6 +152,18 @@ export interface PayslipEntryBodyProps {
 /** Expanded payslip figures and Dentally patient lines (Y2.3 body). */
 export function PayslipEntryBody(props: PayslipEntryBodyProps) {
   const p = props;
+  const fieldsRef = useRef<PayslipEditableFieldsHandle>(null);
+  const [saving, setSaving] = useState(false);
+  const showEditable = p.payType === "PERCENTAGE_SPLIT" || p.payType === "HOURLY";
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await fieldsRef.current?.save();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="border-t border-(--color-border-subtle) bg-(--color-surface-dim) px-5 py-5 space-y-6">
@@ -186,8 +201,9 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
         />
       ) : null}
       {/* AuraPay order: income fields (gross/finance/therapy rate/super) before patients */}
-      {p.payType === "PERCENTAGE_SPLIT" || p.payType === "HOURLY" ? (
+      {showEditable ? (
         <PayslipEditableFields
+          ref={fieldsRef}
           payPeriodId={p.payPeriodId}
           payslipEntryId={p.payslipEntryId}
           locked={p.locked}
@@ -337,6 +353,9 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
         dentistEmail={p.dentistEmail}
         pdfHref={`/pay/api/payslips/${p.payslipEntryId}/pdf`}
         provisional={p.provisional}
+        showSave={showEditable && !p.locked}
+        saving={saving}
+        onSave={() => void handleSave()}
       />
     </div>
   );
