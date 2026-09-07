@@ -1,4 +1,4 @@
-/** Bulk payment helpers — unpaid bills, mark paid, Starling CSV (legacy Y3.4). */
+/** Bulk payment helpers — unpaid bills, mark paid, Starling CSV (legacy Y3.4 / AuraPay). */
 
 import { scopedDb } from "@elio/db";
 
@@ -42,6 +42,13 @@ function bankFromEntity(entity: {
   };
 }
 
+function normName(value: string | null | undefined): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function listUnpaidBillsForBulkPayment(practiceId: string) {
   const db = scopedDb(practiceId);
   const [labBills, supplierInvoices, savedLabs, savedSuppliers] = await Promise.all([
@@ -53,24 +60,27 @@ export async function listUnpaidBillsForBulkPayment(practiceId: string) {
     db.supplierInvoiceEntry.findMany({
       where: { paid: false },
       include: { supplier: true },
-      orderBy: [{ createdAt: "asc" }],
+      orderBy: [{ invoiceDate: "asc" }, { createdAt: "asc" }],
     }),
     db.savedLab.findMany(),
     db.savedSupplier.findMany(),
   ]);
 
-  const labByName = new Map(savedLabs.map((lab) => [lab.name, lab]));
+  // AuraPay joins unpaid rows to bank details by name (case-insensitive).
+  const labByName = new Map(savedLabs.map((lab) => [normName(lab.name), lab]));
+  const supplierByName = new Map(savedSuppliers.map((s) => [normName(s.name), s]));
 
   const labRows: UnpaidBillRow[] = labBills.map((bill) => {
-    const saved = bill.savedLab ?? (bill.labName ? labByName.get(bill.labName) : undefined);
+    const saved =
+      bill.savedLab ?? (bill.labName ? labByName.get(normName(bill.labName)) : undefined);
     const bank = saved
       ? bankFromEntity(saved)
       : { account_name: bill.labName ?? "", sort_code: "", account_number: "" };
     const date = bill.billDate ?? bill.createdAt;
     return {
       id: bill.id,
-      entity_name: bill.labName ?? "Unknown",
-      type: "lab",
+      entity_name: bill.labName ?? saved?.name ?? "Unknown",
+      type: "lab" as const,
       amountPence: bill.amountPence,
       amount: bill.amountPence / 100,
       date: formatDate(date),
@@ -79,23 +89,37 @@ export async function listUnpaidBillsForBulkPayment(practiceId: string) {
     };
   });
 
-  const supplierRows: UnpaidBillRow[] = supplierInvoices.map((invoice) => {
-    const supplier = invoice.supplier;
-    const bank = supplier
-      ? bankFromEntity(supplier)
-      : { account_name: "", sort_code: "", account_number: "" };
-    const date = invoice.invoiceDate ?? invoice.createdAt;
-    return {
-      id: invoice.id,
-      entity_name: supplier?.name ?? "Unknown",
-      type: "supplier",
-      amountPence: invoice.amountPence,
-      amount: invoice.amountPence / 100,
-      date: formatDate(date),
-      description: invoice.description,
-      ...bank,
-    };
-  });
+  const supplierRows: UnpaidBillRow[] = supplierInvoices
+    .map((invoice) => {
+      // Migration sometimes stored supplier_name into description when supplierId was missing.
+      const matchedByDescription = invoice.description
+        ? supplierByName.get(normName(invoice.description))
+        : undefined;
+      const supplier = invoice.supplier ?? matchedByDescription;
+      const bank = supplier
+        ? bankFromEntity(supplier)
+        : { account_name: "", sort_code: "", account_number: "" };
+      const date = invoice.invoiceDate ?? invoice.createdAt;
+      const entityName = supplier?.name ?? (matchedByDescription ? matchedByDescription.name : null);
+      return {
+        id: invoice.id,
+        entity_name: entityName ?? "Unknown",
+        type: "supplier" as const,
+        amountPence: invoice.amountPence,
+        amount: invoice.amountPence / 100,
+        date: formatDate(date),
+        description:
+          invoice.supplier || !matchedByDescription
+            ? invoice.description
+            : null,
+        ...bank,
+      };
+    })
+    .sort((a, b) => {
+      const byName = a.entity_name.localeCompare(b.entity_name, "en-GB");
+      if (byName !== 0) return byName;
+      return a.date.localeCompare(b.date);
+    });
 
   return { lab_bills: labRows, supplier_invoices: supplierRows };
 }

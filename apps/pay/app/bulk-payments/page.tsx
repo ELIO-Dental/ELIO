@@ -13,7 +13,7 @@ export default async function BulkPaymentsPage() {
     <PageContent>
       <PageHeader
         title="Bulk Payments"
-        description="Manage bank details and generate Starling bulk payment files."
+        description="Manage bank details and generate bulk payment files"
       />
       <BulkPaymentsClient />
     </PageContent>

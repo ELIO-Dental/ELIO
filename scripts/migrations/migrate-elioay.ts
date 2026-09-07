@@ -228,14 +228,32 @@ async function main() {
   for (const si of supplierInvoices.rows) {
     const dentistId = si.dentist_id != null ? idMap[`dentist:${si.dentist_id}`] : undefined;
     if (EXECUTE) {
+      const supplierName = si.supplier_name ? String(si.supplier_name) : null;
+      let supplierId: string | undefined;
+      if (supplierName) {
+        const saved = await newPrisma.savedSupplier.findFirst({
+          where: { practiceId: practice.id, name: { equals: supplierName, mode: "insensitive" } },
+        });
+        supplierId = saved?.id;
+        if (!saved) {
+          const created = await newPrisma.savedSupplier.create({
+            data: { practiceId: practice.id, name: supplierName },
+          });
+          supplierId = created.id;
+        }
+      }
       await newPrisma.supplierInvoiceEntry.create({
         data: {
           practiceId: practice.id,
+          supplierId: supplierId ?? null,
+          dentistId: dentistId ?? null,
           amountPence: centsToStructuredPence(Number(si.amount))!,
-          description: si.description ? String(si.description) : (si.supplier_name ? String(si.supplier_name) : null),
+          description: si.description ? String(si.description) : null,
+          invoiceNumber: si.invoice_number ? String(si.invoice_number) : null,
           invoiceDate: si.date ? new Date(String(si.date)) : null,
           paid: si.paid === 1 || si.paid === true,
           paidAt: si.paid_date ? new Date(String(si.paid_date)) : null,
+          fileUrl: si.file_url ? String(si.file_url) : null,
         },
       });
     }

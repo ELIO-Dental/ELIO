@@ -279,16 +279,16 @@ export function BulkPaymentsClient() {
     return (
       <TablePanel
         toolbar={
-          <TableToolbar title={`${label} bank details`} onRefresh={() => void load({ soft: true })}>
+          <TableToolbar title={`${label} Bank Details`} onRefresh={() => void load({ soft: true })}>
             <Button size="sm" variant="outline" onClick={() => setShowAddEntity(type)}>
               <Plus className="mr-1 h-4 w-4" />
-              Add {type === "lab" ? "lab" : "supplier"}
+              Add {type === "lab" ? "Lab" : "Supplier"}
             </Button>
           </TableToolbar>
         }
       >
         {entities.length === 0 && showAddEntity !== type ? (
-          <EmptyState title={`No ${label.toLowerCase()} yet`} description="Add bank details for bulk payments." className="py-8" />
+          <EmptyState title={`No ${label.toLowerCase()} added yet`} description="Add bank details for bulk payments." className="py-8" />
         ) : (
           <Table>
             <TableHeader>
@@ -427,7 +427,7 @@ export function BulkPaymentsClient() {
             }`}
           >
             <Building2 className="h-4 w-4" />
-            Bank details
+            Bank Details
           </button>
           <button
             type="button"
@@ -439,7 +439,7 @@ export function BulkPaymentsClient() {
             }`}
           >
             <Download className="h-4 w-4" />
-            Unpaid bills
+            Unpaid Bills
             {unpaidCount > 0 && (
               <span className="rounded-full bg-(--color-danger)/15 px-1.5 py-0.5 text-xs font-semibold text-(--color-danger)">
                 {unpaidCount}
@@ -526,20 +526,20 @@ function UnpaidBillsTable({
   const selectedTotalPence = bills
     .filter((bill) => selected.has(bill.id))
     .reduce((sum, bill) => sum + bill.amountPence, 0);
-  const label = type === "lab" ? "Lab bills" : "Supplier invoices";
+  const label = type === "lab" ? "Lab Bills" : "Supplier Invoices";
 
   return (
     <TablePanel
       toolbar={
-        <TableToolbar title={`Unpaid ${label.toLowerCase()}`}>
+        <TableToolbar title={`Unpaid ${label}`}>
           <p className="text-body-sm text-(--color-text-secondary)">
             {bills.length} unpaid totalling {formatMoneyGBP(totalPence)}
-            {selected.size > 0 && ` — ${selected.size} selected: ${formatMoneyGBP(selectedTotalPence)}`}
+            {selected.size > 0 && ` | ${selected.size} selected: ${formatMoneyGBP(selectedTotalPence)}`}
           </p>
           {selected.size > 0 && (
             <Button size="sm" onClick={() => onMarkPaid(Array.from(selected))} loading={marking}>
               <Check className="mr-1 h-4 w-4" />
-              Mark {selected.size} paid
+              Mark {selected.size} Paid
             </Button>
           )}
         </TableToolbar>
