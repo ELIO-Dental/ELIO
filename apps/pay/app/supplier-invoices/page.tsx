@@ -2,10 +2,11 @@ import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { auth } from "@elio/auth";
 import type { Role } from "@elio/db";
 import { scopedDb } from "@elio/db";
-import { PageContent, PageHeader } from "@elio/ui";
+import { PageContent } from "@elio/ui";
 import { SupplierInvoicesClient } from "./supplier-invoices-client";
 import type { SupplierInvoiceListItem } from "@/lib/supplier-invoices-summary";
 import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
+import { listSupplierInvoices } from "@/lib/pay-service";
 
 export default async function SupplierInvoicesPage() {
   const session = await auth();
@@ -14,14 +15,9 @@ export default async function SupplierInvoicesPage() {
 
   const db = scopedDb(session.practiceId);
   const currentYear = new Date().getUTCFullYear();
+
   const [supplierInvoices, dentists, suppliers] = await Promise.all([
-    db.supplierInvoiceEntry.findMany({
-      include: {
-        supplier: { select: { id: true, name: true } },
-        dentist: { select: { id: true, name: true } },
-      },
-      orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
-    }),
+    listSupplierInvoices(session.practiceId, { year: currentYear }),
     db.dentist.findMany({
       where: ACTIVE_DENTIST_WHERE,
       orderBy: { name: "asc" },
@@ -48,16 +44,12 @@ export default async function SupplierInvoicesPage() {
 
   return (
     <PageContent>
-      <PageHeader title="Supplier Invoices" description="Record supplier invoices for bulk payment runs." />
-
-      <div className="mt-8">
-        <SupplierInvoicesClient
-          initialSupplierInvoices={rows}
-          dentists={dentists}
-          suppliers={suppliers}
-          initialYear={currentYear}
-        />
-      </div>
+      <SupplierInvoicesClient
+        initialSupplierInvoices={rows}
+        dentists={dentists}
+        suppliers={suppliers}
+        initialYear={currentYear}
+      />
     </PageContent>
   );
 }

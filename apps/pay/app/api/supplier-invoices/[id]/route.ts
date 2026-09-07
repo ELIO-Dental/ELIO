@@ -54,18 +54,44 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const supplierInvoice = await updateSupplierInvoice(session.practiceId, id, {
-      dentistId: (body.dentistId ?? body.dentist_id) as string | null | undefined,
-      supplierId: (body.supplierId ?? body.supplier_id) as string | null | undefined,
+      dentistId:
+        "dentistId" in body
+          ? ((body.dentistId as string | null) ?? null)
+          : "dentist_id" in body
+            ? ((body.dentist_id as string | null) ?? null)
+            : undefined,
+      supplierId:
+        "supplierId" in body
+          ? ((body.supplierId as string | null) ?? null)
+          : "supplier_id" in body
+            ? ((body.supplier_id as string | null) ?? null)
+            : undefined,
       amountPence:
         body.amountPence != null
           ? Number(body.amountPence)
           : body.amount != null
             ? Math.round(Number(body.amount) * 100)
             : undefined,
-      description: body.description as string | null | undefined,
-      invoiceNumber: (body.invoiceNumber ?? body.invoice_number) as string | null | undefined,
-      fileUrl: (body.fileUrl ?? body.file_url) as string | null | undefined,
-      invoiceDate: (body.invoiceDate ?? body.date) as string | null | undefined,
+      description:
+        "description" in body ? ((body.description as string | null) ?? null) : undefined,
+      invoiceNumber:
+        "invoiceNumber" in body
+          ? ((body.invoiceNumber as string | null) ?? null)
+          : "invoice_number" in body
+            ? ((body.invoice_number as string | null) ?? null)
+            : undefined,
+      fileUrl:
+        "fileUrl" in body
+          ? ((body.fileUrl as string | null) ?? null)
+          : "file_url" in body
+            ? ((body.file_url as string | null) ?? null)
+            : undefined,
+      invoiceDate:
+        "invoiceDate" in body
+          ? ((body.invoiceDate as string | null) ?? null)
+          : "date" in body
+            ? ((body.date as string | null) ?? null)
+            : undefined,
     });
     await recordPayAudit(session, {
       action: "pay.supplier_invoice.updated",
