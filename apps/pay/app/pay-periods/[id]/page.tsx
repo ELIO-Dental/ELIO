@@ -193,7 +193,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
 
   const initialFetchResult =
     payPeriod.dentallyFetchStatus === "SUCCESS" && payPeriod.dentallyFetchResultJson
-      ? (payPeriod.dentallyFetchResultJson as FetchResult)
+      ? (payPeriod.dentallyFetchResultJson as unknown as FetchResult)
       : null;
   const needsCalc = payPeriod.payslipEntries.some(
     (p) =>
