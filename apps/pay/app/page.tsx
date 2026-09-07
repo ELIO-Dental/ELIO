@@ -226,7 +226,7 @@ export default async function PayDashboardPage() {
                 <div className="py-8 text-center">
                   <p className="text-body-sm text-(--color-text-secondary)">No pay periods yet.</p>
                   <Link
-                    href="/pay-periods"
+                    href="/pay-periods/new"
                     className="mt-3 inline-block text-body-sm font-medium text-(--color-primary-500) hover:underline"
                   >
                     Create your first pay period

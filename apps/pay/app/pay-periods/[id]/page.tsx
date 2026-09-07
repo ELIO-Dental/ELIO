@@ -255,7 +255,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         >
           <strong className="font-semibold">Figures not calculated yet</strong>
           {" — "}
-          After Fetch / ops edits, use <strong>Run calculation</strong> so Total payment and payable gross update. Until then totals show “—”.
+          After Fetch / ops edits, use <strong>Run calculation</strong> so Net Pay and payable gross update. Until then totals show “—”.
         </div>
       ) : null}
       {viewAll ? <OperationsReviewPanel items={opsReviewItems} /> : null}

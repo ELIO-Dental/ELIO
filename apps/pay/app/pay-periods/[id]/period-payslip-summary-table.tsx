@@ -35,7 +35,7 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
             <th className="px-3 py-2 font-semibold text-right">Finance</th>
             <th className="px-3 py-2 font-semibold text-right">Therapy</th>
             <th className="px-3 py-2 font-semibold text-right">Adj</th>
-            <th className="px-3 py-2 font-semibold text-right">Total payment</th>
+            <th className="px-3 py-2 font-semibold text-right">Net Pay</th>
             <th className="px-3 py-2 font-semibold">Prov.</th>
           </tr>
         </thead>
@@ -94,7 +94,7 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
         </tbody>
       </table>
       <p className="border-t border-(--color-border-subtle) px-3 py-2 text-caption text-(--color-text-tertiary)">
-        Invoiced = all private invoices. Payable gross / Total payment use paid-only lines after{" "}
+        Invoiced = all private invoices. Payable gross / Net Pay use paid-only lines after{" "}
         <strong>Run calculation</strong> (unpaid excluded). “—” means not calculated yet.
       </p>
     </div>

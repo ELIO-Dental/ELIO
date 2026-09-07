@@ -308,7 +308,7 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
               <TableCellMoney>{formatMoneyGBPOrDash(p.manualAdjustmentsPence)}</TableCellMoney>
             </TableRow>
             <TableRow>
-              <TableCell className="font-semibold">Total payment</TableCell>
+              <TableCell className="font-semibold">Net Pay</TableCell>
               <TableCellMoney className="font-semibold">{formatMoneyGBPOrDash(p.finalPayPence)}</TableCellMoney>
             </TableRow>
           </TableBody>

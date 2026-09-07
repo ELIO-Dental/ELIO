@@ -2,31 +2,17 @@ import Link from "next/link";
 import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { auth } from "@elio/auth";
 import { scopedDb, type Role } from "@elio/db";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  EmptyState,
-  Badge,
-  PageContent,
-  PageHeader,
-  TablePanel,
-  TableToolbar,
-  TablePagination,
-  parseTablePage,
-} from "@elio/ui";
+import { Badge, Button, PageContent } from "@elio/ui";
+import { Calendar, ChevronRight, Plus } from "lucide-react";
 import { canPayViewAll, canPayViewAny } from "@/lib/pay-scope";
-import { NewPayPeriodForm } from "./new-pay-period-form";
-import { formatPayPeriodMonthLabel, formatPayPeriodStatusLabel } from "@/lib/pay-dashboard-labels";
+import {
+  formatPayPeriodMonthLabel,
+  formatPayPeriodMonthShort,
+  formatPayPeriodStatusLabel,
+  uniqueRecentPeriodsByMonth,
+} from "@/lib/pay-dashboard-labels";
 
-export default async function PayPeriodsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export default async function PayPeriodsPage() {
   const session = await auth();
   if (!session?.practiceId || !session.userId) return redirectToLogin();
   const subject = { role: session.role as Role, userId: session.userId };
@@ -34,75 +20,87 @@ export default async function PayPeriodsPage({
     return redirectToLauncher("error=forbidden");
   }
   const viewAll = canPayViewAll(subject);
-  const { page, skip, pageSize } = parseTablePage(await searchParams);
 
   const db = scopedDb(session.practiceId);
-  const [payPeriods, totalCount] = await Promise.all([
-    db.payPeriod.findMany({
-      orderBy: { periodStart: "desc" },
-      include: { _count: { select: { payslipEntries: true, compassStatements: true } } },
-      skip,
-      take: pageSize,
-    }),
-    db.payPeriod.count(),
-  ]);
+  const rawPeriods = await db.payPeriod.findMany({
+    orderBy: { periodStart: "desc" },
+    include: { _count: { select: { payslipEntries: true } } },
+  });
+
+  const periods = uniqueRecentPeriodsByMonth(
+    rawPeriods.map((p) => ({
+      ...p,
+      payslipCount: p._count.payslipEntries,
+    })),
+    rawPeriods.length || 1
+  );
 
   return (
     <PageContent>
-      <PageHeader
-        title="Pay periods"
-        description={viewAll ? "Create and manage monthly payroll runs." : "Open a period to view your payslip."}
-      />
-
-      {viewAll ? (
-        <div className="mt-8">
-          <NewPayPeriodForm />
+      <div className="mx-auto max-w-4xl space-y-4 sm:space-y-6">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-h2 text-(--color-text-primary)">Pay Periods</h1>
+            <p className="mt-0.5 text-body-sm text-(--color-text-secondary)">
+              {viewAll ? "All monthly payslip periods" : "Open a period to view your payslip"}
+            </p>
+          </div>
+          {viewAll ? (
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/pay-periods/new">
+                <Plus className="mr-1.5 h-4 w-4" />
+                New Period
+              </Link>
+            </Button>
+          ) : null}
         </div>
-      ) : null}
 
-      <div className="mt-8">
-        {totalCount === 0 ? (
-          <TablePanel toolbar={<TableToolbar title="Pay periods" />}>
-            <EmptyState title="No pay periods yet" description="Start one above (§6.0 — the exact previous calendar month)." className="py-12" />
-          </TablePanel>
-        ) : (
-          <TablePanel
-            toolbar={<TableToolbar title="Pay periods" />}
-            footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Compass statements</TableHead>
-                  <TableHead>Payslips</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payPeriods.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <Link href={`/pay-periods/${p.id}`} className="text-(--color-primary-500) hover:underline">
-                        {formatPayPeriodMonthLabel(p.periodStart)}
-                      </Link>
-                      <p className="text-caption text-(--color-text-tertiary)">
-                        {p.periodStart.toISOString().slice(0, 10)} – {p.periodEnd.toISOString().slice(0, 10)}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={p.status === "LOCKED" ? "success" : "neutral"}>
-                        {formatPayPeriodStatusLabel(p.status)}
+        <div className="overflow-hidden rounded-xl border border-(--color-border-subtle) bg-(--color-surface)">
+          {periods.length === 0 ? (
+            <div className="p-12 text-center">
+              <Calendar className="mx-auto mb-3 h-11 w-11 text-(--color-text-tertiary)" />
+              <p className="text-(--color-text-secondary)">No pay periods created yet.</p>
+              {viewAll ? (
+                <Button asChild className="mt-4" variant="outline">
+                  <Link href="/pay-periods/new">New Period</Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="divide-y divide-(--color-border-subtle)">
+              {periods.map((p) => {
+                const statusLabel = formatPayPeriodStatusLabel(p.status);
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/pay-periods/${p.id}`}
+                    className="group flex items-center justify-between px-5 py-4 transition hover:bg-(--color-bg-subtle)"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-(--color-primary-50) text-sm font-bold text-(--color-primary-600)">
+                        {formatPayPeriodMonthShort(p.periodStart)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-(--color-text-primary)">
+                          {formatPayPeriodMonthLabel(p.periodStart)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-(--color-text-tertiary)">
+                          Created {p.createdAt.toLocaleDateString("en-GB")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={p.status === "LOCKED" ? "success" : "warning"}>
+                        {statusLabel}
                       </Badge>
-                    </TableCell>
-                    <TableCell>{p._count.compassStatements}</TableCell>
-                    <TableCell>{p._count.payslipEntries}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TablePanel>
-        )}
+                      <ChevronRight className="h-4 w-4 text-(--color-text-tertiary) transition group-hover:text-(--color-brand)" />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </PageContent>
   );

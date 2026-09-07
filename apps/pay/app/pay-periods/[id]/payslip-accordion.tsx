@@ -98,7 +98,7 @@ export function PayslipAccordionItem({
             <p className="text-money font-bold tabular-nums text-(--color-text-primary)">
               {formatMoneyGBPOrDash(header.finalPayPence)}
             </p>
-            <p className="text-caption text-(--color-text-tertiary)">Total payment</p>
+            <p className="text-caption text-(--color-text-tertiary)">Net Pay</p>
           </div>
           <a
             href={header.pdfHref}
