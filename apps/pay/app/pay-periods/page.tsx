@@ -59,10 +59,10 @@ export default async function PayPeriodsPage() {
           {periods.length === 0 ? (
             <div className="p-12 text-center">
               <Calendar className="mx-auto mb-3 h-11 w-11 text-(--color-text-tertiary)" />
-              <p className="text-(--color-text-secondary)">No pay periods created yet.</p>
+              <p className="text-(--color-text-secondary)">No pay periods yet.</p>
               {viewAll ? (
                 <Button asChild className="mt-4" variant="outline">
-                  <Link href="/pay-periods/new">New Period</Link>
+                  <Link href="/pay-periods/new">Create your first pay period</Link>
                 </Button>
               ) : null}
             </div>

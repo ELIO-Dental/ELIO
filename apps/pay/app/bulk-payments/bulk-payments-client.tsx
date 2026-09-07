@@ -294,9 +294,9 @@ export function BulkPaymentsClient() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Account name</TableHead>
-                <TableHead>Sort code</TableHead>
-                <TableHead>Account number</TableHead>
+                <TableHead>Account Name</TableHead>
+                <TableHead>Sort Code</TableHead>
+                <TableHead>Account Number</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
@@ -567,7 +567,7 @@ function UnpaidBillsTable({
               <TableHead>Name</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Bank details</TableHead>
+              <TableHead>Bank Details</TableHead>
               <TableHead className="text-right">Amount</TableHead>
             </TableRow>
           </TableHeader>

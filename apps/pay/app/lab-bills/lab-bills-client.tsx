@@ -52,8 +52,14 @@ type ViewMode = "list" | "table";
 const monthName = (m: number) => new Date(2000, m - 1).toLocaleString("en-GB", { month: "long" });
 
 function dateLabel(bill: LabBillListItem): string {
+  if (bill.billDate && /^\d{4}-\d{2}-\d{2}/.test(bill.billDate)) {
+    return bill.billDate.slice(0, 10);
+  }
   const d = labBillEffectiveDate(bill);
-  return d.toISOString().slice(0, 10);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function billMonth(bill: LabBillListItem): number {

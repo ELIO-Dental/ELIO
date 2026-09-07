@@ -301,7 +301,7 @@ export default async function LegacyPayslipDetailPage({ params }: { params: Prom
                 <TableBody>
                   {patients.map((patient, i) => {
                     const name = patient.name ?? patient.patientName ?? "Unknown";
-                    const amount = Number(patient.amountPaid ?? patient.amount) || 0;
+                    const amount = Number(patient.amount) || 0;
                     return (
                       <TableRow key={`${name}-${i}`}>
                         <TableCell>

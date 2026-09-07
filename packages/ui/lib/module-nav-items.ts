@@ -28,11 +28,11 @@ import type { ModuleNavLink } from "../components/module-app-layout";
 // produces double URLs like /plans/plans/patients (404).
 export const PAY_MODULE_NAV: ModuleNavLink[] = [
   { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard, exact: true },
+  { id: "pay-periods", label: "Pay Periods", href: "/pay-periods", icon: Calendar },
   { id: "dentists", label: "Dentists", href: "/dentists", icon: Users },
   { id: "lab-bills", label: "Lab Bills", href: "/lab-bills", icon: FlaskConical },
   { id: "supplier-invoices", label: "Supplier Invoices", href: "/supplier-invoices", icon: FileText },
   { id: "bulk-payments", label: "Bulk Payments", href: "/bulk-payments", icon: CreditCard },
-  { id: "pay-periods", label: "Pay Periods", href: "/pay-periods", icon: Calendar },
   { id: "legacy-payslips", label: "Legacy Archive", href: "/legacy-payslips", icon: Archive },
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
   { id: "setup", label: "Setup", href: "/setup", icon: Wrench },

@@ -259,7 +259,7 @@ export function NhsStatementPanel({
             onClick={() => void submit()}
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            Apply NHS statement
+            Process PDF & Update UDAs
           </button>
         </div>
       ) : null}

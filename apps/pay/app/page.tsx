@@ -123,7 +123,7 @@ export default async function PayDashboardPage() {
         actions={
           viewAll ? (
             <div className="flex flex-wrap gap-2">
-              <Link href="/pay-periods">
+              <Link href="/pay-periods/new">
                 <Button variant="primary">New Period</Button>
               </Link>
               {currentPeriod ? (

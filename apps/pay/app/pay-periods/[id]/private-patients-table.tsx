@@ -553,6 +553,7 @@ export function PrivatePatientsTable({
                 <td className="px-2 py-2 text-center font-medium text-(--color-brand)">
                   {totals.financeFeeTotalPence > 0 ? formatMoneyGBPOrDash(totals.financeFeeTotalPence) : "—"}
                 </td>
+                <td className="px-2 py-2 text-center text-(--color-text-tertiary)">—</td>
                 {!locked ? <td /> : null}
               </tr>
             </tfoot>

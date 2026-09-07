@@ -5,7 +5,6 @@ import { scopedDb } from "@elio/db";
 import { PageContent } from "@elio/ui";
 import { LabBillsClient } from "./lab-bills-client";
 import type { LabBillListItem } from "@/lib/lab-bills-summary";
-import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 import { listLabBills } from "@/lib/pay-service";
 
 export default async function LabBillsPage() {
@@ -19,8 +18,7 @@ export default async function LabBillsPage() {
   const [labBills, dentists, savedLabs] = await Promise.all([
     listLabBills(session.practiceId, { year: currentYear }),
     db.dentist.findMany({
-      where: ACTIVE_DENTIST_WHERE,
-      orderBy: { name: "asc" },
+      orderBy: [{ active: "desc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
     db.savedLab.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -34,7 +32,7 @@ export default async function LabBillsPage() {
     amountPence: b.amountPence,
     description: b.description,
     fileUrl: b.fileUrl,
-    billDate: b.billDate?.toISOString() ?? null,
+    billDate: b.billDate?.toISOString().slice(0, 10) ?? null,
     paid: b.paid,
     paidAt: b.paidAt?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),

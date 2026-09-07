@@ -194,6 +194,7 @@ export function PayslipEntryBody(props: PayslipEntryBodyProps) {
           isNhs={Boolean(p.isNhs)}
           hasPatientLines={p.privateRevenueLineItems.length > 0}
           udas={p.udas != null ? formatDecimalLabel(p.udas) : null}
+          udaRatePence={p.udaRatePence}
           therapyMinutes={p.therapyMinutes}
           therapyRatePerMinute={p.therapyRatePerMinute}
           superannuationPence={p.superannuationPence}

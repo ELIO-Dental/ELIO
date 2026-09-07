@@ -20,25 +20,25 @@ export function PeriodPayrollTotalsBanner({ rows }: { rows: PeriodPayslipSummary
           <p className="font-semibold tabular-nums text-(--color-text-primary)">{t.dentistCount}</p>
         </div>
         <div>
-          <p className="text-caption text-(--color-text-tertiary)">Invoiced gross</p>
+          <p className="text-caption text-(--color-text-tertiary)">Total Gross</p>
           <p className="font-semibold tabular-nums text-(--color-text-primary)">
             {formatMoneyGBPOrDash(t.invoicedGrossPence)}
           </p>
         </div>
         <div>
-          <p className="text-caption text-(--color-text-tertiary)">NHS</p>
+          <p className="text-caption text-(--color-text-tertiary)">Total NHS</p>
           <p className="font-semibold tabular-nums text-(--color-text-primary)">
             {formatMoneyGBPOrDash(t.nhsIncomePence)}
           </p>
         </div>
         <div>
-          <p className="text-caption text-(--color-text-tertiary)">Deductions</p>
+          <p className="text-caption text-(--color-text-tertiary)">Total Deductions</p>
           <p className="font-semibold tabular-nums text-(--color-text-primary)">
             {t.deductionsPence ? `-${formatMoneyGBPOrDash(t.deductionsPence)}` : "—"}
           </p>
         </div>
         <div>
-          <p className="text-caption text-(--color-text-tertiary)">Total net payroll</p>
+          <p className="text-caption text-(--color-text-tertiary)">Total Net Payroll</p>
           <p className="font-semibold tabular-nums text-(--color-text-primary)">
             {formatMoneyGBPOrDash(t.totalPaymentPence)}
           </p>

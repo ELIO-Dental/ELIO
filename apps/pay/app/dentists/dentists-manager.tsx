@@ -401,7 +401,7 @@ export function DentistsManager({ dentists }: { dentists: DentistListItem[] }) {
         title="Remove dentist?"
         description={
           removeTarget
-            ? `Are you sure you want to remove ${removeTarget.name}? If they already have payslips or bills, their records are kept and they are marked inactive instead of being deleted.`
+            ? `Are you sure you want to remove ${removeTarget.name}? If they already have payslips or bills, their records are kept and they are deactivated instead of being deleted.`
             : undefined
         }
         confirmLabel={removing ? "Removing..." : "Remove"}

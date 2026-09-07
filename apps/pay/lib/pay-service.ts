@@ -270,7 +270,7 @@ export async function deleteDentist(practiceId: string, dentistId: string) {
     return {
       mode: "soft" as const,
       dentist,
-      message: `${existing.name} has payslips or bills — marked inactive instead of deleted.`,
+      message: `${existing.name} has payslips or bills — deactivated instead of deleted.`,
     };
   }
 

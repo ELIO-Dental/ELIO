@@ -5,7 +5,6 @@ import { scopedDb } from "@elio/db";
 import { PageContent } from "@elio/ui";
 import { SupplierInvoicesClient } from "./supplier-invoices-client";
 import type { SupplierInvoiceListItem } from "@/lib/supplier-invoices-summary";
-import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 import { listSupplierInvoices } from "@/lib/pay-service";
 
 export default async function SupplierInvoicesPage() {
@@ -19,8 +18,7 @@ export default async function SupplierInvoicesPage() {
   const [supplierInvoices, dentists, suppliers] = await Promise.all([
     listSupplierInvoices(session.practiceId, { year: currentYear }),
     db.dentist.findMany({
-      where: ACTIVE_DENTIST_WHERE,
-      orderBy: { name: "asc" },
+      orderBy: [{ active: "desc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
     db.savedSupplier.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -36,7 +34,7 @@ export default async function SupplierInvoicesPage() {
     description: i.description,
     invoiceNumber: i.invoiceNumber,
     fileUrl: i.fileUrl,
-    invoiceDate: i.invoiceDate?.toISOString() ?? null,
+    invoiceDate: i.invoiceDate?.toISOString().slice(0, 10) ?? null,
     paid: i.paid,
     paidAt: i.paidAt?.toISOString() ?? null,
     createdAt: i.createdAt.toISOString(),

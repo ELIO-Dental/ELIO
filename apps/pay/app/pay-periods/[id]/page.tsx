@@ -218,7 +218,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
         title={formatPayPeriodMonthLabel(payPeriod.periodStart)}
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>
+            <Badge variant={payPeriod.status === "LOCKED" ? "success" : "warning"}>
               {formatPayPeriodStatusLabel(payPeriod.status)}
             </Badge>
             <span className="text-body-sm text-(--color-text-secondary)">

@@ -50,6 +50,7 @@ export function PayslipEditableFields({
   isNhs,
   hasPatientLines,
   udas,
+  udaRatePence,
   therapyMinutes,
   therapyRatePerMinute,
   superannuationPence,
@@ -65,6 +66,7 @@ export function PayslipEditableFields({
   isNhs: boolean;
   hasPatientLines: boolean;
   udas: string | null;
+  udaRatePence?: number | null;
   therapyMinutes: number | null;
   therapyRatePerMinute: number | null;
   superannuationPence: number | null;
@@ -156,7 +158,6 @@ export function PayslipEditableFields({
 
   const save = async () => {
     if (locked) return;
-    pushUndo();
     setPending(true);
     setError(null);
     setMessage(null);
@@ -298,7 +299,9 @@ export function PayslipEditableFields({
 
         {isNhs ? (
           <div className="max-w-xs">
-            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">NHS UDAs</label>
+            <label className="mb-1 block text-caption font-medium text-(--color-text-secondary)">
+              NHS UDAs{udaRatePence != null && udaRatePence > 0 ? ` (× £${(udaRatePence / 100).toFixed(2)})` : ""}
+            </label>
             <input
               type="number"
               step="0.01"
@@ -384,7 +387,7 @@ export function PayslipEditableFields({
                 setLabBills((prev) => [...prev, { lab_name: "", amount: 0 }]);
               }}
             >
-              <Plus className="size-3" /> Add lab bill
+              <Plus className="size-3" /> Add Lab Bill
             </button>
             ) : null}
           </div>
@@ -478,7 +481,7 @@ export function PayslipEditableFields({
                       rel="noreferrer"
                       className="text-caption text-(--color-brand) underline"
                     >
-                      Open
+                      View bill
                     </a>
                   ) : null}
                   {!locked ? (
@@ -496,6 +499,15 @@ export function PayslipEditableFields({
                   ) : null}
                 </div>
               ))}
+              {(() => {
+                const total = labBills.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+                const dentistShare = Math.round(total * 50) / 100;
+                return total > 0 ? (
+                  <p className="text-caption text-(--color-text-secondary)">
+                    Total: £{total.toFixed(2)} (Dentist pays 50%: £{dentistShare.toFixed(2)})
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
           {hasPatientLines ? (
@@ -508,7 +520,7 @@ export function PayslipEditableFields({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-caption font-semibold uppercase tracking-wide text-(--color-text-secondary)">
-              Manual adjustments
+              Adjustments
             </label>
             {!locked ? (
             <button
@@ -522,7 +534,7 @@ export function PayslipEditableFields({
                 ]);
               }}
             >
-              <Plus className="size-3" /> Add adjustment
+              <Plus className="size-3" /> Add Adjustment
             </button>
             ) : null}
           </div>
@@ -534,7 +546,7 @@ export function PayslipEditableFields({
                 <div key={i} className="flex flex-wrap items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Note (required)"
+                    placeholder="Description (required)"
                     required
                     value={adj.description}
                     disabled={fieldDisabled}
