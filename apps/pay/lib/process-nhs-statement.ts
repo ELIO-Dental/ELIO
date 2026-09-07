@@ -5,6 +5,7 @@ import {
   parseCompassStatement,
 } from "@elio/pay-engine";
 import { extractNhsPeriodDates, toValidISODate } from "./nhs-period-extract";
+import { extractUdasFromNhsText } from "./nhs-uda-from-text";
 import { financeFeesDeductionPence, therapyDeductionPence } from "./private-revenue";
 import { getPaySettings } from "./pay-settings-service";
 import { resolveFinanceFeeSplit } from "./pay-settings";
@@ -25,6 +26,8 @@ export interface NhsUdaExtraction {
 
 export interface ProcessNhsStatementInput {
   pdfBuffer?: Buffer;
+  /** Pasted NHS Activity Statement text (AuraPay statement_text). */
+  statementText?: string;
   manualUdas?: Record<string, number>;
   nhsPeriodStart?: string;
   nhsPeriodEnd?: string;
@@ -107,6 +110,26 @@ export async function processNhsStatement(
     }
   }
 
+  if (input.statementText?.trim() && extractions.length === 0) {
+    const textHits = extractUdasFromNhsText(input.statementText, nhsDentists);
+    for (const hit of textHits) {
+      extractions.push({
+        dentistId: hit.dentistId,
+        dentistName: hit.dentistName,
+        performerNumber: hit.performerNumber,
+        udas: hit.udas,
+        udaRatePence: hit.udaRatePence,
+        nhsEarningsPence: hit.nhsEarningsPence,
+        source: "manual",
+      });
+    }
+    if (!nhsPeriodStart || !nhsPeriodEnd) {
+      const periodDates = extractNhsPeriodDates(input.statementText);
+      if (periodDates.periodStart) nhsPeriodStart = periodDates.periodStart;
+      if (periodDates.periodEnd) nhsPeriodEnd = periodDates.periodEnd;
+    }
+  }
+
   if (input.manualUdas) {
     for (const dentist of nhsDentists) {
       const udas = input.manualUdas[dentist.name];
@@ -128,7 +151,7 @@ export async function processNhsStatement(
   }
 
   if (extractions.length === 0) {
-    throw new Error("No UDAs found — upload a PDF or enter UDAs manually");
+    throw new Error("No UDAs found — upload a PDF, paste statement text, or enter UDAs manually");
   }
 
   const validStart = toValidISODate(nhsPeriodStart) ?? null;

@@ -23,6 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const form = await req.formData();
 
     const pdfFile = form.get("pdf_file") ?? form.get("file");
+    const statementTextRaw = form.get("statement_text") ?? form.get("statementText");
     const manualUdasRaw = form.get("manual_udas");
     const nhsPeriodStart = form.get("nhs_period_start");
     const nhsPeriodEnd = form.get("nhs_period_end");
@@ -32,8 +33,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       manualUdas = JSON.parse(manualUdasRaw) as Record<string, number>;
     }
 
+    const statementText =
+      typeof statementTextRaw === "string" && statementTextRaw.trim() ? statementTextRaw : undefined;
+
     const result = await processNhsStatement(session.practiceId, payPeriodId, {
       pdfBuffer: pdfFile instanceof File && pdfFile.size > 0 ? Buffer.from(await pdfFile.arrayBuffer()) : undefined,
+      statementText,
       manualUdas,
       nhsPeriodStart: typeof nhsPeriodStart === "string" ? nhsPeriodStart : undefined,
       nhsPeriodEnd: typeof nhsPeriodEnd === "string" ? nhsPeriodEnd : undefined,
@@ -49,7 +54,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           extractions: result.extractions,
           period: result.period,
         },
-        source: manualUdas ? "manual" : "pdf",
+        source: manualUdas ? "manual" : statementText ? "text" : "pdf",
       },
     });
 

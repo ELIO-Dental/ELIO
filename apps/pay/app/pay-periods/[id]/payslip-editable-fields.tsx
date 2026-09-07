@@ -188,7 +188,7 @@ export function PayslipEditableFields({
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Save failed");
       setMessage("Payslip updated");
-      toast.success("Payslip updated");
+      toast.success("Payslip updated — Run calculation to refresh totals");
       skipNextPropSync.current = true;
       router.refresh();
     } catch (err) {
@@ -368,6 +368,53 @@ export function PayslipEditableFields({
                     }}
                     className="min-w-40 flex-1 rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
                   />
+                  <label className="cursor-pointer rounded-(--radius-md) border border-(--color-border-subtle) px-2 py-2 text-caption text-(--color-brand) hover:bg-(--color-surface-dim)">
+                    Upload
+                    <input
+                      type="file"
+                      accept=".pdf,image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        try {
+                          const form = new FormData();
+                          form.append("file", file);
+                          form.append("entity_name", bill.lab_name || "lab");
+                          form.append("payslipEntryId", payslipEntryId);
+                          const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/lab-bill-upload`, {
+                            method: "POST",
+                            body: form,
+                          });
+                          const data = (await res.json().catch(() => ({}))) as {
+                            error?: string;
+                            fileUrl?: string;
+                          };
+                          if (!res.ok || !data.fileUrl) {
+                            throw new Error(data.error ?? "Upload failed");
+                          }
+                          pushUndo();
+                          const next = [...labBills];
+                          next[i] = { ...bill, file_url: data.fileUrl };
+                          setLabBills(next);
+                          toast.success("Lab bill uploaded");
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Upload failed");
+                        }
+                      }}
+                    />
+                  </label>
+                  {bill.file_url ? (
+                    <a
+                      href={bill.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-caption text-(--color-brand) underline"
+                    >
+                      Open
+                    </a>
+                  ) : null}
                   <button
                     type="button"
                     className="text-(--color-danger)"

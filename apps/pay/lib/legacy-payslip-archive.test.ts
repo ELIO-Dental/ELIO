@@ -27,11 +27,18 @@ describe("legacy payslip archive (Y2.10)", () => {
   });
 
   it("builds summary from nested legacy JSON fields", () => {
-    const summary = legacyPayslipSummary(parseLegacyPayslipRow(SAMPLE_ROW));
+    const summary = legacyPayslipSummary(parseLegacyPayslipRow(SAMPLE_ROW), {
+      splitPercent: 50,
+      udaRate: 28,
+    });
     expect(summary.patientCount).toBe(1);
     expect(summary.labBillTotal).toBe(200);
     expect(summary.adjustmentsTotal).toBe(50);
     expect(summary.notes).toBe("Reviewed by admin");
+    // gross from patients = 250; net private 125; nhs 88*28; labs 100; finance 20; therapy; super; +50 adj
+    expect(summary.grossPrivate).toBe(250);
+    expect(summary.nhsIncome).toBe(2464);
+    expect(typeof summary.netPay).toBe("number");
   });
 
   it("formats period month/year label", () => {

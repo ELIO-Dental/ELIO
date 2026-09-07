@@ -34,13 +34,18 @@ export async function POST(req: Request) {
       if (!Number.isInteger(body.year) || body.year < 2020 || body.year > 2100) {
         return NextResponse.json({ error: "Invalid year" }, { status: 400 });
       }
-      const period = await createPayPeriodForMonthYear(session.practiceId, body.month, body.year);
-      return NextResponse.json({ period }, { status: 201 });
+      const { period, created } = await createPayPeriodForMonthYear(
+        session.practiceId,
+        body.month,
+        body.year
+      );
+      // 200 = already existed for that month (no duplicate); 201 = newly created.
+      return NextResponse.json({ period, created }, { status: created ? 201 : 200 });
     }
 
     if (typeof body.triggerDate === "string") {
-      const period = await createPayPeriodForTrigger(session.practiceId, body.triggerDate);
-      return NextResponse.json({ period }, { status: 201 });
+      const { period, created } = await createPayPeriodForTrigger(session.practiceId, body.triggerDate);
+      return NextResponse.json({ period, created }, { status: created ? 201 : 200 });
     }
 
     return NextResponse.json(

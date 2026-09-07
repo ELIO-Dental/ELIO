@@ -84,6 +84,7 @@ export function DiscrepanciesPanel({
             amount,
             status: "paid",
             finance: false,
+            note: d.notes?.trim() || `Added from dentist log discrepancy (${discrepancyTypeLabel(d.type)})`,
           },
         }),
       });

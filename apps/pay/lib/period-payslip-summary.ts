@@ -1,6 +1,29 @@
 import { computePayslipExpandedMetrics } from "./payslip-expanded-metrics";
 import { resolveShareBp } from "./dentist-rates";
 
+export type PeriodPayslipSummaryRow = {
+  id: string;
+  dentistName: string;
+  udasLabel: string;
+  nhsIncomePence: number;
+  /** All invoice amounts (invoiced) — may exceed payable until unpaid cleared. */
+  invoicedGrossPence: number;
+  /** Paid-only gross used for payable calc (null until Run calculation). */
+  payableGrossPence: number | null;
+  /** @deprecated Use invoicedGrossPence / payableGrossPence — kept as invoiced for table Gross col. */
+  grossPence: number;
+  splitPercentLabel: string;
+  netPrivatePence: number | null;
+  labDeductionPence: number;
+  financeDeductionPence: number;
+  therapyDeductionPence: number;
+  adjustmentsPence: number;
+  /** Null until Run calculation — never coerce to £0. */
+  totalPaymentPence: number | null;
+  calculated: boolean;
+  provisional: boolean;
+};
+
 export type PeriodPayslipSummarySource = {
   id: string;
   dentistName: string;
@@ -21,22 +44,8 @@ export type PeriodPayslipSummarySource = {
   manualAdjustmentsPence: number | null;
   finalPayPence: number | null;
   provisional: boolean;
-};
-
-export type PeriodPayslipSummaryRow = {
-  id: string;
-  dentistName: string;
-  udasLabel: string;
-  nhsIncomePence: number;
-  grossPence: number;
-  splitPercentLabel: string;
-  netPrivatePence: number;
-  labDeductionPence: number;
-  financeDeductionPence: number;
-  therapyDeductionPence: number;
-  adjustmentsPence: number;
-  totalPaymentPence: number;
-  provisional: boolean;
+  /** Sum of all private line amountPence (invoiced). */
+  invoicedGrossPence?: number | null;
 };
 
 /** Stable display for Decimal / number (avoid raw Prisma .toString noise). */
@@ -65,20 +74,27 @@ export function buildPeriodPayslipSummaryRow(source: PeriodPayslipSummarySource)
     financeFeeSplit,
   });
 
+  const calculated = source.finalPayPence != null;
+  const invoicedGrossPence =
+    source.invoicedGrossPence != null ? source.invoicedGrossPence : metrics.grossPrivatePence;
+
   return {
     id: source.id,
     dentistName: source.dentistName,
     udasLabel: source.payType === "HOURLY" ? "—" : formatDecimalLabel(source.udas),
     nhsIncomePence: metrics.nhsIncomePence,
-    grossPence: metrics.grossPrivatePence,
+    invoicedGrossPence,
+    payableGrossPence: calculated ? metrics.grossPrivatePence : null,
+    grossPence: invoicedGrossPence,
     splitPercentLabel:
       source.payType === "HOURLY" ? "—" : formatDecimalLabel(source.privateSplitPercent, "%"),
-    netPrivatePence: metrics.netPrivatePence,
+    netPrivatePence: calculated ? metrics.netPrivatePence : null,
     labDeductionPence: metrics.labDeductionPence,
     financeDeductionPence: metrics.financeFeesDeductionPence,
     therapyDeductionPence: metrics.therapyDeductionPence,
     adjustmentsPence: source.manualAdjustmentsPence ?? 0,
-    totalPaymentPence: source.finalPayPence ?? 0,
+    totalPaymentPence: source.finalPayPence,
+    calculated,
     provisional: source.provisional,
   };
 }
@@ -87,4 +103,30 @@ export function buildPeriodPayslipSummaryRows(
   sources: PeriodPayslipSummarySource[]
 ): PeriodPayslipSummaryRow[] {
   return sources.map(buildPeriodPayslipSummaryRow);
+}
+
+/** Period-level payroll banner totals (null-safe). */
+export function sumPeriodPayrollTotals(rows: PeriodPayslipSummaryRow[]): {
+  dentistCount: number;
+  calculatedCount: number;
+  totalPaymentPence: number | null;
+  invoicedGrossPence: number;
+  nhsIncomePence: number;
+  deductionsPence: number;
+} {
+  const dentistCount = rows.length;
+  const calculatedCount = rows.filter((r) => r.calculated).length;
+  let invoicedGrossPence = 0;
+  let nhsIncomePence = 0;
+  let deductionsPence = 0;
+  let totalPaymentPence: number | null = calculatedCount === dentistCount && dentistCount > 0 ? 0 : null;
+  for (const r of rows) {
+    invoicedGrossPence += r.invoicedGrossPence;
+    nhsIncomePence += r.nhsIncomePence;
+    deductionsPence += r.labDeductionPence + r.financeDeductionPence + r.therapyDeductionPence;
+    if (totalPaymentPence != null && r.totalPaymentPence != null) {
+      totalPaymentPence += r.totalPaymentPence;
+    }
+  }
+  return { dentistCount, calculatedCount, totalPaymentPence, invoicedGrossPence, nhsIncomePence, deductionsPence };
 }

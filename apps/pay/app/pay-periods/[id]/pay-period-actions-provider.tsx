@@ -76,6 +76,7 @@ export function PayPeriodActionsProvider({
   locked,
   payslipCount,
   anyProvisional = false,
+  initialFetchResult = null,
   children,
 }: {
   payPeriodId: string;
@@ -83,6 +84,7 @@ export function PayPeriodActionsProvider({
   locked: boolean;
   payslipCount: number;
   anyProvisional?: boolean;
+  initialFetchResult?: FetchResult | null;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -91,9 +93,15 @@ export function PayPeriodActionsProvider({
   const [unlocking, setUnlocking] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
   const [emailing, setEmailing] = React.useState(false);
-  const [fetchResult, setFetchResult] = React.useState<FetchResult | null>(null);
+  const [fetchResult, setFetchResult] = React.useState<FetchResult | null>(initialFetchResult);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [fetchDismissed, setFetchDismissed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (initialFetchResult?.ok) {
+      setFetchResult(initialFetchResult);
+    }
+  }, [initialFetchResult]);
 
   const fetchFromDentally = React.useCallback(async () => {
     setFetching(true);

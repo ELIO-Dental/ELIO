@@ -232,8 +232,39 @@ export function buildMonthlyCostTotals(
 }
 
 export function buildDentistPayRows(periods: PayPeriodReportingInput[]): DentistPayRow[] {
+  // Prefer LOCKED / most payslips per calendar month when duplicates exist.
+  type PeriodWithMeta = PayPeriodReportingInput & {
+    periodStart: Date;
+    status: string;
+    payslipCount: number;
+    createdAt?: Date;
+  };
+  const withMeta: PeriodWithMeta[] = periods.map((p) => ({
+    ...p,
+    payslipCount: p.payslipEntries.length,
+  }));
+  // Inline month dedupe (avoid circular import weight) — same rules as pay-dashboard-labels.
+  const sorted = [...withMeta].sort((a, b) => {
+    const aKey = a.periodStart.getUTCFullYear() * 12 + a.periodStart.getUTCMonth();
+    const bKey = b.periodStart.getUTCFullYear() * 12 + b.periodStart.getUTCMonth();
+    if (aKey !== bKey) return aKey - bKey;
+    if (b.payslipCount !== a.payslipCount) return b.payslipCount - a.payslipCount;
+    const aLocked = a.status === "LOCKED" ? 0 : 1;
+    const bLocked = b.status === "LOCKED" ? 0 : 1;
+    if (aLocked !== bLocked) return aLocked - bLocked;
+    return 0;
+  });
+  const seen = new Set<string>();
+  const canonical: PeriodWithMeta[] = [];
+  for (const p of sorted) {
+    const key = `${p.periodStart.getUTCFullYear()}-${p.periodStart.getUTCMonth() + 1}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    canonical.push(p);
+  }
+
   const rows: DentistPayRow[] = [];
-  for (const period of periods) {
+  for (const period of canonical) {
     const { year, month } = yearMonthKey(period.periodStart);
     for (const entry of period.payslipEntries) {
       rows.push({

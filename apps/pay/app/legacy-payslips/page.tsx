@@ -76,6 +76,7 @@ export default async function LegacyPayslipsPage({
                   <TableHead>Period</TableHead>
                   <TableHead>Dentist</TableHead>
                   <TableHead className="text-right">Gross private</TableHead>
+                  <TableHead className="text-right">Net pay (est.)</TableHead>
                   <TableHead className="text-right">NHS UDAs</TableHead>
                   <TableHead className="text-right">Patients</TableHead>
                   <TableHead />
@@ -90,6 +91,9 @@ export default async function LegacyPayslipsPage({
                       <TableCell>{row.dentistName}</TableCell>
                       <TableCell className="text-right font-mono tabular-nums">
                         {formatMoneyGBPOrDash(Math.round(summary.grossPrivate * 100))}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {formatMoneyGBPOrDash(Math.round(summary.netPay * 100))}
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums">{summary.nhsUdas || "—"}</TableCell>
                       <TableCell className="text-right font-mono tabular-nums">{summary.patientCount}</TableCell>

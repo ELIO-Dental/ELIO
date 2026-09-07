@@ -46,7 +46,14 @@ export default async function LegacyPayslipDetailPage({ params }: { params: Prom
   if (!row) notFound();
 
   const parsed = parseLegacyPayslipRow(row.rawRowJson);
-  const summary = legacyPayslipSummary(parsed);
+  const dentist = await db.dentist.findFirst({
+    where: { name: { equals: row.dentistName, mode: "insensitive" } },
+    select: { privateSplitPercent: true, udaRatePence: true },
+  });
+  const summary = legacyPayslipSummary(parsed, {
+    splitPercent: dentist?.privateSplitPercent != null ? Number(dentist.privateSplitPercent) : 50,
+    udaRate: dentist?.udaRatePence != null ? dentist.udaRatePence / 100 : 0,
+  });
   const patients = legacyPayslipPatients(parsed);
   const labBills = legacyPayslipLabBills(parsed);
   const adjustments = legacyPayslipAdjustments(parsed);
@@ -74,6 +81,12 @@ export default async function LegacyPayslipDetailPage({ params }: { params: Prom
             <CardTitle>Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-body-sm">
+            <div className="flex justify-between border-b border-(--color-border-subtle) pb-2">
+              <span className="font-semibold text-(--color-text-primary)">Net pay (est.)</span>
+              <span className="font-mono text-body font-semibold tabular-nums" data-testid="legacy-net-pay">
+                {formatMoneyGBPOrDash(pounds(summary.netPay))}
+              </span>
+            </div>
             <div className="flex justify-between">
               <span className="text-(--color-text-secondary)">Gross private</span>
               <span className="font-mono tabular-nums">{formatMoneyGBPOrDash(pounds(summary.grossPrivate))}</span>
@@ -81,6 +94,10 @@ export default async function LegacyPayslipDetailPage({ params }: { params: Prom
             <div className="flex justify-between">
               <span className="text-(--color-text-secondary)">NHS UDAs</span>
               <span className="font-mono tabular-nums">{summary.nhsUdas || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-(--color-text-secondary)">NHS income</span>
+              <span className="font-mono tabular-nums">{formatMoneyGBPOrDash(pounds(summary.nhsIncome))}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-(--color-text-secondary)">Finance fees</span>

@@ -429,7 +429,37 @@ export function LabBillsClient({
                   <TableRow key={b.id} className={b.paid ? "bg-emerald-50/40" : undefined}>
                     <TableCell>{new Date(b.billDate ?? b.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>{b.labName ?? "—"}</TableCell>
-                    <TableCell>{b.dentistName ?? "Unassigned"}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={b.dentistId ?? "__none__"}
+                        onValueChange={(value) =>
+                          void mutate(
+                            b.id,
+                            () =>
+                              fetch(`/pay/api/lab-bills/${b.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  dentistId: value === "__none__" ? null : value,
+                                }),
+                              }),
+                            "Dentist updated"
+                          )
+                        }
+                      >
+                        <SelectTrigger className="min-w-[140px]" aria-label={`Dentist for ${b.labName ?? "bill"}`}>
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Unassigned</SelectItem>
+                          {dentists.map((d) => (
+                            <SelectItem key={d.id} value={d.id}>
+                              {d.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>{b.description ?? "—"}</TableCell>
                     <TableCellMoney>{formatMoneyGBP(b.amountPence)}</TableCellMoney>
                     <TableCell>

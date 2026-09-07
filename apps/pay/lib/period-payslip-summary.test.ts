@@ -43,7 +43,38 @@ describe("period payslip summary (Step 24)", () => {
     expect(row.therapyDeductionPence).toBe(3500);
     expect(row.adjustmentsPence).toBe(1000);
     expect(row.totalPaymentPence).toBe(33500);
+    expect(row.calculated).toBe(true);
+    expect(row.payableGrossPence).toBe(100000);
     expect(row.provisional).toBe(true);
+  });
+
+  it("leaves total payment null until calculated (no £0 coercion)", () => {
+    const row = buildPeriodPayslipSummaryRow({
+      id: "ps-uncalc",
+      dentistName: "Dr Pending",
+      payType: "PERCENTAGE_SPLIT",
+      udas: null,
+      privateSplitPercent: 50,
+      nhsEarningsPence: 0,
+      grossPrivateRevenuePence: 50000,
+      privateEarningsPence: 25000,
+      labDeductionPence: 0,
+      superannuationPence: 0,
+      therapyMinutes: null,
+      therapyRatePerMinute: null,
+      financeLines: [],
+      financeShareBp: null,
+      practiceFinanceBp: 5000,
+      manualAdjustmentsPence: 0,
+      finalPayPence: null,
+      provisional: false,
+      invoicedGrossPence: 80000,
+    });
+    expect(row.calculated).toBe(false);
+    expect(row.totalPaymentPence).toBeNull();
+    expect(row.netPrivatePence).toBeNull();
+    expect(row.payableGrossPence).toBeNull();
+    expect(row.invoicedGrossPence).toBe(80000);
   });
 
   it("uses dentist finance share override", () => {

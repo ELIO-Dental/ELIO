@@ -157,9 +157,29 @@ export async function importDentists(
         continue;
       }
       await db.dentist.update({ where: { id: existing.id }, data });
+      await db.dentistRateHistory.create({
+        data: {
+          practiceId,
+          dentistId: existing.id,
+          effectiveFrom: data.effectiveFrom,
+          privateSplitPercent: data.privateSplitPercent ?? null,
+          udaRatePence: data.udaRatePence ?? null,
+          hourlyRatePence: data.hourlyRatePence ?? null,
+        },
+      });
       updated++;
     } else {
-      await db.dentist.create({ data: { practiceId, ...data } });
+      const createdDentist = await db.dentist.create({ data: { practiceId, ...data } });
+      await db.dentistRateHistory.create({
+        data: {
+          practiceId,
+          dentistId: createdDentist.id,
+          effectiveFrom: data.effectiveFrom,
+          privateSplitPercent: data.privateSplitPercent ?? null,
+          udaRatePence: data.udaRatePence ?? null,
+          hourlyRatePence: data.hourlyRatePence ?? null,
+        },
+      });
       created++;
     }
   }

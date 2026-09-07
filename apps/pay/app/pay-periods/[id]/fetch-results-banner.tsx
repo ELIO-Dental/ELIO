@@ -89,6 +89,16 @@ export function FetchResultsBanner() {
           (persists after dismiss).
         </p>
       )}
+      {fetchResult.debug?.unmappedPractitioners && fetchResult.debug.unmappedPractitioners.length > 0 ? (
+        <ul className="mt-2 list-inside list-disc text-caption text-(--color-warning)" data-testid="fetch-unmapped-details">
+          {fetchResult.debug.unmappedPractitioners.slice(0, 8).map((u) => (
+            <li key={`${u.practitionerId}-${u.invoiceDate}-${u.amountPence}`}>
+              ID {u.practitionerId}
+              {u.treatment ? ` · ${u.treatment}` : ""} · {(u.amountPence / 100).toFixed(2)} · {u.invoiceDate}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

@@ -641,6 +641,7 @@ export async function updateSupplierInvoicePaid(
 /**
  * AuraPay create — explicit calendar month/year (unique per practice month).
  * Stores half-open [1st, next 1st) in UTC so dashboard labels match month/year.
+ * Returns `{ period, created }` — never inserts a second row for the same month.
  */
 export async function createPayPeriodForMonthYear(practiceId: string, month: number, year: number) {
   const db = scopedDb(practiceId);
@@ -648,20 +649,31 @@ export async function createPayPeriodForMonthYear(practiceId: string, month: num
   const periodStart = new Date(`${startDate}T00:00:00.000Z`);
   const periodEnd = new Date(`${endDate}T00:00:00.000Z`);
 
-  // Match any existing row for this calendar month (avoids Date equality misses → duplicates).
-  const existing = await db.payPeriod.findFirst({
+  // Prefer the row with the most payslips (canonical), then oldest createdAt.
+  const candidates = await db.payPeriod.findMany({
     where: {
       periodStart: { gte: periodStart, lt: periodEnd },
     },
-    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { payslipEntries: true } } },
+    orderBy: { createdAt: "asc" },
   });
-  if (existing) return existing;
+  if (candidates.length > 0) {
+    const existing = [...candidates].sort((a, b) => {
+      if (b._count.payslipEntries !== a._count.payslipEntries) {
+        return b._count.payslipEntries - a._count.payslipEntries;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    })[0]!;
+    const { ensurePayslipStubsForPeriod } = await import("./ensure-payslip-stubs");
+    await ensurePayslipStubsForPeriod(practiceId, existing.id);
+    return { period: existing, created: false as const };
+  }
 
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
   const triggerDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-15`;
 
-  return db.payPeriod.create({
+  const period = await db.payPeriod.create({
     data: {
       practiceId,
       periodStart,
@@ -670,6 +682,9 @@ export async function createPayPeriodForMonthYear(practiceId: string, month: num
       triggeredAt: new Date(`${triggerDate}T00:00:00.000Z`),
     },
   });
+  const { ensurePayslipStubsForPeriod } = await import("./ensure-payslip-stubs");
+  await ensurePayslipStubsForPeriod(practiceId, period.id);
+  return { period, created: true as const };
 }
 
 /** §6.0 — creates the DRAFT period for a 15th-trigger date (previous calendar month). */
@@ -678,6 +693,12 @@ export async function createPayPeriodForTrigger(practiceId: string, triggerDate:
   const year = Number(startDate.substring(0, 4));
   const month = Number(startDate.substring(5, 7));
   return createPayPeriodForMonthYear(practiceId, month, year);
+}
+
+/** @deprecated Prefer createPayPeriodForMonthYear — kept for call sites that only need the period row. */
+export async function createPayPeriodForMonthYearOrGet(practiceId: string, month: number, year: number) {
+  const { period } = await createPayPeriodForMonthYear(practiceId, month, year);
+  return period;
 }
 
 export async function listPayPeriods(practiceId: string) {
@@ -709,10 +730,24 @@ export async function getReportingData(practiceId: string): Promise<ReportingPer
   const db = scopedDb(practiceId);
   const periods = await db.payPeriod.findMany({
     orderBy: { periodStart: "asc" },
-    include: { payslipEntries: true },
+    include: {
+      payslipEntries: true,
+      _count: { select: { payslipEntries: true } },
+    },
   });
 
-  return periods.map((p) => {
+  // One chart point per calendar month (AuraPay unique month/year) — prefer most payslips.
+  const { uniqueRecentPeriodsByMonth } = await import("./pay-dashboard-labels");
+  const canonical = uniqueRecentPeriodsByMonth(
+    periods.map((p) => ({
+      ...p,
+      payslipCount: p._count.payslipEntries,
+      createdAt: p.createdAt,
+    })),
+    Number.MAX_SAFE_INTEGER
+  ).sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime());
+
+  return canonical.map((p) => {
     const entries = p.payslipEntries;
     const nhsEarningsPence = entries.reduce((sum, e) => sum + (e.nhsEarningsPence ?? 0), 0);
     const privateEarningsPence = entries.reduce((sum, e) => sum + (e.privateEarningsPence ?? 0), 0);

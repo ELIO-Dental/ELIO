@@ -29,6 +29,7 @@ export function NhsStatementPanel({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [statementText, setStatementText] = useState("");
   const [periodStart, setPeriodStart] = useState(initialPeriodStart ?? "");
   const [periodEnd, setPeriodEnd] = useState(initialPeriodEnd ?? "");
   const [manualUdas, setManualUdas] = useState<Record<string, string>>({});
@@ -39,6 +40,9 @@ export function NhsStatementPanel({
 
   if (nhsDentists.length === 0 || locked) return null;
 
+  const hasManual = Object.values(manualUdas).some((v) => v.trim());
+  const canSubmit = Boolean(pdfFile) || Boolean(statementText.trim()) || hasManual;
+
   const submit = async () => {
     setPending(true);
     setError(null);
@@ -47,6 +51,7 @@ export function NhsStatementPanel({
     try {
       const form = new FormData();
       if (pdfFile) form.append("pdf_file", pdfFile);
+      if (statementText.trim()) form.append("statement_text", statementText.trim());
       if (periodStart) form.append("nhs_period_start", periodStart);
       if (periodEnd) form.append("nhs_period_end", periodEnd);
 
@@ -81,6 +86,7 @@ export function NhsStatementPanel({
       if (data.period?.start) setPeriodStart(data.period.start);
       if (data.period?.end) setPeriodEnd(data.period.end);
       setPdfFile(null);
+      setStatementText("");
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -182,6 +188,20 @@ export function NhsStatementPanel({
             </p>
           </div>
 
+          <details className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-3">
+            <summary className="cursor-pointer text-caption font-medium text-(--color-primary-700)">
+              Or paste statement text…
+            </summary>
+            <textarea
+              value={statementText}
+              onChange={(e) => setStatementText(e.target.value)}
+              rows={6}
+              placeholder="Paste NHS Activity Statement text here…"
+              className="mt-2 w-full rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2 text-body-sm"
+              data-testid="nhs-statement-text"
+            />
+          </details>
+
           <div>
             <label className="mb-2 block text-caption font-medium text-(--color-text-primary)">NHS period dates</label>
             <div className="flex flex-wrap items-end gap-3">
@@ -234,7 +254,7 @@ export function NhsStatementPanel({
 
           <button
             type="button"
-            disabled={pending || (!pdfFile && !Object.values(manualUdas).some((v) => v.trim()))}
+            disabled={pending || !canSubmit}
             className="flex items-center gap-2 rounded-(--radius-md) bg-(--color-primary-600) px-4 py-2 text-body-sm font-semibold text-white disabled:opacity-50"
             onClick={() => void submit()}
           >

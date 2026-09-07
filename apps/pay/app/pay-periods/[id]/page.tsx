@@ -39,6 +39,13 @@ import { financeFeesDeductionPence } from "@/lib/private-revenue";
 import { resolveFinanceFeesForDeduction } from "@/lib/finance-fee";
 import { formatPayslipPaymentDate } from "@/lib/payslip-pdf";
 import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
+import { ensurePayslipStubsForPeriod } from "@/lib/ensure-payslip-stubs";
+import {
+  formatPayPeriodMonthLabel,
+  formatPayPeriodStatusLabel,
+} from "@/lib/pay-dashboard-labels";
+import { PeriodPayrollTotalsBanner } from "./period-payroll-totals-banner";
+import type { FetchResult } from "./pay-period-actions-provider";
 
 export default async function PayPeriodDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -74,6 +81,28 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
   ]);
 
   if (!payPeriod) notFound();
+
+  // AuraPay: dentist cards exist immediately — seed stubs before render when draft.
+  if (viewAll && payPeriod.status === "DRAFT") {
+    const seeded = await ensurePayslipStubsForPeriod(session.practiceId, payPeriod.id);
+    if (seeded > 0) {
+      const refreshed = await db.payPeriod.findUnique({
+        where: { id },
+        include: {
+          payslipEntries: {
+            include: {
+              dentist: true,
+              privateRevenueLineItems: { orderBy: [{ invoiceDate: "asc" }, { createdAt: "asc" }] },
+            },
+          },
+          compassStatements: { include: { lines: { include: { dentist: true } } } },
+        },
+      });
+      if (refreshed) {
+        Object.assign(payPeriod, refreshed);
+      }
+    }
+  }
 
   // Step 30 — clinicians only see their own payslip rows.
   const visibleEntries = filterPayslipsForScope(payPeriod.payslipEntries, scope);
@@ -158,7 +187,21 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       manualAdjustmentsPence: p.manualAdjustmentsPence,
       finalPayPence: p.finalPayPence,
       provisional: p.provisional,
+      invoicedGrossPence: p.privateRevenueLineItems.reduce((sum, line) => sum + line.amountPence, 0),
     }))
+  );
+
+  const initialFetchResult =
+    payPeriod.dentallyFetchStatus === "SUCCESS" && payPeriod.dentallyFetchResultJson
+      ? (payPeriod.dentallyFetchResultJson as FetchResult)
+      : null;
+  const needsCalc = payPeriod.payslipEntries.some(
+    (p) =>
+      p.finalPayPence == null &&
+      (p.privateRevenueLineItems.length > 0 ||
+        (p.grossPrivateRevenuePence != null && p.grossPrivateRevenuePence > 0) ||
+        (p.labDeductionPence != null && p.labDeductionPence > 0) ||
+        (p.udas != null && Number(p.udas) > 0))
   );
 
   return (
@@ -168,16 +211,20 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
       locked={payPeriod.status === "LOCKED"}
       payslipCount={payPeriod.payslipEntries.length}
       anyProvisional={anyProvisional}
+      initialFetchResult={initialFetchResult}
     >
     <PageContent>
       <PageHeader
-        title={`${payPeriod.periodStart.toISOString().slice(0, 10)} – ${payPeriod.periodEnd.toISOString().slice(0, 10)}`}
+        title={formatPayPeriodMonthLabel(payPeriod.periodStart)}
         description={
           <span className="flex flex-wrap items-center gap-2">
             <Badge variant={payPeriod.status === "LOCKED" ? "success" : "neutral"}>
-              {payPeriod.status === "LOCKED" ? "Finalized" : "Draft"}
+              {formatPayPeriodStatusLabel(payPeriod.status)}
             </Badge>
             <span className="text-body-sm text-(--color-text-secondary)">
+              {payPeriod.payslipEntries.length} dentist
+              {payPeriod.payslipEntries.length === 1 ? "" : "s"}
+              {" · "}
               Payment date: {formatPayslipPaymentDate(payPeriod.periodStart)}
             </span>
           </span>
@@ -201,25 +248,21 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
           Finance term/fee still missing on one or more dentists. Confirm term and/or fee on private patient lines, then recalculate.
         </div>
       ) : null}
+      {viewAll && needsCalc && payPeriod.status === "DRAFT" ? (
+        <div
+          className="mt-4 rounded-(--radius-md) border border-(--color-warning)/40 bg-(--color-warning)/10 px-4 py-3 text-body-sm text-(--color-warning)"
+          data-testid="period-stale-figures-banner"
+        >
+          <strong className="font-semibold">Figures not calculated yet</strong>
+          {" — "}
+          After Fetch / ops edits, use <strong>Run calculation</strong> so Total payment and payable gross update. Until then totals show “—”.
+        </div>
+      ) : null}
       {viewAll ? <OperationsReviewPanel items={opsReviewItems} /> : null}
 
       <div className="mt-8 flex flex-col gap-8">
         {viewAll ? (
           <>
-        <Card>
-          <CardHeader className="flex-col items-start gap-1">
-            <CardTitle>Dentally</CardTitle>
-            <p className="text-body-sm text-(--color-text-secondary)">
-              Pull private invoice data for this pay period from Dentally using the header button, then run calculation.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <p className="text-body-sm text-(--color-text-tertiary)">
-              Use <strong>Fetch from Dentally</strong> in the page header. Summary stats appear in the banner above after each fetch.
-            </p>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="flex-col items-start gap-1">
             <CardTitle>Compass statement</CardTitle>
@@ -280,10 +323,10 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
           {payPeriod.payslipEntries.length === 0 ? (
             <TablePanel className="mt-4">
               <EmptyState
-                title={viewAll ? "No payslips calculated yet" : "No payslip for you in this period yet"}
+                title={viewAll ? "No dentists for this period yet" : "No payslip for you in this period yet"}
                 description={
                   viewAll
-                    ? "Fetch from Dentally, complete ops fields (finance/therapy/labs), then Run calculation."
+                    ? "Add active dentists under Dentists, then reopen this period (stubs are created automatically)."
                     : "Your payslip will appear here once operations have run this period."
                 }
                 className="py-12"
@@ -291,6 +334,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
             </TablePanel>
           ) : (
             <PayslipAccordion className="mt-4">
+              <PeriodPayrollTotalsBanner rows={summaryRows} />
               <PeriodPayslipSummaryTable rows={summaryRows} />
               {payPeriod.payslipEntries.map((p) => {
                 const isNhs = Boolean(p.dentist.nhsPerformerNumber);

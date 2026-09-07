@@ -23,7 +23,12 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
             <th className="px-3 py-2 font-semibold">Dentist</th>
             <th className="px-3 py-2 font-semibold text-right">UDAs</th>
             <th className="px-3 py-2 font-semibold text-right">NHS</th>
-            <th className="px-3 py-2 font-semibold text-right">Gross</th>
+            <th className="px-3 py-2 font-semibold text-right" title="All invoice amounts">
+              Invoiced
+            </th>
+            <th className="px-3 py-2 font-semibold text-right" title="Paid-only gross after Run calculation">
+              Payable gross
+            </th>
             <th className="px-3 py-2 font-semibold text-right">Split</th>
             <th className="px-3 py-2 font-semibold text-right">Net private</th>
             <th className="px-3 py-2 font-semibold text-right">Lab</th>
@@ -51,9 +56,14 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
                 <td className="px-3 py-2.5 font-medium text-(--color-text-primary)">{row.dentistName}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{row.udasLabel}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{formatMoneyGBPOrDash(row.nhsIncomePence)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{formatMoneyGBPOrDash(row.grossPence)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{formatMoneyGBPOrDash(row.invoicedGrossPence)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">
+                  {formatMoneyGBPOrDash(row.payableGrossPence)}
+                </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{row.splitPercentLabel}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{formatMoneyGBPOrDash(row.netPrivatePence)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">
+                  {formatMoneyGBPOrDash(row.netPrivatePence)}
+                </td>
                 <td className="px-3 py-2.5 text-right">
                   <DeductionCell pence={row.labDeductionPence} />
                 </td>
@@ -64,9 +74,7 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
                   <DeductionCell pence={row.therapyDeductionPence} />
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
-                  {row.adjustmentsPence
-                    ? formatMoneyGBPOrDash(row.adjustmentsPence)
-                    : "—"}
+                  {row.adjustmentsPence ? formatMoneyGBPOrDash(row.adjustmentsPence) : "—"}
                 </td>
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
                   {formatMoneyGBPOrDash(row.totalPaymentPence)}
@@ -85,6 +93,10 @@ export function PeriodPayslipSummaryTable({ rows }: { rows: PeriodPayslipSummary
           })}
         </tbody>
       </table>
+      <p className="border-t border-(--color-border-subtle) px-3 py-2 text-caption text-(--color-text-tertiary)">
+        Invoiced = all private invoices. Payable gross / Total payment use paid-only lines after{" "}
+        <strong>Run calculation</strong> (unpaid excluded). “—” means not calculated yet.
+      </p>
     </div>
   );
 }

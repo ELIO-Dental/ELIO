@@ -45,6 +45,7 @@ export interface LegacyPayslipSummary {
   sourceId: string;
   grossPrivate: number;
   nhsUdas: number;
+  nhsIncome: number;
   financeFees: number;
   therapyMinutes: number;
   therapyRate: number;
@@ -52,6 +53,8 @@ export interface LegacyPayslipSummary {
   patientCount: number;
   labBillTotal: number;
   adjustmentsTotal: number;
+  /** Estimated AuraPay net pay (GBP) using split/UDA rate when known. */
+  netPay: number;
   notes: string;
 }
 
@@ -63,6 +66,10 @@ function parseJsonArray<T>(value: string | undefined): T[] {
   } catch {
     return [];
   }
+}
+
+function roundCurrency(amount: number): number {
+  return Math.round(amount * 100) / 100;
 }
 
 export function parseLegacyPayslipRow(rawRowJson: string): LegacyPayslipRow {
@@ -85,7 +92,15 @@ export function legacyPayslipAdjustments(row: LegacyPayslipRow): LegacyAdjustmen
   return parseJsonArray<LegacyAdjustment>(row.adjustments_json);
 }
 
-export function legacyPayslipSummary(row: LegacyPayslipRow): LegacyPayslipSummary {
+export function legacyPayslipSummary(
+  row: LegacyPayslipRow,
+  opts?: {
+    splitPercent?: number | null;
+    udaRate?: number | null;
+    labBillSplit?: number;
+    financeFeeSplit?: number;
+  }
+): LegacyPayslipSummary {
   const patients = legacyPayslipPatients(row);
   const labBills = legacyPayslipLabBills(row);
   const adjustments = legacyPayslipAdjustments(row);
@@ -95,18 +110,44 @@ export function legacyPayslipSummary(row: LegacyPayslipRow): LegacyPayslipSummar
     const amount = Number(adj.amount) || 0;
     adjustmentsTotal += adj.type === "deduction" ? -amount : amount;
   }
+  adjustmentsTotal = roundCurrency(adjustmentsTotal);
+
+  const grossPrivate =
+    patients.length > 0
+      ? roundCurrency(patients.reduce((s, p) => s + (Number(p.amount) || 0), 0))
+      : roundCurrency(Number(row.gross_private) || 0);
+  const splitPercent = Math.max(0, Math.min(100, opts?.splitPercent ?? 50));
+  const netPrivate = roundCurrency(grossPrivate * (splitPercent / 100));
+  const nhsUdas = Math.max(0, Number(row.nhs_udas) || 0);
+  const udaRate = Math.max(0, opts?.udaRate ?? 0);
+  const nhsIncome = roundCurrency(nhsUdas * udaRate);
+  const labBillTotal = roundCurrency(labBills.reduce((sum, b) => sum + (Number(b.amount) || 0), 0));
+  const labSplit = opts?.labBillSplit ?? 0.5;
+  const financeSplit = opts?.financeFeeSplit ?? 0.5;
+  const financeFees = roundCurrency(Number(row.finance_fees) || 0);
+  const therapyMinutes = Math.max(0, Number(row.therapy_minutes) || 0);
+  const therapyRate = Number(row.therapy_rate) > 0 ? Number(row.therapy_rate) : 0.5833;
+  const therapyDeduction = roundCurrency(therapyMinutes * therapyRate);
+  const superannuationDeduction = roundCurrency(Math.max(0, Number(row.superannuation_deduction) || 0));
+  const totalEarnings = roundCurrency(netPrivate + nhsIncome);
+  const totalDeductions = roundCurrency(
+    labBillTotal * labSplit + financeFees * financeSplit + therapyDeduction + superannuationDeduction
+  );
+  const netPay = roundCurrency(totalEarnings - totalDeductions + adjustmentsTotal);
 
   return {
     sourceId: String(row.id ?? ""),
-    grossPrivate: Number(row.gross_private) || 0,
-    nhsUdas: Number(row.nhs_udas) || 0,
-    financeFees: Number(row.finance_fees) || 0,
-    therapyMinutes: Number(row.therapy_minutes) || 0,
-    therapyRate: Number(row.therapy_rate) || 0.5833,
-    superannuationDeduction: Number(row.superannuation_deduction) || 0,
+    grossPrivate,
+    nhsUdas,
+    nhsIncome,
+    financeFees,
+    therapyMinutes,
+    therapyRate,
+    superannuationDeduction,
     patientCount: patients.length,
-    labBillTotal: labBills.reduce((sum, b) => sum + (Number(b.amount) || 0), 0),
-    adjustmentsTotal: Math.round(adjustmentsTotal * 100) / 100,
+    labBillTotal,
+    adjustmentsTotal,
+    netPay,
     notes: row.notes ?? "",
   };
 }
