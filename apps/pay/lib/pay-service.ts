@@ -334,10 +334,8 @@ export interface CreateLabBillInput {
 
 export async function createLabBill(practiceId: string, input: CreateLabBillInput) {
   const db = scopedDb(practiceId);
+  // AuraPay: dentist is optional on create; assign later via row select.
   const dentistId = input.dentistId?.trim() || null;
-  if (!dentistId) {
-    throw new Error("Dentist is required for lab bills (Step 15 — per dentist per month)");
-  }
   let labName = input.labName?.trim() || null;
   let savedLabId = input.savedLabId ?? null;
 

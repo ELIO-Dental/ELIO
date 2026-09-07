@@ -2,10 +2,11 @@ import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { auth } from "@elio/auth";
 import type { Role } from "@elio/db";
 import { scopedDb } from "@elio/db";
-import { PageContent, PageHeader } from "@elio/ui";
+import { PageContent } from "@elio/ui";
 import { LabBillsClient } from "./lab-bills-client";
 import type { LabBillListItem } from "@/lib/lab-bills-summary";
 import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
+import { listLabBills } from "@/lib/pay-service";
 
 export default async function LabBillsPage() {
   const session = await auth();
@@ -14,14 +15,9 @@ export default async function LabBillsPage() {
 
   const db = scopedDb(session.practiceId);
   const currentYear = new Date().getUTCFullYear();
+
   const [labBills, dentists, savedLabs] = await Promise.all([
-    db.labBillEntry.findMany({
-      include: {
-        dentist: { select: { id: true, name: true } },
-        savedLab: { select: { id: true, name: true } },
-      },
-      orderBy: [{ billDate: "desc" }, { createdAt: "desc" }],
-    }),
+    listLabBills(session.practiceId, { year: currentYear }),
     db.dentist.findMany({
       where: ACTIVE_DENTIST_WHERE,
       orderBy: { name: "asc" },
@@ -46,16 +42,12 @@ export default async function LabBillsPage() {
 
   return (
     <PageContent>
-      <PageHeader title="Lab Bills" description="Track and manage dental lab bills." />
-
-      <div className="mt-8">
-        <LabBillsClient
-          initialLabBills={rows}
-          dentists={dentists}
-          savedLabs={savedLabs}
-          initialYear={currentYear}
-        />
-      </div>
+      <LabBillsClient
+        initialLabBills={rows}
+        dentists={dentists}
+        savedLabs={savedLabs}
+        initialYear={currentYear}
+      />
     </PageContent>
   );
 }
