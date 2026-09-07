@@ -38,16 +38,52 @@ export function formatPayPeriodStatusLabel(status: string): "Finalized" | "Draft
 }
 
 /**
- * Old AuraPay periods were unique per month/year. Deduplicate by calendar month
- * (keep first = latest periodStart, then newest created among ties).
+ * Prefer the AuraPay-canonical row for a calendar month when duplicates exist:
+ * most payslips (real work), then LOCKED (Finalized) over DRAFT, then oldest createdAt.
  */
-export function uniqueRecentPeriodsByMonth<T extends { periodStart: Date }>(
-  periods: T[],
-  take: number
-): T[] {
+export function preferCanonicalPayPeriod<
+  T extends {
+    periodStart: Date;
+    status?: string;
+    createdAt?: Date;
+    payslipCount?: number;
+  },
+>(a: T, b: T): number {
+  const aPayslips = a.payslipCount ?? 0;
+  const bPayslips = b.payslipCount ?? 0;
+  if (aPayslips !== bPayslips) return bPayslips - aPayslips;
+  const aLocked = a.status === "LOCKED" ? 0 : 1;
+  const bLocked = b.status === "LOCKED" ? 0 : 1;
+  if (aLocked !== bLocked) return aLocked - bLocked;
+  const aT = a.createdAt?.getTime() ?? Number.POSITIVE_INFINITY;
+  const bT = b.createdAt?.getTime() ?? Number.POSITIVE_INFINITY;
+  return aT - bT;
+}
+
+/**
+ * Old AuraPay periods were unique per month/year. Deduplicate by calendar month
+ * (newer months first; within a month keep the canonical row).
+ */
+export function uniqueRecentPeriodsByMonth<
+  T extends {
+    periodStart: Date;
+    status?: string;
+    createdAt?: Date;
+    payslipCount?: number;
+  },
+>(periods: T[], take: number): T[] {
+  const sorted = [...periods].sort((a, b) => {
+    const aParts = payPeriodCalendarParts(a.periodStart);
+    const bParts = payPeriodCalendarParts(b.periodStart);
+    const aKey = aParts.year * 12 + aParts.month;
+    const bKey = bParts.year * 12 + bParts.month;
+    if (aKey !== bKey) return bKey - aKey;
+    return preferCanonicalPayPeriod(a, b);
+  });
+
   const seen = new Set<string>();
   const out: T[] = [];
-  for (const p of periods) {
+  for (const p of sorted) {
     const { month, year } = payPeriodCalendarParts(p.periodStart);
     const key = `${year}-${month}`;
     if (seen.has(key)) continue;

@@ -32,6 +32,7 @@ import {
  * Step 37 — AuraPay home parity (`/dashboard`) inside ELIO design.
  * Stats: Active Dentists, Pay Periods, Latest Period (no “total owed” money card — client request).
  * Recent Pay Periods: one row per calendar month (AuraPay unique month/year), labels from month/year ints.
+ * Created date uses PayPeriod.createdAt (backfilled from AuraPay created_at when migrated).
  */
 export default async function PayDashboardPage() {
   const session = await auth();
@@ -47,10 +48,10 @@ export default async function PayDashboardPage() {
     return redirectToLauncher("error=forbidden");
   }
   const viewAll = canPayViewAll(subject);
-  const [rawPeriods, periodCount, dentistCount] = await Promise.all([
+  const [rawPeriods, dentistCount] = await Promise.all([
     db.payPeriod.findMany({
-      orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }],
-      take: 60, // then unique-by-month to 5 (AuraPay could not duplicate month/year)
+      orderBy: [{ periodStart: "desc" }, { createdAt: "asc" }],
+      take: 60, // then unique-by-month to 5 (prefer most payslips / LOCKED / original createdAt)
       select: {
         id: true,
         periodStart: true,
@@ -58,13 +59,19 @@ export default async function PayDashboardPage() {
         status: true,
         createdAt: true,
         dentallyFetchResultJson: true,
+        _count: { select: { payslipEntries: true } },
       },
     }),
-    db.payPeriod.count(),
     db.dentist.count({ where: ACTIVE_DENTIST_WHERE }),
   ]);
 
-  const periods = uniqueRecentPeriodsByMonth(rawPeriods, 5);
+  const periodsWithCounts = rawPeriods.map((p) => ({
+    ...p,
+    payslipCount: p._count.payslipEntries,
+  }));
+  // AuraPay counted unique month/year periods — not accidental duplicate rows.
+  const periodCount = uniqueRecentPeriodsByMonth(periodsWithCounts, Number.MAX_SAFE_INTEGER).length;
+  const periods = uniqueRecentPeriodsByMonth(periodsWithCounts, 5);
   const currentPeriod = periods[0] ?? null;
   const latestPeriodLabel = currentPeriod
     ? formatPayPeriodMonthLabel(currentPeriod.periodStart)

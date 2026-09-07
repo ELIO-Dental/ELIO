@@ -136,12 +136,15 @@ async function main() {
     const periodStart = new Date(Date.UTC(year, month - 1, 1));
     const periodEnd = new Date(Date.UTC(month === 12 ? year + 1 : year, month === 12 ? 0 : month, 1));
     if (EXECUTE) {
+      // Preserve AuraPay created_at so dashboard "Created …" matches legacy.
+      const createdAt = p.created_at ? new Date(String(p.created_at)) : undefined;
       const created = await newPrisma.payPeriod.create({
         data: {
           practiceId: practice.id,
           periodStart,
           periodEnd,
           status: p.status === "finalized" ? "LOCKED" : "DRAFT",
+          ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),
         },
       });
       idMap[`payPeriod:${oldId}`] = created.id;

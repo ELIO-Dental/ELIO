@@ -38,4 +38,39 @@ describe("pay-dashboard-labels (Step 37 / AuraPay home)", () => {
       "July 2026",
     ]);
   });
+
+  it("prefers most payslips, then Finalized, then oldest createdAt when a month is duplicated", () => {
+    const rows = [
+      {
+        id: "sep-locked-1",
+        periodStart: new Date("2026-09-01T00:00:00.000Z"),
+        status: "LOCKED",
+        createdAt: new Date("2026-09-02T12:00:00.000Z"),
+        payslipCount: 1,
+      },
+      {
+        id: "sep-draft-18",
+        periodStart: new Date("2026-09-01T00:00:00.000Z"),
+        status: "DRAFT",
+        createdAt: new Date("2026-09-02T14:00:00.000Z"),
+        payslipCount: 18,
+      },
+      {
+        id: "aug-draft-new",
+        periodStart: new Date("2026-08-01T00:00:00.000Z"),
+        status: "DRAFT",
+        createdAt: new Date("2026-09-02T12:00:00.000Z"),
+        payslipCount: 0,
+      },
+      {
+        id: "aug-locked-old",
+        periodStart: new Date("2026-08-01T00:00:00.000Z"),
+        status: "LOCKED",
+        createdAt: new Date("2026-05-10T08:00:00.000Z"),
+        payslipCount: 0,
+      },
+    ];
+    const unique = uniqueRecentPeriodsByMonth(rows, 5);
+    expect(unique.map((r) => r.id)).toEqual(["sep-draft-18", "aug-locked-old"]);
+  });
 });
