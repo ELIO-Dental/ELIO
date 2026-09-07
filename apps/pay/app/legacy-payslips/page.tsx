@@ -19,6 +19,7 @@ import {
 } from "@elio/ui";
 import { redirectToLogin, redirectUnlessPayViewAll } from "@/lib/session";
 import { formatLegacyPeriodLabel, legacyPayslipSummary, parseLegacyPayslipRow } from "@/lib/legacy-payslip-archive";
+import { LegacyArchiveFilters } from "./legacy-archive-filters";
 
 export default async function LegacyPayslipsPage({
   searchParams,
@@ -30,8 +31,9 @@ export default async function LegacyPayslipsPage({
   await redirectUnlessPayViewAll(session.role as Role);
   const params = await searchParams;
   const { page, skip, pageSize } = parseTablePage(params);
-  const dentist = params.dentist?.trim();
+  const dentist = params.dentist?.trim() || "";
   const year = params.year ? Number(params.year) : undefined;
+  const hasFilters = Boolean(dentist || year);
 
   const db = scopedDb(session.practiceId);
   const where = {
@@ -39,7 +41,7 @@ export default async function LegacyPayslipsPage({
     ...(year ? { periodYear: year } : {}),
   };
 
-  const [rows, totalCount] = await Promise.all([
+  const [rows, totalCount, yearRows, dentists] = await Promise.all([
     db.legacyPayslipArchive.findMany({
       where,
       orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }, { dentistName: "asc" }],
@@ -47,21 +49,42 @@ export default async function LegacyPayslipsPage({
       take: pageSize,
     }),
     db.legacyPayslipArchive.count({ where }),
+    db.legacyPayslipArchive.findMany({
+      select: { periodYear: true },
+      distinct: ["periodYear"],
+      orderBy: { periodYear: "desc" },
+    }),
+    db.dentist.findMany({
+      select: { name: true, privateSplitPercent: true, udaRatePence: true },
+    }),
   ]);
+
+  const dentistByName = new Map(
+    dentists.map((d) => [d.name.trim().toLowerCase(), d] as const)
+  );
+  const years = yearRows.map((r) => r.periodYear).filter(Boolean);
 
   return (
     <PageContent>
       <PageHeader
-        title="Legacy payslip archive"
-        description="Read-only pre-migration payslips preserved from the old ElioPay system."
+        title="Legacy Archive"
+        description="Read-only historical payslips from AuraPay."
       />
 
-      <div className="mt-8">
+      <div className="mt-6">
+        <LegacyArchiveFilters dentist={dentist} year={year} years={years} />
+      </div>
+
+      <div className="mt-4">
         {totalCount === 0 ? (
           <TablePanel toolbar={<TableToolbar title="Archived payslips" />}>
             <EmptyState
-              title="No archived payslips"
-              description="Legacy payslips appear here after migration from the old Turso database."
+              title={hasFilters ? "No matching payslips" : "No archived payslips"}
+              description={
+                hasFilters
+                  ? "Try a different dentist or year."
+                  : "No archived payslips for this practice."
+              }
               className="py-12"
             />
           </TablePanel>
@@ -76,7 +99,7 @@ export default async function LegacyPayslipsPage({
                   <TableHead>Period</TableHead>
                   <TableHead>Dentist</TableHead>
                   <TableHead className="text-right">Gross private</TableHead>
-                  <TableHead className="text-right">Net pay (est.)</TableHead>
+                  <TableHead className="text-right">Net Pay</TableHead>
                   <TableHead className="text-right">NHS UDAs</TableHead>
                   <TableHead className="text-right">Patients</TableHead>
                   <TableHead />
@@ -84,7 +107,14 @@ export default async function LegacyPayslipsPage({
               </TableHeader>
               <TableBody>
                 {rows.map((row) => {
-                  const summary = legacyPayslipSummary(parseLegacyPayslipRow(row.rawRowJson));
+                  const matched = dentistByName.get(row.dentistName.trim().toLowerCase());
+                  const summary = legacyPayslipSummary(parseLegacyPayslipRow(row.rawRowJson), {
+                    splitPercent:
+                      matched?.privateSplitPercent != null
+                        ? Number(matched.privateSplitPercent)
+                        : 50,
+                    udaRate: matched?.udaRatePence != null ? matched.udaRatePence / 100 : 0,
+                  });
                   return (
                     <TableRow key={row.id}>
                       <TableCell>{formatLegacyPeriodLabel(row.periodMonth, row.periodYear)}</TableCell>
@@ -95,8 +125,12 @@ export default async function LegacyPayslipsPage({
                       <TableCell className="text-right font-mono tabular-nums">
                         {formatMoneyGBPOrDash(Math.round(summary.netPay * 100))}
                       </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{summary.nhsUdas || "—"}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{summary.patientCount}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {summary.nhsUdas || "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {summary.patientCount}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Link
                           href={`/legacy-payslips/${row.id}`}

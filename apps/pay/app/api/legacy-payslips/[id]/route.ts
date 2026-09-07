@@ -3,9 +3,14 @@ import { scopedDb } from "@elio/db";
 import {
   formatLegacyPeriodLabel,
   legacyPayslipAdjustments,
+  legacyPayslipAnalytics,
+  legacyPayslipDentistLog,
+  legacyPayslipDiscrepancies,
   legacyPayslipLabBills,
+  legacyPayslipNhsPeriod,
   legacyPayslipPatients,
   legacyPayslipSummary,
+  legacyPayslipTherapyBreakdown,
   parseLegacyPayslipRow,
 } from "@/lib/legacy-payslip-archive";
 import { requirePermission } from "@/lib/session";
@@ -24,7 +29,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (!row) return NextResponse.json({ error: "Legacy payslip not found" }, { status: 404 });
 
     const parsed = parseLegacyPayslipRow(row.rawRowJson);
-    const summary = legacyPayslipSummary(parsed);
+    const dentist = await db.dentist.findFirst({
+      where: { name: { equals: row.dentistName, mode: "insensitive" } },
+      select: { privateSplitPercent: true, udaRatePence: true },
+    });
+    const summary = legacyPayslipSummary(parsed, {
+      splitPercent: dentist?.privateSplitPercent != null ? Number(dentist.privateSplitPercent) : 50,
+      udaRate: dentist?.udaRatePence != null ? dentist.udaRatePence / 100 : 0,
+    });
 
     return NextResponse.json({
       id: row.id,
@@ -38,6 +50,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       patients: legacyPayslipPatients(parsed),
       labBills: legacyPayslipLabBills(parsed),
       adjustments: legacyPayslipAdjustments(parsed),
+      discrepancies: legacyPayslipDiscrepancies(parsed),
+      dentistLog: legacyPayslipDentistLog(parsed),
+      analytics: legacyPayslipAnalytics(parsed),
+      therapyBreakdown: legacyPayslipTherapyBreakdown(parsed),
+      nhsPeriod: legacyPayslipNhsPeriod(parsed),
       rawRowJson: parsed,
     });
   } catch (err) {

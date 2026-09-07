@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       ...(year ? { periodYear: year } : {}),
     };
 
-    const [rows, totalCount] = await Promise.all([
+    const [rows, totalCount, dentists] = await Promise.all([
       db.legacyPayslipArchive.findMany({
         where,
         orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }, { dentistName: "asc" }],
@@ -29,15 +29,27 @@ export async function GET(req: Request) {
         take: pageSize,
       }),
       db.legacyPayslipArchive.count({ where }),
+      db.dentist.findMany({
+        select: { name: true, privateSplitPercent: true, udaRatePence: true },
+      }),
     ]);
+
+    const dentistByName = new Map(
+      dentists.map((d) => [d.name.trim().toLowerCase(), d] as const)
+    );
 
     return NextResponse.json({
       page,
       pageSize,
       totalCount,
       items: rows.map((row) => {
+        const matched = dentistByName.get(row.dentistName.trim().toLowerCase());
         const parsed = parseLegacyPayslipRow(row.rawRowJson);
-        const summary = legacyPayslipSummary(parsed);
+        const summary = legacyPayslipSummary(parsed, {
+          splitPercent:
+            matched?.privateSplitPercent != null ? Number(matched.privateSplitPercent) : 50,
+          udaRate: matched?.udaRatePence != null ? matched.udaRatePence / 100 : 0,
+        });
         return {
           id: row.id,
           sourceId: row.sourceId,
@@ -47,6 +59,8 @@ export async function GET(req: Request) {
           periodYear: row.periodYear,
           migratedAt: row.migratedAt.toISOString(),
           grossPrivate: summary.grossPrivate,
+          netPay: summary.netPay,
+          nhsIncome: summary.nhsIncome,
           nhsUdas: summary.nhsUdas,
           patientCount: summary.patientCount,
         };
