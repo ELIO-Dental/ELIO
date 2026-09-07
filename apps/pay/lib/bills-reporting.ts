@@ -1,5 +1,7 @@
 /** Bills reporting aggregations (legacy api/bills/reporting, Y4.1). Amounts in pence. */
 
+import { calculateLegacyAuraPayNetPayPence } from "./pay-period-parity";
+
 export interface BillEntitySummary {
   totalCount: number;
   totalPence: number;
@@ -105,7 +107,52 @@ export interface PayPeriodReportingInput {
   payslipEntries: Array<{
     dentistName: string;
     finalPayPence: number | null;
+    /** Fallback fields when finalPayPence is null (AuraPay reporting formula). */
+    grossPrivateRevenuePence?: number | null;
+    privateSplitPercent?: number | null;
+    udas?: number | null;
+    udaRatePence?: number | null;
+    isNhs?: boolean;
+    labBillsJson?: unknown;
+    adjustmentsJson?: unknown;
+    financeFeesPence?: number | null;
+    therapyMinutes?: number | null;
+    therapyRatePerMinute?: number | null;
+    superannuationPence?: number | null;
   }>;
+}
+
+/** Prefer stored final pay; else AuraPay reporting formula; display clamped ≥ 0. */
+export function resolveReportingNetPayPence(entry: PayPeriodReportingInput["payslipEntries"][number]): number {
+  if (entry.finalPayPence != null) return Math.max(0, entry.finalPayPence);
+
+  const labJson =
+    entry.labBillsJson == null
+      ? undefined
+      : typeof entry.labBillsJson === "string"
+        ? entry.labBillsJson
+        : JSON.stringify(entry.labBillsJson);
+  const adjJson =
+    entry.adjustmentsJson == null
+      ? undefined
+      : typeof entry.adjustmentsJson === "string"
+        ? entry.adjustmentsJson
+        : JSON.stringify(entry.adjustmentsJson);
+
+  const net = calculateLegacyAuraPayNetPayPence({
+    grossPrivatePounds: (entry.grossPrivateRevenuePence ?? 0) / 100,
+    splitPercent: entry.privateSplitPercent != null ? Number(entry.privateSplitPercent) : 50,
+    isNhs: Boolean(entry.isNhs),
+    nhsUdas: entry.udas != null ? Number(entry.udas) : 0,
+    udaRatePounds: (entry.udaRatePence ?? 0) / 100,
+    labBillsJson: labJson,
+    financeFeesPounds: (entry.financeFeesPence ?? 0) / 100,
+    therapyMinutes: entry.therapyMinutes != null ? Number(entry.therapyMinutes) : 0,
+    therapyRatePerMinute: entry.therapyRatePerMinute != null ? Number(entry.therapyRatePerMinute) : 0.5833,
+    superannuationPounds: (entry.superannuationPence ?? 0) / 100,
+    adjustmentsJson: adjJson,
+  });
+  return Math.max(0, net);
 }
 
 export function effectiveBillDate(billDate: Date | null, createdAt: Date): Date {
@@ -272,7 +319,7 @@ export function buildDentistPayRows(periods: PayPeriodReportingInput[]): Dentist
         month,
         periodStatus: period.status,
         dentistName: entry.dentistName,
-        finalPayPence: entry.finalPayPence ?? 0,
+        finalPayPence: resolveReportingNetPayPence(entry),
       });
     }
   }

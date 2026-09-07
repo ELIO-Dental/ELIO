@@ -20,7 +20,7 @@ export default async function ReportingPage() {
     <PageContent>
       <PageHeader
         title="Reporting"
-        description="Financial analytics, pay trends, and anomaly detection."
+        description="Financial analytics, trends, and anomaly detection."
       />
 
       <div className="mt-8">

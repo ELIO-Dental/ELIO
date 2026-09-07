@@ -5,6 +5,7 @@ import {
   buildDentistPayTable,
   computeDentistPayGrandTotals,
   detectLabAnomalies,
+  resolveReportingNetPayPence,
   summarizeBills,
 } from "./bills-reporting";
 
@@ -126,5 +127,22 @@ describe("bills-reporting", () => {
     expect(payload.dentistPayTable).toHaveLength(1);
     expect(payload.dentistNames).toEqual(["Dr A"]);
     expect(payload.dentistPayGrandTotals.totalPence).toBe(100000);
+  });
+
+  it("falls back to AuraPay formula when finalPayPence is null", () => {
+    const net = resolveReportingNetPayPence({
+      dentistName: "Dr A",
+      finalPayPence: null,
+      grossPrivateRevenuePence: 100000,
+      privateSplitPercent: 50,
+      isNhs: false,
+      financeFeesPence: 0,
+      therapyMinutes: 0,
+      therapyRatePerMinute: 0.5833,
+      superannuationPence: 0,
+      labBillsJson: [],
+      adjustmentsJson: [],
+    });
+    expect(net).toBe(50000);
   });
 });

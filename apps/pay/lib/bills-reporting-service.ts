@@ -17,7 +17,10 @@ export async function getBillsReportingData(practiceId: string) {
       orderBy: { periodStart: "asc" },
       include: {
         payslipEntries: {
-          include: { dentist: { select: { name: true } } },
+          include: {
+            dentist: { select: { name: true, isNhs: true } },
+            privateRevenueLineItems: { select: { financeFeePence: true } },
+          },
         },
       },
     }),
@@ -42,10 +45,29 @@ export async function getBillsReportingData(practiceId: string) {
     periods: periods.map((period) => ({
       periodStart: period.periodStart,
       status: period.status,
-      payslipEntries: period.payslipEntries.map((entry) => ({
-        dentistName: entry.dentist.name,
-        finalPayPence: entry.finalPayPence,
-      })),
+      payslipEntries: period.payslipEntries.map((entry) => {
+        const financeFeesPence = entry.privateRevenueLineItems.reduce(
+          (sum, line) => sum + (line.financeFeePence ?? 0),
+          0
+        );
+        return {
+          dentistName: entry.dentist.name,
+          finalPayPence: entry.finalPayPence,
+          grossPrivateRevenuePence: entry.grossPrivateRevenuePence,
+          privateSplitPercent:
+            entry.privateSplitPercent != null ? Number(entry.privateSplitPercent) : null,
+          udas: entry.udas != null ? Number(entry.udas) : null,
+          udaRatePence: entry.udaRatePence,
+          isNhs: entry.dentist.isNhs,
+          labBillsJson: entry.labBillsJson,
+          adjustmentsJson: entry.adjustmentsJson,
+          financeFeesPence,
+          therapyMinutes: entry.therapyMinutes != null ? Number(entry.therapyMinutes) : null,
+          therapyRatePerMinute:
+            entry.therapyRatePerMinute != null ? Number(entry.therapyRatePerMinute) : null,
+          superannuationPence: entry.superannuationPence,
+        };
+      }),
     })),
   });
 }

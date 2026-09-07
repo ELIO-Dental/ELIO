@@ -163,57 +163,33 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
     <div className="flex flex-col gap-8" data-testid="reporting-page">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
-          label="Total lab bills"
+          label="Total Lab Bills"
           value={formatMoneyGBP(bills.labSummary.totalPence)}
           detail={`${bills.labSummary.totalCount} bills`}
         />
         <SummaryCard
-          label="Lab bills unpaid"
+          label="Lab Bills Unpaid"
           value={formatMoneyGBP(bills.labSummary.unpaidPence)}
           detail={`${bills.labSummary.unpaidCount} unpaid`}
           danger
         />
         <SummaryCard
-          label="Total supplier invoices"
+          label="Total Supplier Invoices"
           value={formatMoneyGBP(bills.supplierSummary.totalPence)}
           detail={`${bills.supplierSummary.totalCount} invoices`}
         />
         <SummaryCard
-          label="Invoices unpaid"
+          label="Invoices Unpaid"
           value={formatMoneyGBP(bills.supplierSummary.unpaidPence)}
           detail={`${bills.supplierSummary.unpaidCount} unpaid`}
           danger
         />
       </div>
 
-      {hasPayData ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pay period totals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={payChartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-                  <CartesianGrid stroke="var(--color-border-subtle)" strokeOpacity={0.5} vertical={false} />
-                  <XAxis dataKey="period" tick={{ fill: "var(--color-text-tertiary)", fontSize: 12 }} axisLine={{ stroke: "var(--color-border-subtle)" }} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--color-text-tertiary)", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatMoneyGBP(v)} width={80} />
-                  <Tooltip content={<ThemedTooltip />} cursor={{ stroke: "var(--color-border-subtle)" }} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
-                  <Line type="monotone" dataKey="NHS earnings" stroke="var(--color-accent-teal)" strokeWidth={2} dot={false} isAnimationActive={!hasAnimated} />
-                  <Line type="monotone" dataKey="Private earnings" stroke="var(--color-accent-amber)" strokeWidth={2} dot={false} isAnimationActive={!hasAnimated} />
-                  <Line type="monotone" dataKey="Final pay" stroke="var(--color-primary-500)" strokeWidth={2.5} dot={false} isAnimationActive={!hasAnimated} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {costTrendData.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Monthly costs trend</CardTitle>
+            <CardTitle>Monthly Costs Trend</CardTitle>
             <p className="text-body-sm text-(--color-text-secondary)">Lab bills and supplier invoices over time</p>
           </CardHeader>
           <CardContent>
@@ -237,7 +213,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
       {dentistTrendData.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Dentist net pay trend</CardTitle>
+            <CardTitle>Dentist Net Pay Trend</CardTitle>
             <p className="text-body-sm text-(--color-text-secondary)">All pay periods — draft months marked with *</p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -280,7 +256,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
                     <TableRow key={`${row.year}-${row.month}`}>
                       <TableCell>{monthShortLabel(row.month)} {row.year}</TableCell>
                       <TableCell>
-                        <Badge variant={row.isDraft ? "neutral" : "success"}>
+                        <Badge variant={row.isDraft ? "warning" : "success"}>
                           {row.isDraft ? "Draft" : "Finalized"}
                         </Badge>
                       </TableCell>
@@ -295,7 +271,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
                   {bills.dentistPayTable.length > 1 ? (
                     <TableRow className="border-t-2 border-(--color-border-subtle) bg-(--color-surface-dim)">
                       <TableCell colSpan={2} className="font-semibold">
-                        Grand total
+                        Grand Total
                       </TableCell>
                       {bills.dentistNames.map((name) => (
                         <TableCellMoney key={name} className="font-semibold">
@@ -314,22 +290,56 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
         </Card>
       ) : null}
 
+      {hasPayData ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pay Period Totals</CardTitle>
+            <p className="text-body-sm text-(--color-text-secondary)">
+              NHS, private earnings, and final pay by period
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={payChartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke="var(--color-border-subtle)" strokeOpacity={0.5} vertical={false} />
+                  <XAxis dataKey="period" tick={{ fill: "var(--color-text-tertiary)", fontSize: 12 }} axisLine={{ stroke: "var(--color-border-subtle)" }} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--color-text-tertiary)", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatMoneyGBP(v)} width={80} />
+                  <Tooltip content={<ThemedTooltip />} cursor={{ stroke: "var(--color-border-subtle)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
+                  <Line type="monotone" dataKey="NHS earnings" stroke="var(--color-accent-teal)" strokeWidth={2} dot={false} isAnimationActive={!hasAnimated} />
+                  <Line type="monotone" dataKey="Private earnings" stroke="var(--color-accent-amber)" strokeWidth={2} dot={false} isAnimationActive={!hasAnimated} />
+                  <Line type="monotone" dataKey="Final pay" stroke="var(--color-primary-500)" strokeWidth={2.5} dot={false} isAnimationActive={!hasAnimated} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {labBarData.length > 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>Lab bills by lab</CardTitle>
+              <CardTitle>Lab Bills by Lab</CardTitle>
               <p className="text-body-sm text-(--color-text-secondary)">Total spend per lab</p>
             </CardHeader>
             <CardContent>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={labBarData} layout="vertical" margin={{ left: 24 }}>
-                    <CartesianGrid stroke="var(--color-border-subtle)" horizontal={false} />
-                    <XAxis type="number" tickFormatter={(v: number) => formatMoneyGBP(v)} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                  <BarChart data={labBarData} margin={{ bottom: 48 }}>
+                    <CartesianGrid stroke="var(--color-border-subtle)" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: "var(--color-text-tertiary)", fontSize: 11 }}
+                      interval={0}
+                      angle={-25}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis tickFormatter={(v: number) => formatMoneyGBP(v)} width={80} />
                     <Tooltip formatter={(value) => formatMoneyGBP(Number(value ?? 0))} />
-                    <Bar dataKey="totalPence" fill="var(--color-primary-500)" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="totalPence" fill="var(--color-primary-500)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -341,7 +351,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
           <CardHeader className="flex-row items-center gap-2">
             <TrendingUp className="size-5 text-(--color-brand)" />
             <div>
-              <CardTitle>Anomaly detection</CardTitle>
+              <CardTitle>Anomaly Detection</CardTitle>
               <p className="text-body-sm text-(--color-text-secondary)">
                 Months where lab bills deviate from average ({formatMoneyGBP(Math.round(bills.avgMonthlyLabPence))}/month)
               </p>
@@ -382,7 +392,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Outstanding lab bills</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Outstanding Lab Bills</CardTitle></CardHeader>
           <CardContent className="p-0">
             <TablePanel>
               <Table>
@@ -415,7 +425,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Outstanding supplier invoices</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Outstanding Supplier Invoices</CardTitle></CardHeader>
           <CardContent className="p-0">
             <TablePanel>
               <Table>
@@ -451,7 +461,7 @@ export function ReportingClient({ initialPeriods, bills }: ReportingClientProps)
       {bills.labByDentist.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Lab bills by dentist</CardTitle>
+            <CardTitle>Lab Bills by Dentist</CardTitle>
             <p className="text-body-sm text-(--color-text-secondary)">Breakdown of lab spending per dentist</p>
           </CardHeader>
           <CardContent className="p-0">
