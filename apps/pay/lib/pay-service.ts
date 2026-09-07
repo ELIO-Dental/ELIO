@@ -21,17 +21,17 @@ import { getPaySettings } from "./pay-settings-service";
 import { resolveFinanceFeeSplit, resolveLabBillSplit } from "./pay-settings";
 import { payslipIsProvisional, resolveFinanceFeesForDeduction } from "./finance-fee";
 import { resolveDentistRatesAsOf, resolveShareBp, periodRatesAsOfDate } from "./dentist-rates";
-import { resolveNhsUdasForCalc } from "./nhs-udas";
-import { ACTIVE_DENTIST_WHERE } from "./active-dentists";
+import { dentistHasNhs, resolveNhsUdasForCalc } from "./nhs-udas";
+import { ACTIVE_DENTIST_WHERE, MANAGED_DENTIST_WHERE } from "./active-dentists";
 
 // ---------------------------------------------------------------------------
 // Dentists
 // ---------------------------------------------------------------------------
 
-export async function listDentists(practiceId: string) {
+export async function listDentists(practiceId: string, options?: { includeInactive?: boolean }) {
   const db = scopedDb(practiceId);
   return db.dentist.findMany({
-    where: ACTIVE_DENTIST_WHERE,
+    where: options?.includeInactive ? MANAGED_DENTIST_WHERE : ACTIVE_DENTIST_WHERE,
     orderBy: { name: "asc" },
   });
 }
@@ -41,7 +41,11 @@ export interface CreateDentistInput {
   email?: string | null;
   nhsPerformerNumber?: string | null;
   dentallyPractitionerId?: string | null;
-  payType: "PERCENTAGE_SPLIT" | "HOURLY";
+  /** AuraPay is_nhs */
+  isNhs?: boolean;
+  /** AuraPay active (defaults true) */
+  active?: boolean;
+  payType?: "PERCENTAGE_SPLIT" | "HOURLY";
   privateSplitPercent?: number | null;
   udaRatePence?: number | null;
   hourlyRatePence?: number | null;
@@ -82,15 +86,18 @@ async function appendDentistRateHistory(
 export async function createDentist(practiceId: string, input: CreateDentistInput) {
   const db = scopedDb(practiceId);
   const effectiveFrom = new Date();
+  const payType = input.payType ?? "PERCENTAGE_SPLIT";
   const dentist = await db.dentist.create({
     data: {
       practiceId,
-      name: input.name,
+      name: input.name.trim(),
       email: input.email?.trim() || null,
-      nhsPerformerNumber: input.nhsPerformerNumber ?? null,
+      nhsPerformerNumber: input.nhsPerformerNumber?.trim() || null,
       dentallyPractitionerId: input.dentallyPractitionerId?.trim() || null,
-      payType: input.payType,
-      privateSplitPercent: input.privateSplitPercent ?? null,
+      isNhs: Boolean(input.isNhs),
+      active: input.active !== false,
+      payType,
+      privateSplitPercent: input.privateSplitPercent ?? (payType === "PERCENTAGE_SPLIT" ? 50 : null),
       udaRatePence: input.udaRatePence ?? null,
       hourlyRatePence: input.hourlyRatePence ?? null,
       labShareBp: input.labShareBp ?? null,
@@ -100,7 +107,7 @@ export async function createDentist(practiceId: string, input: CreateDentistInpu
     },
   });
   await appendDentistRateHistory(db, practiceId, dentist.id, {
-    privateSplitPercent: input.privateSplitPercent ?? null,
+    privateSplitPercent: dentist.privateSplitPercent != null ? Number(dentist.privateSplitPercent) : null,
     udaRatePence: input.udaRatePence ?? null,
     hourlyRatePence: input.hourlyRatePence ?? null,
     labShareBp: input.labShareBp ?? null,
@@ -145,6 +152,8 @@ export interface UpdateDentistInput {
   email?: string | null;
   nhsPerformerNumber?: string | null;
   dentallyPractitionerId?: string | null;
+  isNhs?: boolean;
+  active?: boolean;
   privateSplitPercent?: number | null;
   udaRatePence?: number | null;
   hourlyRatePence?: number | null;
@@ -170,11 +179,18 @@ export async function updateDentist(practiceId: string, dentistId: string, input
   const dentist = await db.dentist.update({
     where: { id: dentistId },
     data: {
-      name: input.name ?? undefined,
+      name: input.name !== undefined ? input.name.trim() : undefined,
       email: input.email !== undefined ? (input.email?.trim() || null) : undefined,
-      nhsPerformerNumber: input.nhsPerformerNumber !== undefined ? input.nhsPerformerNumber : undefined,
+      nhsPerformerNumber:
+        input.nhsPerformerNumber !== undefined
+          ? input.nhsPerformerNumber?.trim() || null
+          : undefined,
       dentallyPractitionerId:
-        input.dentallyPractitionerId !== undefined ? input.dentallyPractitionerId : undefined,
+        input.dentallyPractitionerId !== undefined
+          ? input.dentallyPractitionerId?.trim() || null
+          : undefined,
+      isNhs: input.isNhs !== undefined ? input.isNhs : undefined,
+      active: input.active !== undefined ? input.active : undefined,
       privateSplitPercent: input.privateSplitPercent !== undefined ? input.privateSplitPercent : undefined,
       udaRatePence: input.udaRatePence !== undefined ? input.udaRatePence : undefined,
       hourlyRatePence: input.hourlyRatePence !== undefined ? input.hourlyRatePence : undefined,
@@ -206,11 +222,9 @@ export async function updateDentist(practiceId: string, dentistId: string, input
   return dentist;
 }
 
-const REMOVED_PREFIX = "[REMOVED] ";
-
 /**
  * Soft-remove when the dentist still has historical pay/bill links; otherwise hard-delete.
- * Soft: rename to `[REMOVED] …` (no double-prefix), clear identity/contact fields.
+ * Soft (AuraPay): set `active = false` and keep records.
  */
 export async function deleteDentist(practiceId: string, dentistId: string) {
   const db = scopedDb(practiceId);
@@ -249,25 +263,24 @@ export async function deleteDentist(practiceId: string, dentistId: string) {
     0;
 
   if (hasLinks) {
-    const name = existing.name.startsWith(REMOVED_PREFIX)
-      ? existing.name
-      : `${REMOVED_PREFIX}${existing.name}`;
     const dentist = await db.dentist.update({
       where: { id: dentistId },
-      data: {
-        name,
-        dentallyPractitionerId: null,
-        nhsPerformerNumber: null,
-        email: null,
-        userId: null,
-      },
+      data: { active: false },
     });
-    return { mode: "soft" as const, dentist };
+    return {
+      mode: "soft" as const,
+      dentist,
+      message: `${existing.name} has payslips or bills — marked inactive instead of deleted.`,
+    };
   }
 
   await db.dentistRateHistory.deleteMany({ where: { dentistId, practiceId } });
   await db.dentist.delete({ where: { id: dentistId } });
-  return { mode: "hard" as const, dentist: existing };
+  return {
+    mode: "hard" as const,
+    dentist: existing,
+    message: `${existing.name} was removed.`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1019,7 +1032,7 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
       payLine?.udas ? Number(payLine.udas) : 0
     );
     const { udas, udaRatePence, nhsEarningsPence } = nhs;
-    const superannuationPence = dentist.nhsPerformerNumber?.trim() ? (payLine?.superannuationPence ?? 0) : 0;
+    const superannuationPence = dentistHasNhs(dentist) ? (payLine?.superannuationPence ?? 0) : 0;
     const therapyDeduction = therapyDeductionPence(
       existing?.therapyMinutes != null ? Number(existing.therapyMinutes) : 0,
       existing?.therapyRatePerMinute != null ? Number(existing.therapyRatePerMinute) : 0,
@@ -1185,7 +1198,7 @@ export async function savePayslipEntry(
     rates.financeShareBp,
     resolveFinanceFeeSplit(paySettings)
   );
-  const isNhs = Boolean(dentist.nhsPerformerNumber?.trim());
+  const isNhs = dentistHasNhs(dentist);
 
   const udasRaw = input.udas ?? (existing.udas != null ? Number(existing.udas) : 0);
   const udas = isNhs && Number.isFinite(udasRaw) && udasRaw > 0 ? udasRaw : 0;

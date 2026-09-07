@@ -163,13 +163,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         orderBy: { createdAt: "desc" },
       });
       const nhs = resolveNhsUdasForCalc(
-        { nhsPerformerNumber: dentist.nhsPerformerNumber, udaRatePence: rates.udaRatePence },
+        {
+          isNhs: dentist.isNhs,
+          nhsPerformerNumber: dentist.nhsPerformerNumber,
+          udaRatePence: rates.udaRatePence,
+        },
         payLine?.udas ? Number(payLine.udas) : 0
       );
       const { udas, udaRatePence, nhsEarningsPence } = nhs;
-      const superannuationPence = dentist.nhsPerformerNumber?.trim()
-        ? (payLine?.superannuationPence ?? 0)
-        : 0;
+      const superannuationPence = dentist.isNhs ? (payLine?.superannuationPence ?? 0) : 0;
       const privateSplitPercent = rates.privateSplitPercent ?? 0;
       const labBillSplit = resolveShareBp(rates.labShareBp, practiceLabBp);
       const financeFeeSplit = resolveShareBp(rates.financeShareBp, practiceFinanceBp);

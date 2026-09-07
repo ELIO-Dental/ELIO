@@ -148,6 +148,8 @@ export async function importDentists(
       hourlyRatePence: row.hourlyRatePence,
       nhsPerformerNumber: row.nhsPerformerNumber,
       dentallyPractitionerId: row.dentallyPractitionerId,
+      isNhs: Boolean(row.nhsPerformerNumber?.trim()) || (row.udaRatePence != null && row.udaRatePence > 0),
+      active: true,
       effectiveFrom: new Date(),
     };
 

@@ -601,6 +601,10 @@ model Dentist {
   // real, structured attribution of a treatment to the dentist who performed
   // it, distinct from nhsPerformerNumber (used for Compass matching only).
   dentallyPractitionerId String?
+  /** AuraPay `is_nhs` — drives NHS columns / UDA earnings (not inferred from performer # alone). */
+  isNhs                  Boolean  @default(false)
+  /** AuraPay `active` — inactive dentists stay in history but leave live payroll. */
+  active                 Boolean  @default(true)
   payType                PayType
 
   // PERCENTAGE_SPLIT (dentists)

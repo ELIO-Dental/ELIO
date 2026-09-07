@@ -1,11 +1,19 @@
-/** Step 19 — NHS income only when dentist has an NHS performer number. */
-export function dentistHasNhs(dentist: { nhsPerformerNumber?: string | null }): boolean {
+/** AuraPay `is_nhs` — prefer explicit flag; fall back to performer # for pre-migration rows. */
+export function dentistHasNhs(dentist: {
+  isNhs?: boolean | null;
+  nhsPerformerNumber?: string | null;
+}): boolean {
+  if (typeof dentist.isNhs === "boolean") return dentist.isNhs;
   return Boolean(dentist.nhsPerformerNumber?.trim());
 }
 
 /** Resolve UDAs / rate for calc — non-NHS always zero. */
 export function resolveNhsUdasForCalc(
-  dentist: { nhsPerformerNumber?: string | null; udaRatePence?: number | null },
+  dentist: {
+    isNhs?: boolean | null;
+    nhsPerformerNumber?: string | null;
+    udaRatePence?: number | null;
+  },
   udasRaw: number | null | undefined
 ): { udas: number; udaRatePence: number; nhsEarningsPence: number } {
   if (!dentistHasNhs(dentist)) {

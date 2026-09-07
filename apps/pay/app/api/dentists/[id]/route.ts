@@ -40,6 +40,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           : typeof body.dentallyPractitionerId === "string"
             ? body.dentallyPractitionerId
             : undefined,
+      isNhs: typeof body.isNhs === "boolean" ? body.isNhs : undefined,
+      active: typeof body.active === "boolean" ? body.active : undefined,
       privateSplitPercent:
         body.privateSplitPercent != null
           ? Number(body.privateSplitPercent)
@@ -134,7 +136,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         after: result.mode === "soft" ? { name: result.dentist.name } : null,
       },
     });
-    return NextResponse.json({ ok: true, mode: result.mode });
+    return NextResponse.json({
+      ok: true,
+      mode: result.mode,
+      message: result.message,
+    });
   } catch (err) {
     if (err instanceof UnauthorizedError) return NextResponse.json({ error: err.message }, { status: 401 });
     if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });

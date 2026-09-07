@@ -337,7 +337,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
               <PeriodPayrollTotalsBanner rows={summaryRows} />
               <PeriodPayslipSummaryTable rows={summaryRows} />
               {payPeriod.payslipEntries.map((p) => {
-                const isNhs = Boolean(p.dentist.nhsPerformerNumber);
+                const isNhs = Boolean(p.dentist.isNhs);
                 const financeFeeSplit = resolveShareBp(p.dentist.financeShareBp, practiceFinanceBp);
                 const clinicianReadOnly = !viewAll;
                 return (

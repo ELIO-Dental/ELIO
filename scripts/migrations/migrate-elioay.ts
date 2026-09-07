@@ -114,10 +114,15 @@ async function main() {
           data: {
             practiceId: practice.id,
             name: String(d.name),
+            email: d.email ? String(d.email) : null,
             nhsPerformerNumber: d.performer_number ? String(d.performer_number) : null,
             dentallyPractitionerId,
+            isNhs,
+            active: d.active == null ? true : Number(d.active) === 1,
             payType: "PERCENTAGE_SPLIT",
-            privateSplitPercent: d.split_percentage != null ? Number(d.split_percentage) : null,
+            privateSplitPercent: d.split_percentage != null ? Number(d.split_percentage) : 50,
+            udaRatePence:
+              d.uda_rate != null ? Math.round(Number(d.uda_rate) * 100) : 0,
           },
         });
       }
