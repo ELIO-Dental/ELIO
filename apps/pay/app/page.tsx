@@ -17,7 +17,6 @@ import {
   formatMoneyGBPOrDash,
 } from "@elio/ui";
 import { FileWarning } from "lucide-react";
-import { MoneyStatCard } from "@/components/money-stat-card";
 import { canPayViewAll, canPayViewAny, resolvePayPractitionerScope } from "@/lib/pay-scope";
 import { filterPayslipsForScope } from "@/lib/pay-scope-utils";
 import { parseUnmappedFromFetchResult } from "@/lib/unmapped-practitioners";
@@ -26,13 +25,13 @@ import {
   formatPayPeriodMonthLabel,
   formatPayPeriodMonthShort,
   formatPayPeriodStatusLabel,
+  uniqueRecentPeriodsByMonth,
 } from "@/lib/pay-dashboard-labels";
 
 /**
  * Step 37 — AuraPay home parity (`/dashboard`) inside ELIO design.
- * Legacy had: Active Dentists, Pay Periods, Latest Period (or None), New Period,
- * Recent Pay Periods (5) + View all, empty “Create your first pay period”.
- * Kept ELIO extras: period-scoped total owed, payslip list, provisional/unmapped/Compass alerts.
+ * Stats: Active Dentists, Pay Periods, Latest Period (no “total owed” money card — client request).
+ * Recent Pay Periods: one row per calendar month (AuraPay unique month/year), labels from month/year ints.
  */
 export default async function PayDashboardPage() {
   const session = await auth();
@@ -48,10 +47,10 @@ export default async function PayDashboardPage() {
     return redirectToLauncher("error=forbidden");
   }
   const viewAll = canPayViewAll(subject);
-  const [periods, periodCount, dentistCount] = await Promise.all([
+  const [rawPeriods, periodCount, dentistCount] = await Promise.all([
     db.payPeriod.findMany({
-      orderBy: { periodStart: "desc" },
-      take: 5, // AuraPay home showed 5 recent periods
+      orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }],
+      take: 60, // then unique-by-month to 5 (AuraPay could not duplicate month/year)
       select: {
         id: true,
         periodStart: true,
@@ -65,6 +64,7 @@ export default async function PayDashboardPage() {
     db.dentist.count({ where: ACTIVE_DENTIST_WHERE }),
   ]);
 
+  const periods = uniqueRecentPeriodsByMonth(rawPeriods, 5);
   const currentPeriod = periods[0] ?? null;
   const latestPeriodLabel = currentPeriod
     ? formatPayPeriodMonthLabel(currentPeriod.periodStart)
@@ -103,7 +103,6 @@ export default async function PayDashboardPage() {
   }
 
   const entries = filterPayslipsForScope(rawEntries, scope);
-  const totalOwedPence = entries.reduce((sum, e) => sum + (e.finalPayPence ?? 0), 0);
   const unmappedCount =
     viewAll && currentPeriod
       ? parseUnmappedFromFetchResult(currentPeriod.dentallyFetchResultJson).length
@@ -135,8 +134,8 @@ export default async function PayDashboardPage() {
       />
 
       <div className="mt-8 flex flex-col gap-8">
-        {/* AuraPay always showed these three stats (0 / 0 / None when empty). */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* AuraPay home stats — three cards only (no owed/price card). */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {viewAll ? <StatCard label="Active Dentists" value={dentistCount} /> : null}
           {viewAll ? <StatCard label="Pay Periods" value={periodCount} /> : null}
           {viewAll ? (
@@ -144,12 +143,6 @@ export default async function PayDashboardPage() {
               <p className="text-h3 font-bold text-(--color-text-primary)">{latestPeriodLabel}</p>
               <p className="mt-0.5 text-caption text-(--color-text-secondary)">Latest Period</p>
             </Card>
-          ) : null}
-          {currentPeriod ? (
-            <MoneyStatCard
-              label={viewAll ? "Total owed this period" : "My payment this period"}
-              valuePence={totalOwedPence}
-            />
           ) : null}
         </div>
 
