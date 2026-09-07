@@ -3,7 +3,6 @@ import { redirectToLogin, redirectToLauncher } from "@/lib/session";
 import { scopedDb, type Role } from "@elio/db";
 import { auth } from "@elio/auth";
 import {
-  StatCard,
   Card,
   CardHeader,
   CardTitle,
@@ -14,11 +13,9 @@ import {
   StaggerItem,
   PageContent,
   PageHeader,
-  formatMoneyGBPOrDash,
 } from "@elio/ui";
-import { FileWarning, Calendar, Plus } from "lucide-react";
+import { FileWarning, Calendar, Plus, Users, FileText, TrendingUp } from "lucide-react";
 import { canPayViewAll, canPayViewAny, resolvePayPractitionerScope } from "@/lib/pay-scope";
-import { filterPayslipsForScope } from "@/lib/pay-scope-utils";
 import { parseUnmappedFromFetchResult } from "@/lib/unmapped-practitioners";
 import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
 import {
@@ -29,10 +26,8 @@ import {
 } from "@/lib/pay-dashboard-labels";
 
 /**
- * Step 37 — AuraPay home parity (`/dashboard`) inside ELIO design.
- * Stats: Active Dentists, Pay Periods, Latest Period (no “total owed” money card — client request).
- * Recent Pay Periods: one row per calendar month (AuraPay unique month/year), labels from month/year ints.
- * Created date uses PayPeriod.createdAt (backfilled from AuraPay created_at when migrated).
+ * AuraPay home parity (`/dashboard`) inside ELIO design.
+ * Stats + Recent Pay Periods only — payslips open via Pay Periods (old Payslips tab).
  */
 export default async function PayDashboardPage() {
   const session = await auth();
@@ -51,7 +46,7 @@ export default async function PayDashboardPage() {
   const [rawPeriods, dentistCount] = await Promise.all([
     db.payPeriod.findMany({
       orderBy: [{ periodStart: "desc" }, { createdAt: "asc" }],
-      take: 60, // then unique-by-month to 5 (prefer most payslips / LOCKED / original createdAt)
+      take: 60,
       select: {
         id: true,
         periodStart: true,
@@ -69,7 +64,6 @@ export default async function PayDashboardPage() {
     ...p,
     payslipCount: p._count.payslipEntries,
   }));
-  // AuraPay counted unique month/year periods — not accidental duplicate rows.
   const periodCount = uniqueRecentPeriodsByMonth(periodsWithCounts, Number.MAX_SAFE_INTEGER).length;
   const periods = uniqueRecentPeriodsByMonth(periodsWithCounts, 5);
   const currentPeriod = periods[0] ?? null;
@@ -77,39 +71,22 @@ export default async function PayDashboardPage() {
     ? formatPayPeriodMonthLabel(currentPeriod.periodStart)
     : "None";
 
-  let rawEntries: Awaited<
-    ReturnType<
-      typeof db.payslipEntry.findMany<{ include: { dentist: true } }>
-    >
-  > = [];
   let needsReview = 0;
   let provisionalCount = 0;
-  if (currentPeriod) {
-    [rawEntries, needsReview, provisionalCount] = await Promise.all([
-      db.payslipEntry.findMany({
+  if (currentPeriod && viewAll) {
+    [needsReview, provisionalCount] = await Promise.all([
+      db.payLine.count({
         where: {
-          payPeriodId: currentPeriod.id,
-          ...(scope.dentistId && !scope.viewAll ? { dentistId: scope.dentistId } : {}),
+          compassStatement: { payPeriodId: currentPeriod.id },
+          matchConfidence: "NEEDS_REVIEW",
         },
-        include: { dentist: true },
       }),
-      viewAll
-        ? db.payLine.count({
-            where: {
-              compassStatement: { payPeriodId: currentPeriod.id },
-              matchConfidence: "NEEDS_REVIEW",
-            },
-          })
-        : Promise.resolve(0),
-      viewAll
-        ? db.payslipEntry.count({
-            where: { payPeriodId: currentPeriod.id, provisional: true },
-          })
-        : Promise.resolve(0),
+      db.payslipEntry.count({
+        where: { payPeriodId: currentPeriod.id, provisional: true },
+      }),
     ]);
   }
 
-  const entries = filterPayslipsForScope(rawEntries, scope);
   const unmappedCount =
     viewAll && currentPeriod
       ? parseUnmappedFromFetchResult(currentPeriod.dentallyFetchResultJson).length
@@ -122,19 +99,12 @@ export default async function PayDashboardPage() {
         description="Manage payslips and dentist payments"
         actions={
           viewAll ? (
-            <div className="flex flex-wrap gap-2">
-              <Link href="/pay-periods/new">
-                <Button variant="primary">
-                  <Plus className="size-4" aria-hidden />
-                  New Period
-                </Button>
-              </Link>
-              {currentPeriod ? (
-                <Link href={`/pay-periods/${currentPeriod.id}`}>
-                  <Button variant="secondary">Open period</Button>
-                </Link>
-              ) : null}
-            </div>
+            <Link href="/pay-periods/new">
+              <Button variant="primary">
+                <Plus className="size-4" aria-hidden />
+                New Period
+              </Button>
+            </Link>
           ) : currentPeriod ? (
             <Link href={`/pay-periods/${currentPeriod.id}`}>
               <Button variant="primary">View my payslip</Button>
@@ -143,20 +113,39 @@ export default async function PayDashboardPage() {
         }
       />
 
-      <div className="mt-8 flex flex-col gap-8">
-        {/* AuraPay home stats — three cards only (no owed/price card). */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {viewAll ? <StatCard label="Active Dentists" value={dentistCount} /> : null}
-          {viewAll ? <StatCard label="Pay Periods" value={periodCount} /> : null}
-          {viewAll ? (
-            <Card className="flex flex-col gap-3">
-              <span className="text-caption font-medium text-(--color-text-secondary)">Latest Period</span>
-              <span className="tabular-nums font-(--font-mono) text-money-hero font-semibold text-(--color-text-primary)">
-                {latestPeriodLabel}
-              </span>
+      <div className="mt-8 flex flex-col gap-6">
+        {/* AuraPay-style stats: value + label, compact (not hero money type). */}
+        {viewAll ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card className="flex items-center gap-3 px-5 py-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600)">
+                <Users className="size-5" aria-hidden />
+              </div>
+              <div>
+                <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{dentistCount}</p>
+                <p className="text-caption text-(--color-text-secondary)">Active Dentists</p>
+              </div>
             </Card>
-          ) : null}
-        </div>
+            <Card className="flex items-center gap-3 px-5 py-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-success)/10 text-(--color-success)">
+                <FileText className="size-5" aria-hidden />
+              </div>
+              <div>
+                <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{periodCount}</p>
+                <p className="text-caption text-(--color-text-secondary)">Pay Periods</p>
+              </div>
+            </Card>
+            <Card className="flex items-center gap-3 px-5 py-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-warning)/10 text-(--color-warning)">
+                <TrendingUp className="size-5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-2xl font-bold text-(--color-text-primary)">{latestPeriodLabel}</p>
+                <p className="text-caption text-(--color-text-secondary)">Latest Period</p>
+              </div>
+            </Card>
+          </div>
+        ) : null}
 
         {viewAll && provisionalCount > 0 && currentPeriod ? (
           <Card className="flex items-center justify-between" accentColor="var(--color-warning)">
@@ -245,89 +234,56 @@ export default async function PayDashboardPage() {
                   ) : null}
                 </div>
               ) : (
-                <>
-                  <StaggerList className="divide-y divide-(--color-border-subtle)">
-                    {periods.map((p) => {
-                      const statusLabel = formatPayPeriodStatusLabel(p.status);
-                      return (
-                        <StaggerItem key={p.id}>
-                          <Link
-                            href={`/pay-periods/${p.id}`}
-                            className="flex items-center justify-between gap-3 py-3 hover:bg-(--color-bg-subtle)/60 -mx-1 px-1 rounded-(--radius-sm)"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-caption font-bold text-(--color-primary-600)">
-                                {formatPayPeriodMonthShort(p.periodStart)}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-body-sm font-medium text-(--color-text-primary)">
-                                  {formatPayPeriodMonthLabel(p.periodStart)}
-                                </p>
-                                <p className="text-caption text-(--color-text-tertiary)">
-                                  Created{" "}
-                                  {p.createdAt.toLocaleDateString("en-GB")}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge variant={p.status === "LOCKED" ? "success" : "warning"}>
-                              {statusLabel}
-                            </Badge>
-                          </Link>
-                        </StaggerItem>
-                      );
-                    })}
-                  </StaggerList>
-                  <p className="mt-3 text-caption text-(--color-text-tertiary)">
-                    Workflow: open period → Fetch from Dentally → ops fields → Run calculation → Finalize.
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {currentPeriod ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{viewAll ? "This period's payslips" : "My payslip"}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {entries.length === 0 ? (
-                <p className="text-body-sm text-(--color-text-secondary)">
-                  {viewAll
-                    ? "No payslips calculated yet — fetch Dentally data, complete ops fields, then run calculation."
-                    : "No payslip for you in this period yet."}
-                </p>
-              ) : (
                 <StaggerList className="divide-y divide-(--color-border-subtle)">
-                  {entries.map((e) => (
-                    <StaggerItem key={e.id} className="flex items-center justify-between py-3">
-                      <span className="text-body-sm text-(--color-text-primary)">
-                        {e.dentist.name}
-                        {e.provisional ? (
-                          <Badge variant="warning" className="ml-2">
-                            Provisional
+                  {periods.map((p) => {
+                    const statusLabel = formatPayPeriodStatusLabel(p.status);
+                    return (
+                      <StaggerItem key={p.id}>
+                        <Link
+                          href={`/pay-periods/${p.id}`}
+                          className="flex items-center justify-between gap-3 py-3.5 hover:bg-(--color-bg-subtle)/60 -mx-1 px-1 rounded-(--radius-sm)"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-caption font-bold text-(--color-primary-600)">
+                              {formatPayPeriodMonthShort(p.periodStart)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-body-sm font-medium text-(--color-text-primary)">
+                                {formatPayPeriodMonthLabel(p.periodStart)}
+                              </p>
+                              <p className="text-caption text-(--color-text-tertiary)">
+                                Created {p.createdAt.toLocaleDateString("en-GB")}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={p.status === "LOCKED" ? "success" : "warning"}>
+                            {statusLabel}
                           </Badge>
-                        ) : null}
-                      </span>
-                      <span className="font-(--font-mono) text-body-sm tabular-nums text-(--color-text-primary)">
-                        {formatMoneyGBPOrDash(e.finalPayPence)}
-                      </span>
-                    </StaggerItem>
-                  ))}
+                        </Link>
+                      </StaggerItem>
+                    );
+                  })}
                 </StaggerList>
               )}
             </CardContent>
           </Card>
-        ) : !viewAll ? (
+        ) : (
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-body-sm text-(--color-text-secondary)">
-                No pay periods yet. Ask ops to create one.
-              </p>
+              {currentPeriod ? (
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  Open <strong className="text-(--color-text-primary)">Pay Periods</strong> or use{" "}
+                  <strong className="text-(--color-text-primary)">View my payslip</strong> above for{" "}
+                  {formatPayPeriodMonthLabel(currentPeriod.periodStart)}.
+                </p>
+              ) : (
+                <p className="text-body-sm text-(--color-text-secondary)">
+                  No pay periods yet. Ask ops to create one.
+                </p>
+              )}
             </CardContent>
           </Card>
-        ) : null}
+        )}
       </div>
     </PageContent>
   );
