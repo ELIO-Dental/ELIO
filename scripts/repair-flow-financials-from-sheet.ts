@@ -52,20 +52,24 @@ function mapOutcome(status: string): {
   outcome: "ACCEPTED" | "THINKING" | "DECLINED" | null;
   stuckReason: string | null;
 } {
+  // Must match apps/flow/lib/flow-service.ts legacyStatusToOutcome —
+  // stuck reasons stay THINKING (still in pipeline), not DECLINED.
   switch (status) {
     case "thinking":
       return { outcome: "THINKING", stuckReason: null };
     case "failed-finance":
-      return { outcome: "DECLINED", stuckReason: "FAILED_FINANCE" };
+      return { outcome: "THINKING", stuckReason: "FAILED_FINANCE" };
     case "price-shopping":
-      return { outcome: "DECLINED", stuckReason: "PRICE_SHOPPING" };
+      return { outcome: "THINKING", stuckReason: "PRICE_SHOPPING" };
     case "bad-experience":
-      return { outcome: "DECLINED", stuckReason: "BAD_EXPERIENCE" };
+      return { outcome: "THINKING", stuckReason: "BAD_EXPERIENCE" };
     case "out-of-budget":
-      return { outcome: "DECLINED", stuckReason: "OUT_OF_BUDGET" };
+      return { outcome: "THINKING", stuckReason: "OUT_OF_BUDGET" };
     case "converted":
     case "completed":
       return { outcome: "ACCEPTED", stuckReason: null };
+    case "declined":
+      return { outcome: "DECLINED", stuckReason: null };
     default:
       return { outcome: null, stuckReason: null };
   }

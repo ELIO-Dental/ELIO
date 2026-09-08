@@ -21,6 +21,7 @@ export interface ConversionReport {
     dentistId: string | null;
     name: string;
     totalConsultations: number;
+    attended: number;
     converted: number;
     closed: number;
     conversionRate: number;
@@ -113,6 +114,7 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
                 <TableRow>
                   <TableHead>Practitioner</TableHead>
                   <TableHead>Consultations</TableHead>
+                  <TableHead>Attended</TableHead>
                   <TableHead>Converted</TableHead>
                   <TableHead>Conversion rate</TableHead>
                 </TableRow>
@@ -122,6 +124,7 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
                   <TableRow key={row.dentistId ?? "unassigned"}>
                     <TableCell>{row.name}</TableCell>
                     <TableCell className="text-(--color-text-secondary)">{row.totalConsultations}</TableCell>
+                    <TableCell className="text-(--color-text-secondary)">{row.attended}</TableCell>
                     <TableCell className="text-(--color-text-secondary)">{row.converted}</TableCell>
                     <TableCell className="text-(--color-text-secondary)">{row.conversionRate}%</TableCell>
                   </TableRow>

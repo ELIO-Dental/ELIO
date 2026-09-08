@@ -209,7 +209,7 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
 
 export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [data, setData] = React.useState(initial);
-  const [preset, setPreset] = React.useState("all");
+  const [preset, setPreset] = React.useState("3m");
   const [customFrom, setCustomFrom] = React.useState("");
   const [customTo, setCustomTo] = React.useState("");
   const [dentistId, setDentistId] = React.useState("all");
@@ -529,8 +529,19 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         <Button variant="secondary" loading={loading} onClick={() => loadDashboard()}>
           Refresh
         </Button>
-        <Button loading={importing} onClick={importFromDentally} data-testid="flow-import-consults">
-          Import from Dentally
+        <Button
+          loading={importing || syncingPayments || syncingFull}
+          onClick={async () => {
+            // Legacy ElioFlow had one "Sync Dentally" — run import then payments, with full sync as fallback path.
+            await importFromDentally();
+            await syncPaymentsFromDentally();
+          }}
+          data-testid="flow-sync-dentally"
+        >
+          Sync Dentally
+        </Button>
+        <Button variant="secondary" loading={importing} onClick={importFromDentally} data-testid="flow-import-consults">
+          Import consults
         </Button>
         <Button variant="secondary" loading={syncingPayments} onClick={syncPaymentsFromDentally} data-testid="flow-sync-payments">
           Sync payments
@@ -695,7 +706,17 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                       <TableCell>{row.dentistName}</TableCell>
                       <TableCell>{row.bookedBy ?? "—"}</TableCell>
                       <TableCell>{row.touchPoints}</TableCell>
-                      <TableCell>{row.planSignedUp ? <Badge variant="success">Signed up</Badge> : "—"}</TableCell>
+                      <TableCell>
+                        {row.planSignedUp ? (
+                          <Badge variant="success" title={`${data.planDisplayName} signed up`}>
+                            {data.planDisplayName.length <= 12
+                              ? data.planDisplayName
+                              : data.planDisplayName.slice(0, 2).toUpperCase()}
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div>{row.consultationDate ?? "—"}</div>
                         <div className={`text-caption font-medium ${appointmentStateClass(row.attended, row.appointmentState)}`}>

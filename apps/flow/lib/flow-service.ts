@@ -681,7 +681,7 @@ export async function getFlowDashboard(
   ).length;
 
   const totalPipelineValuePence = filtered
-    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcome !== "DECLINED")
+    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence))
     .reduce((sum, c) => sum + planValuePence(c), 0);
 
   const stats: FlowDashboardStats = {
@@ -768,7 +768,7 @@ export async function getConversionReport(
 
   const quoted = consults.filter((c) => (c.quotePenceOverride ?? c.quotePence ?? 0) > 0);
   const totalPipelineValuePence = consults
-    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence) && c.outcome !== "DECLINED")
+    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence))
     .reduce((sum, c) => sum + (c.quotePenceOverride ?? c.quotePence ?? 0), 0);
   const totalPlannedPence = consults.reduce((sum, c) => sum + (c.quotePenceOverride ?? c.quotePence ?? 0), 0);
   const totalPaidPence = consults.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0);
@@ -789,7 +789,14 @@ export async function getConversionReport(
 
   const byDentistMap = new Map<
     string,
-    { dentistId: string | null; name: string; totalConsultations: number; converted: number; closed: number }
+    {
+      dentistId: string | null;
+      name: string;
+      totalConsultations: number;
+      attended: number;
+      converted: number;
+      closed: number;
+    }
   >();
   for (const c of consults) {
     const key = c.practitionerDentistId ?? "unassigned";
@@ -798,17 +805,20 @@ export async function getConversionReport(
       dentistId: c.practitionerDentistId,
       name,
       totalConsultations: 0,
+      attended: 0,
       converted: 0,
       closed: 0,
     };
     row.totalConsultations += 1;
+    if (c.attended === true) row.attended += 1;
     if (isLegacyConverted(c, settings.paidConversionThresholdPence)) row.converted += 1;
     if (isLegacyConverted(c, settings.paidConversionThresholdPence) || c.outcome === "DECLINED") row.closed += 1;
     byDentistMap.set(key, row);
   }
   const byDentist = Array.from(byDentistMap.values()).map((row) => ({
     ...row,
-    conversionRate: row.closed > 0 ? Math.round((row.converted / row.closed) * 100) : 0,
+    // Legacy ElioFlow / dashboard parity: conversion = converted / attended (not closed).
+    conversionRate: row.attended > 0 ? Math.round((row.converted / row.attended) * 100) : 0,
   }));
 
   return {

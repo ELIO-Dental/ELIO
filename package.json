@@ -20,6 +20,7 @@
     "repair:plans-parity": "tsx scripts/repair-plans-parity-remainder.ts",
     "verify:pay-parity": "tsx scripts/verify-pay-parity.ts",
     "verify:flow-parity": "tsx scripts/verify-flow-parity.ts",
+    "compare:flow-live": "tsx scripts/compare-flow-live.ts",
     "verify:production-env": "node scripts/verify-production-env.mjs",
     "verify:staging-snapshot": "tsx scripts/staging-parity-snapshot.ts",
     "audit:live-data": "tsx scripts/audit-live-data.ts",

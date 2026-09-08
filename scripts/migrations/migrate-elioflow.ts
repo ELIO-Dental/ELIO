@@ -50,10 +50,10 @@
  *   app's actual source, not guessed):
  *     'new'            -> outcome: null (still open, no decision yet)
  *     'thinking'        -> outcome: THINKING, stuckReason: null
- *     'failed-finance'  -> outcome: DECLINED, stuckReason: FAILED_FINANCE
- *     'price-shopping'  -> outcome: DECLINED, stuckReason: PRICE_SHOPPING
- *     'bad-experience'  -> outcome: DECLINED, stuckReason: BAD_EXPERIENCE
- *     'out-of-budget'   -> outcome: DECLINED, stuckReason: OUT_OF_BUDGET
+ *     'failed-finance'  -> outcome: THINKING, stuckReason: FAILED_FINANCE
+ *     'price-shopping'  -> outcome: THINKING, stuckReason: PRICE_SHOPPING
+ *     'bad-experience'  -> outcome: THINKING, stuckReason: BAD_EXPERIENCE
+ *     'out-of-budget'   -> outcome: THINKING, stuckReason: OUT_OF_BUDGET
  *     'converted'       -> outcome: ACCEPTED
  *     'completed'       -> outcome: ACCEPTED
  * - `practitioner` (old, free-text name) is matched case-insensitively
@@ -163,21 +163,24 @@ async function getPipelineRows(spreadsheetId: string): Promise<OldPipelineRow[]>
   return results;
 }
 
-function mapOutcome(status: string): { outcome: "ACCEPTED" | "THINKING" | null; stuckReason: string | null } {
+function mapOutcome(status: string): { outcome: "ACCEPTED" | "THINKING" | "DECLINED" | null; stuckReason: string | null } {
+  // Canonical: apps/flow/lib/flow-service.ts legacyStatusToOutcome
   switch (status) {
     case "thinking":
       return { outcome: "THINKING", stuckReason: null };
     case "failed-finance":
-      return { outcome: "DECLINED" as any, stuckReason: "FAILED_FINANCE" };
+      return { outcome: "THINKING", stuckReason: "FAILED_FINANCE" };
     case "price-shopping":
-      return { outcome: "DECLINED" as any, stuckReason: "PRICE_SHOPPING" };
+      return { outcome: "THINKING", stuckReason: "PRICE_SHOPPING" };
     case "bad-experience":
-      return { outcome: "DECLINED" as any, stuckReason: "BAD_EXPERIENCE" };
+      return { outcome: "THINKING", stuckReason: "BAD_EXPERIENCE" };
     case "out-of-budget":
-      return { outcome: "DECLINED" as any, stuckReason: "OUT_OF_BUDGET" };
+      return { outcome: "THINKING", stuckReason: "OUT_OF_BUDGET" };
     case "converted":
     case "completed":
       return { outcome: "ACCEPTED", stuckReason: null };
+    case "declined":
+      return { outcome: "DECLINED", stuckReason: null };
     case "new":
     default:
       return { outcome: null, stuckReason: null };

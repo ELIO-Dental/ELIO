@@ -29,18 +29,21 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function bucketDays(days: number): string {
-  if (days <= 7) return "0–7d";
-  if (days <= 30) return "8–30d";
-  if (days <= 90) return "31–90d";
-  return "90d+";
+  if (days <= 7) return "0–7 days";
+  if (days <= 14) return "8–14 days";
+  if (days <= 30) return "15–30 days";
+  if (days <= 60) return "31–60 days";
+  return "60+ days";
 }
 
 function bucketPlanValue(pence: number): string {
-  if (pence <= 0) return "£0";
-  if (pence < 200_000) return "£0–2k";
-  if (pence < 500_000) return "£2k–5k";
-  if (pence < 1_000_000) return "£5k–10k";
-  return "£10k+";
+  const pounds = pence / 100;
+  if (pounds <= 0) return "£0";
+  if (pounds <= 500) return "£0–£500";
+  if (pounds <= 1000) return "£501–£1,000";
+  if (pounds <= 2500) return "£1,001–£2,500";
+  if (pounds <= 5000) return "£2,501–£5,000";
+  return "£5,000+";
 }
 
 export function DashboardCharts({
@@ -80,7 +83,7 @@ export function DashboardCharts({
     acc[b] = (acc[b] ?? 0) + 1;
     return acc;
   }, {});
-  const daysData = ["0–7d", "8–30d", "31–90d", "90d+"].map((name) => ({
+  const daysData = ["0–7 days", "8–14 days", "15–30 days", "31–60 days", "60+ days"].map((name) => ({
     name,
     value: daysBuckets[name] ?? 0,
   }));
@@ -90,16 +93,21 @@ export function DashboardCharts({
     acc[b] = (acc[b] ?? 0) + 1;
     return acc;
   }, {});
-  const planData = ["£0", "£0–2k", "£2k–5k", "£5k–10k", "£10k+"].map((name) => ({
-    name,
-    value: planBuckets[name] ?? 0,
-  }));
+  const planData = ["£0", "£0–£500", "£501–£1,000", "£1,001–£2,500", "£2,501–£5,000", "£5,000+"].map(
+    (name) => ({
+      name,
+      value: planBuckets[name] ?? 0,
+    })
+  );
 
-  const avgDays =
-    rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.daysSinceConsult, 0) / rows.length) : 0;
+  const convertedRows = rows.filter((r) => ["converted", "completed"].includes(r.statusKey));
+  const avgDaysToConvert =
+    convertedRows.length > 0
+      ? Math.round(convertedRows.reduce((s, r) => s + r.daysSinceConsult, 0) / convertedRows.length)
+      : null;
   const attendanceRate =
     stats.totalConsultations > 0 ? Math.round((stats.attended / stats.totalConsultations) * 100) : 0;
-  const planRate = stats.totalConsultations > 0 ? Math.round((plansGiven / stats.totalConsultations) * 100) : 0;
+  const planRate = stats.attended > 0 ? Math.round((plansGiven / stats.attended) * 100) : 0;
   const avgPlan =
     plansGiven > 0
       ? Math.round(rows.filter((r) => r.hasPlan).reduce((s, r) => s + r.planValuePence, 0) / plansGiven)
@@ -172,9 +180,12 @@ export function DashboardCharts({
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <QuickStat label="Avg plan value" value={formatMoneyGBP(avgPlan)} />
-        <QuickStat label="Avg days since consult" value={`${avgDays}d`} />
+        <QuickStat
+          label="Avg days to convert"
+          value={avgDaysToConvert != null ? `${avgDaysToConvert} days` : "—"}
+        />
         <QuickStat label="Attendance rate" value={`${attendanceRate}%`} />
-        <QuickStat label="Plan rate" value={`${planRate}%`} />
+        <QuickStat label="Plan rate (of attended)" value={`${planRate}%`} />
       </div>
     </div>
   );

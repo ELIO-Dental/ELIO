@@ -55,6 +55,11 @@ export function compareFlowDashboardParity(
       legacy: legacy.totalPaid,
       current: Math.round(current.totalPaidPence / 100),
     },
+    {
+      field: "totalPipelineValue",
+      legacy: legacy.totalPipelineValue,
+      current: Math.round(current.totalPipelineValuePence / 100),
+    },
   ];
 
   const diffs: FlowParityDiff[] = [];
