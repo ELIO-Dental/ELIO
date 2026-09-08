@@ -120,14 +120,14 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
             logoDarkUrl={brand.logoDarkUrl}
             collapsedLogoUrl={brand.collapsedLogoUrl}
             logoOnly={brand.logoOnly}
-            logoSize="lg"
+            logoSize="md"
           />
         }
         footer={
-          <div className="space-y-2">
+          <div className="space-y-1">
             <a
               href="/launcher"
-              className="flex h-10 items-center gap-3 rounded-(--radius-md) px-3 text-body-sm font-medium text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) hover:text-(--color-text-primary)"
+              className="flex h-8 items-center gap-2.5 rounded-(--radius-md) px-2.5 text-caption font-medium text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) hover:text-(--color-text-primary) sm:text-body-sm"
               data-testid="back-to-portal"
             >
               <ArrowLeft className="size-4 shrink-0" />
@@ -136,16 +136,18 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
             {pwaConfig && <PwaSidebarInstall config={pwaConfig} collapsed={collapsed} />}
             {/* Theme toggle lives in the sidebar — an absolute chip over <main> sat on top of PageHeader CTAs (Plans dashboard). */}
             {collapsed ? (
-              <div className="flex flex-col items-center gap-2" data-testid="module-profile-footer">
+              <div className="flex flex-col items-center gap-1.5 py-0.5" data-testid="module-profile-footer">
                 <ThemeToggle />
-                <Avatar size="md" initials={initials} />
+                <Avatar size="sm" initials={initials} />
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-(--radius-md) p-2" data-testid="module-profile-footer">
-                <Avatar size="md" initials={initials} />
+              <div className="flex items-center gap-2 rounded-(--radius-md) px-1.5 py-1" data-testid="module-profile-footer">
+                <Avatar size="sm" initials={initials} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body-sm font-medium text-(--color-text-primary)">{displayName}</span>
-                  <span className="block truncate text-caption text-(--color-text-tertiary)">{email}</span>
+                  <span className="block truncate text-caption font-medium text-(--color-text-primary) sm:text-body-sm">
+                    {displayName}
+                  </span>
+                  <span className="block truncate text-[10px] text-(--color-text-tertiary) sm:text-caption">{email}</span>
                 </span>
                 <ThemeToggle />
               </div>

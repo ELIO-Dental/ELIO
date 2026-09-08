@@ -44,7 +44,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       transition={{ duration: duration.base / 1000, ease: easing.out }}
       className="flex h-full min-h-0 shrink-0 flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
-      <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
+      <div className="relative flex h-[4.5rem] shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
         {/* Full-width center — collapse control is absolute so it does not shift the logo. */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-9">
           <div className="pointer-events-auto flex h-full w-full items-center justify-center">{launcher}</div>
@@ -58,7 +58,8 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
         </button>
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
+      {/* Flex-share rows so long module navs (e.g. Plans) show every item with no scrollbar. */}
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-2 py-1.5">
         {items.map((item) => {
           const isActive = item.id === activeId;
           const Icon = item.icon;
@@ -74,7 +75,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
                 }
               }}
               className={cn(
-                "relative flex h-10 items-center gap-3 rounded-(--radius-md) px-3 text-body-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)",
+                "relative flex min-h-7 max-h-10 flex-1 items-center gap-2.5 rounded-(--radius-md) px-2.5 text-caption font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500) sm:text-body-sm",
                 isActive ? "text-(--color-text-primary)" : "text-(--color-text-secondary) hover:bg-(--color-border-subtle)"
               )}
               style={isActive ? { backgroundColor: activeBadge.bg, color: activeBadge.fg } : undefined}
@@ -83,12 +84,15 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
               {isActive && (
                 <motion.span
                   layoutId="sidebar-active-accent"
-                  className="absolute left-0 top-1 bottom-1 w-[3px] rounded-(--radius-full)"
+                  className="absolute top-1 bottom-1 left-0 w-[3px] rounded-(--radius-full)"
                   style={{ backgroundColor: moduleColor.hex }}
                   transition={easing.spring}
                 />
               )}
-              <Icon className="size-5 shrink-0 transition-transform duration-150 group-hover:scale-105" style={isActive ? { color: activeBadge.fg } : undefined} />
+              <Icon
+                className="size-4 shrink-0 transition-transform duration-150 group-hover:scale-105 sm:size-[1.125rem]"
+                style={isActive ? { color: activeBadge.fg } : undefined}
+              />
               <AnimatePresence initial={false}>
                 {!collapsed && (
                   <motion.span
@@ -108,7 +112,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       </nav>
 
       {footer && (
-        <div className="mt-auto shrink-0 border-t border-(--color-border-subtle) bg-(--color-surface) p-2">
+        <div className="mt-auto shrink-0 border-t border-(--color-border-subtle) bg-(--color-surface) p-1.5">
           {footer}
         </div>
       )}

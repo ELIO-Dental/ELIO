@@ -40,7 +40,7 @@ export function PwaSidebarInstall({ config, collapsed }: { config: PwaAppConfig;
       title={label}
       aria-label={label}
       disabled={isInstalled}
-      className="flex h-10 w-full items-center gap-3 rounded-(--radius-md) px-3 text-body-sm font-medium text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) hover:text-(--color-text-primary) disabled:cursor-default disabled:opacity-80"
+      className="flex h-8 w-full items-center gap-2.5 rounded-(--radius-md) px-2.5 text-caption font-medium text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) hover:text-(--color-text-primary) disabled:cursor-default disabled:opacity-80 sm:text-body-sm"
       data-testid="pwa-sidebar-install"
     >
       {isInstalled ? (

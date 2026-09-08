@@ -84,10 +84,11 @@ export function SidebarBrand({
   const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
   const logoBox =
     logoSize === "lg"
-      ? // Shared box for Portal + Pay + Plans + Flow (same visual size).
+      ? // Shared box for Portal (taller header).
         "h-14 w-[min(100%,200px)] sm:h-16 sm:w-[min(100%,220px)]"
       : logoOnly
-        ? "h-14 w-[min(100%,200px)] sm:h-16 sm:w-[min(100%,220px)]"
+        ? // Module apps — fits compact sidebar header without forcing nav scroll.
+          "h-10 w-[min(100%,168px)] sm:h-11 sm:w-[min(100%,184px)]"
         : "h-8 w-[120px]";
 
   if (collapsed) {
