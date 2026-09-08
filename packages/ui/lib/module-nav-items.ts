@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Bell,
   Archive,
+  Building2,
 } from "lucide-react";
 import type { ModuleNavLink } from "../components/module-app-layout";
 
@@ -62,5 +63,7 @@ export const FLOW_MODULE_NAV: ModuleNavLink[] = [
   { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
   { id: "enquiries", label: "Enquiries", href: "/enquiries", icon: MessageSquare },
   { id: "reminders", label: "Reminders", href: "/reminders", icon: Bell },
+  { id: "team", label: "Team", href: "/team", icon: UserCog },
+  { id: "practice", label: "Practice", href: "/practice", icon: Building2 },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];

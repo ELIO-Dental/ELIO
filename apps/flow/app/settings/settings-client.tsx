@@ -284,6 +284,28 @@ export function FlowSettingsClient({
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Account &amp; integrations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-body-sm text-(--color-text-secondary)">
+              Login, password, Dentally API key, and team invites stay on the ELIO Portal (shell) — same as the rest of ELIO. No separate Flow password.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild type="button" variant="secondary">
+                <a href="/settings/profile">My account</a>
+              </Button>
+              <Button asChild type="button" variant="secondary">
+                <a href="/settings/integrations">Dentally / Integrations</a>
+              </Button>
+              <Button asChild type="button" variant="secondary">
+                <a href="/settings/team">Portal Team</a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {canEdit ? (
           <Button type="submit" loading={saving} data-testid="flow-settings-save">
             Save settings
