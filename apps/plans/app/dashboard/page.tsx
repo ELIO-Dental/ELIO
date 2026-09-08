@@ -2,18 +2,9 @@ import Link from "next/link";
 import { can, requireLicensedSession } from "@/lib/session";
 import type { Role } from "@elio/db";
 import { prisma } from "@elio/db";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Badge,
-  Button,
-  PageContent,
-  PageHeader,
-  formatMoneyGBP,
-} from "@elio/ui";
+import { Badge, Button, PageContent, PageHeader, formatMoneyGBP } from "@elio/ui";
 import { PlansStatCard } from "@/components/plans-stat-card";
+import { PlansSection } from "@/components/plans-page-chrome";
 import { getDashboardRecentActivity, getDashboardStats } from "@/lib/dashboard-stats";
 import { DashboardActivityFeed } from "./dashboard-activity-feed";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
@@ -22,6 +13,16 @@ import { PaymentScheduleCard } from "./payment-schedule-card";
 function currentBillingPeriod() {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function periodLabel(period: string) {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return period;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export const dynamic = "force-dynamic";
@@ -59,16 +60,16 @@ export default async function DashboardPage() {
     <PageContent width="full">
       <PageHeader
         title="Dashboard"
-        description={
-          <span className="inline-flex flex-wrap items-center gap-2">
-            Membership plans overview
-            <Badge variant="neutral">Period {period}</Badge>
-          </span>
-        }
+        description={`Membership overview for ${periodLabel(period)}`}
         actions={
-          <Link href="/patients">
-            <Button variant="primary">Add a new patient</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="neutral" className="hidden sm:inline-flex">
+              {period}
+            </Badge>
+            <Link href="/patients?openEnrol=1">
+              <Button variant="primary">Add patient</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -90,17 +91,20 @@ export default async function DashboardPage() {
         </div>
 
         {stats.failedPaymentsThisMonth > 0 ? (
-          <div className="flex flex-col gap-3 rounded-(--radius-xl) border border-(--color-danger)/25 bg-(--color-surface) px-4 py-3.5 shadow-(--shadow-xs) sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex flex-col gap-3 rounded-(--radius-xl) border border-(--color-danger)/20 bg-(--color-danger)/5 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div>
-              <p className="text-body font-medium text-(--color-text-primary)">
-                {stats.failedPaymentsThisMonth} payment(s) failed this month
+              <p className="text-body font-semibold text-(--color-text-primary)">
+                {stats.failedPaymentsThisMonth} payment{stats.failedPaymentsThisMonth === 1 ? "" : "s"} failed this
+                month
               </p>
               <p className="mt-0.5 text-body-sm text-(--color-text-secondary)">
                 Review patients and check their mandate status.
               </p>
             </div>
             <Link href="/payments?status=FAILED">
-              <Button variant="secondary">Review failed payments</Button>
+              <Button variant="secondary" size="sm">
+                Review failed
+              </Button>
             </Link>
           </div>
         ) : null}
@@ -110,40 +114,53 @@ export default async function DashboardPage() {
           <DashboardActivityFeed entries={recentActivity} />
         </div>
 
-        <section className="overflow-hidden rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) shadow-(--shadow-xs)">
-          <header className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40 px-4 py-3.5 sm:px-5">
-            <h2 className="text-body-sm font-semibold text-(--color-text-primary)">Recent payments</h2>
-          </header>
-          <div className="px-4 py-2 sm:px-5">
-            {recentPayments.length === 0 ? (
-              <p className="py-6 text-body-sm text-(--color-text-secondary)">No payments recorded yet.</p>
-            ) : (
-              <ul className="divide-y divide-(--color-border-subtle)">
-                {recentPayments.map((p) => {
-                  const name =
-                    [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
-                    "Unknown patient";
-                  return (
-                    <li key={p.id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <span className="block truncate text-body-sm font-medium text-(--color-text-primary)">{name}</span>
-                        {p.billingPeriod ? (
-                          <span className="text-caption text-(--color-text-tertiary)">{p.billingPeriod}</span>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <Badge variant={statusVariant[p.status] ?? "neutral"}>{p.status}</Badge>
-                        <span className="font-(--font-mono) text-body-sm tabular-nums text-(--color-text-primary)">
-                          {formatMoneyGBP(p.amountPence)}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
+        <PlansSection
+          title="Recent payments"
+          subtitle="Latest Direct Debit activity"
+          actions={
+            <Link
+              href="/payments"
+              className="text-caption font-semibold text-(--color-primary-fg) underline-offset-2 hover:underline"
+            >
+              View all
+            </Link>
+          }
+        >
+          {recentPayments.length === 0 ? (
+            <p className="py-4 text-center text-body-sm text-(--color-text-tertiary)">No payments recorded yet.</p>
+          ) : (
+            <ul className="divide-y divide-(--color-border-subtle)">
+              {recentPayments.map((p) => {
+                const name =
+                  [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
+                  "Unknown patient";
+                return (
+                  <li key={p.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/patients/${p.planPatientId}`}
+                        className="block truncate text-body-sm font-medium text-(--color-text-primary) underline-offset-2 hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      {p.billingPeriod ? (
+                        <span className="text-caption text-(--color-text-tertiary)">{p.billingPeriod}</span>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <Badge variant={statusVariant[p.status] ?? "neutral"}>
+                        {p.status.replace(/_/g, " ")}
+                      </Badge>
+                      <span className="min-w-[4.5rem] text-right font-(--font-mono) text-body-sm tabular-nums text-(--color-text-primary)">
+                        {formatMoneyGBP(p.amountPence)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </PlansSection>
 
         <PaymentScheduleCard />
       </div>

@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { AlertCircle, BarChart3, CreditCard, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
+import { AlertCircle, BarChart3, CreditCard, UserPlus } from "lucide-react";
+import { PlansSection } from "@/components/plans-page-chrome";
 
 /** Legacy quick actions row — modern surface tiles. */
 export function DashboardQuickActions() {
   const actions = [
     {
       href: "/patients?openEnrol=1",
-      icon: Users,
+      icon: UserPlus,
       title: "Add patient",
       description: "Enrol or import from Dentally",
     },
@@ -32,19 +32,16 @@ export function DashboardQuickActions() {
   ] as const;
 
   return (
-    <Card className="overflow-hidden shadow-(--shadow-xs)">
-      <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
-        <CardTitle>Quick actions</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-2.5 p-4 sm:grid-cols-2 sm:p-5">
+    <PlansSection title="Quick actions" subtitle="Common membership tasks">
+      <div className="grid gap-2 sm:grid-cols-2">
         {actions.map((action) => (
           <Link
             key={action.href + action.title}
             href={action.href}
-            className="group flex items-start gap-3 rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface) px-3.5 py-3 transition-colors hover:border-(--color-border) hover:bg-(--color-bg-subtle)/60"
+            className="group flex items-start gap-3 rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle)/30 px-3.5 py-3 transition-colors hover:border-(--color-border) hover:bg-(--color-bg-subtle)/70"
           >
             <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600) transition-colors group-hover:bg-(--color-primary-100)">
-              <action.icon className="size-4" />
+              <action.icon className="size-4" aria-hidden />
             </span>
             <span className="min-w-0 text-left">
               <span className="block text-body-sm font-semibold text-(--color-text-primary)">{action.title}</span>
@@ -52,7 +49,7 @@ export function DashboardQuickActions() {
             </span>
           </Link>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </PlansSection>
   );
 }

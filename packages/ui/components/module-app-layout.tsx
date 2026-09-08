@@ -134,26 +134,26 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
               {!collapsed && <span className="truncate">ELIO Portal</span>}
             </a>
             {pwaConfig && <PwaSidebarInstall config={pwaConfig} collapsed={collapsed} />}
-            <div className="flex items-center gap-2.5 rounded-(--radius-md) p-2" data-testid="module-profile-footer">
-              <Avatar size="md" initials={initials} />
-              {!collapsed && (
+            {/* Theme toggle lives in the sidebar — an absolute chip over <main> sat on top of PageHeader CTAs (Plans dashboard). */}
+            {collapsed ? (
+              <div className="flex flex-col items-center gap-2" data-testid="module-profile-footer">
+                <ThemeToggle />
+                <Avatar size="md" initials={initials} />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-(--radius-md) p-2" data-testid="module-profile-footer">
+                <Avatar size="md" initials={initials} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body-sm font-medium text-(--color-text-primary)">{displayName}</span>
                   <span className="block truncate text-caption text-(--color-text-tertiary)">{email}</span>
                 </span>
-              )}
-            </div>
+                <ThemeToggle />
+              </div>
+            )}
           </div>
         }
       />
-      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/50">
-        <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
-          <div className="pointer-events-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-        {children}
-      </main>
+      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/50">{children}</main>
     </div>
   );
 }
