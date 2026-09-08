@@ -1,1 +1,128 @@
 @import "@elio/ui/theme.css";
+
+/* -------------------------------------------------------------------------
+ * ELIO Portal — shell atmosphere (light + dark)
+ * ------------------------------------------------------------------------- */
+
+:root {
+  --portal-mesh-a: color-mix(in srgb, var(--color-primary-400) 16%, transparent);
+  --portal-mesh-b: color-mix(in srgb, var(--color-primary-300) 11%, transparent);
+  --portal-grid-dot: color-mix(in srgb, var(--color-border) 70%, transparent);
+  --portal-card-hover-shadow: 0 14px 36px rgba(15, 15, 20, 0.12);
+  --portal-banner-edge: color-mix(in srgb, var(--color-primary-400) 45%, transparent);
+  --portal-cta-mix: 10%;
+  --portal-glow-strength: 1;
+  --portal-ring-mix: 55%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --portal-mesh-a: color-mix(in srgb, var(--color-primary-500) 22%, transparent);
+    --portal-mesh-b: color-mix(in srgb, var(--color-primary-400) 14%, transparent);
+    --portal-grid-dot: color-mix(in srgb, var(--color-border) 45%, transparent);
+    --portal-card-hover-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--color-primary-400) 18%, transparent);
+    --portal-banner-edge: color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+    --portal-cta-mix: 16%;
+    --portal-glow-strength: 1.55;
+    --portal-ring-mix: 70%;
+  }
+}
+
+:root[data-theme="dark"] {
+  --portal-mesh-a: color-mix(in srgb, var(--color-primary-500) 22%, transparent);
+  --portal-mesh-b: color-mix(in srgb, var(--color-primary-400) 14%, transparent);
+  --portal-grid-dot: color-mix(in srgb, var(--color-border) 45%, transparent);
+  --portal-card-hover-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--color-primary-400) 18%, transparent);
+  --portal-banner-edge: color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+  --portal-cta-mix: 16%;
+  --portal-glow-strength: 1.55;
+  --portal-ring-mix: 70%;
+}
+
+:root[data-theme="light"] {
+  --portal-mesh-a: color-mix(in srgb, var(--color-primary-400) 16%, transparent);
+  --portal-mesh-b: color-mix(in srgb, var(--color-primary-300) 11%, transparent);
+  --portal-grid-dot: color-mix(in srgb, var(--color-border) 70%, transparent);
+  --portal-card-hover-shadow: 0 14px 36px rgba(15, 15, 20, 0.12);
+  --portal-banner-edge: color-mix(in srgb, var(--color-primary-400) 45%, transparent);
+  --portal-cta-mix: 10%;
+  --portal-glow-strength: 1;
+  --portal-ring-mix: 55%;
+}
+
+@keyframes launcher-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.launcher-card {
+  animation: launcher-card-in 0.45s ease-out both;
+}
+
+.launcher-card.is-licensed:hover {
+  box-shadow: var(--portal-card-hover-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launcher-card {
+    animation: none;
+  }
+}
+
+.launcher-page::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 40% at 85% -5%, var(--portal-mesh-a), transparent 60%),
+    radial-gradient(ellipse 45% 35% at 5% 90%, var(--portal-mesh-b), transparent 55%);
+}
+
+.launcher-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+.portal-main-grid {
+  background-image: radial-gradient(circle at 1px 1px, var(--portal-grid-dot) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 72%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 72%);
+}
+
+.portal-theme-chip {
+  border: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.portal-welcome {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-50)),
+      var(--color-surface) 45%,
+      color-mix(in srgb, var(--color-surface) 94%, var(--color-primary-100))
+    );
+  box-shadow: var(--shadow-xs);
+}
+
+.portal-welcome-glow {
+  background:
+    radial-gradient(ellipse 70% 120% at 100% 0%, var(--portal-mesh-a), transparent 55%),
+    radial-gradient(ellipse 50% 80% at 0% 100%, var(--portal-mesh-b), transparent 50%);
+}
+
+.portal-welcome-edge {
+  background: linear-gradient(90deg, transparent, var(--portal-banner-edge), transparent);
+}

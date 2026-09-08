@@ -181,13 +181,14 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
           </div>
         }
       />
-      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/60">
+      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)">
+        <div className="portal-main-grid pointer-events-none absolute inset-0 opacity-90" aria-hidden />
         <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
-          <div className="pointer-events-auto">
+          <div className="portal-theme-chip pointer-events-auto rounded-(--radius-md) p-1">
             <ThemeToggle />
           </div>
         </div>
-        {children}
+        <div className="relative z-10 min-h-full">{children}</div>
       </main>
     </div>
   );

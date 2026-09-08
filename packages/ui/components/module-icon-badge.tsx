@@ -14,7 +14,7 @@ export function ModuleIconBadge({
   moduleId: ModuleId;
   children: React.ReactNode;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }) {
   const isDark = useIsDark();
   const color = getModuleColor(moduleId);
@@ -27,6 +27,7 @@ export function ModuleIconBadge({
         size === "sm" && "size-8 text-body-sm",
         size === "md" && "size-10 text-body-sm",
         size === "lg" && "size-12 text-body",
+        size === "xl" && "size-14 rounded-(--radius-lg) text-body-lg shadow-(--shadow-xs)",
         className
       )}
       style={{ backgroundColor: badge.bg, color: badge.fg }}

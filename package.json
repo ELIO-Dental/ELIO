@@ -21,6 +21,8 @@
     "verify:pay-parity": "tsx scripts/verify-pay-parity.ts",
     "verify:flow-parity": "tsx scripts/verify-flow-parity.ts",
     "compare:flow-live": "tsx scripts/compare-flow-live.ts",
+    "audit:flow-data": "tsx scripts/audit-flow-data-consistency.ts",
+    "audit:flow-modules": "tsx scripts/audit-flow-modules.ts",
     "verify:production-env": "node scripts/verify-production-env.mjs",
     "verify:staging-snapshot": "tsx scripts/staging-parity-snapshot.ts",
     "audit:live-data": "tsx scripts/audit-live-data.ts",
