@@ -134,6 +134,7 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
             logoDarkUrl="/brand/elio-portal-dark.png"
             collapsedLogoUrl="/icons/icon-192.png"
             logoOnly
+            logoSize="lg"
           />
         }
         footer={

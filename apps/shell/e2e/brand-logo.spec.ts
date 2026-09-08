@@ -107,7 +107,7 @@ test.describe("Sidebar brand logo (logged in)", () => {
     await page.waitForURL(/\/launcher$/, { timeout: 60_000 });
 
     const brand = page.getByTestId("portal-brand");
-    const headerRow = page.locator("aside").locator("div.relative.flex.h-20").first();
+    const headerRow = page.locator("aside").locator("div.relative.flex.h-24").first();
     await expect(brand).toBeVisible();
     await expect(headerRow).toBeVisible();
 
@@ -117,7 +117,7 @@ test.describe("Sidebar brand logo (logged in)", () => {
 
     const lightMetrics = await page.evaluate(() => {
       const brandEl = document.querySelector('[data-testid="portal-brand"]') as HTMLElement | null;
-      const headerEl = document.querySelector("aside div.relative.flex.h-20") as HTMLElement | null;
+      const headerEl = document.querySelector("aside div.relative.flex.h-24") as HTMLElement | null;
       const imgEl = brandEl?.querySelector("img.elio-brand-logo-light") as HTMLElement | null;
       if (!brandEl || !headerEl || !imgEl) return null;
       const b = brandEl.getBoundingClientRect();
@@ -147,7 +147,7 @@ test.describe("Sidebar brand logo (logged in)", () => {
 
     const darkMetrics = await page.evaluate(() => {
       const brandEl = document.querySelector('[data-testid="portal-brand"]') as HTMLElement | null;
-      const headerEl = document.querySelector("aside div.relative.flex.h-20") as HTMLElement | null;
+      const headerEl = document.querySelector("aside div.relative.flex.h-24") as HTMLElement | null;
       const imgEl = brandEl?.querySelector("img.elio-brand-logo-dark") as HTMLElement | null;
       if (!brandEl || !headerEl || !imgEl) return null;
       const h = headerEl.getBoundingClientRect();

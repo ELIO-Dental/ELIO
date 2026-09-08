@@ -44,8 +44,8 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       transition={{ duration: duration.base / 1000, ease: easing.out }}
       className="flex h-full flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
-      <div className="relative flex h-20 shrink-0 items-center border-b border-(--color-border-subtle) px-2">
-        <div className="flex min-w-0 flex-1 items-center justify-center pr-9">{launcher}</div>
+      <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
+        <div className="flex h-full min-w-0 flex-1 items-center justify-center pr-9">{launcher}</div>
         <button
           onClick={() => onCollapsedChange(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

@@ -416,7 +416,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     });
   }, [data.rows, statusFilter, search, sortField, sortDirection]);
 
-  const tablePagination = useClientTablePagination(sortedRows, 25, [
+  const tablePagination = useClientTablePagination(sortedRows, 50, [
     statusFilter,
     search,
     preset,
@@ -462,7 +462,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end gap-3 rounded-(--radius-lg) border border-(--color-border) p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) p-4 shadow-(--shadow-xs) sm:p-5">
         <div>
           <Label htmlFor="date-preset">Period</Label>
           <select
@@ -569,15 +569,14 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4" data-testid="flow-stat-cards">
         <FlowStatCard label="Consultations" value={data.stats.totalConsultations} />
         <FlowStatCard label="Attended" value={data.stats.attended} />
         <FlowStatCard label="Converted" value={data.stats.converted} />
         <FlowStatCard label="Stuck" value={data.stats.stuck} />
-        <FlowStatCard label="Total planned" value={data.stats.totalPlannedPence} money />
-        <FlowStatCard label="Pipeline value" value={data.stats.totalPipelineValuePence} money />
-        <FlowStatCard label="Total paid" value={data.stats.totalPaidPence} money />
-        <FlowStatCard label={`${data.planDisplayName} sign-ups`} value={data.stats.planSignUps} />
+        <FlowStatCard label="Total Planned" value={data.stats.totalPlannedPence} money />
+        <FlowStatCard label="Total Paid" value={data.stats.totalPaidPence} money />
+        <FlowStatCard label={data.planDisplayName} value={data.stats.planSignUps} />
         <FlowStatCard label="Conversion" value={data.stats.conversionRate} suffix="%" />
       </div>
 

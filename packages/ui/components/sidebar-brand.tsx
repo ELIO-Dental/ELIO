@@ -21,6 +21,8 @@ export interface SidebarBrandProps {
   logoOnly?: boolean;
   /** Collapsed mark image (square favicon) — falls back to logoUrl. */
   collapsedLogoUrl?: string;
+  /** `lg` = larger centered wordmark for Pay/Plans/Flow sidebars. */
+  logoSize?: "md" | "lg";
 }
 
 /**
@@ -74,10 +76,18 @@ export function SidebarBrand({
   logoDarkUrl,
   logoOnly = false,
   collapsedLogoUrl,
+  /** Larger centered wordmark (module apps: Pay / Plans / Flow). */
+  logoSize = "md",
 }: SidebarBrandProps) {
   const abbreviated = (shortLabel ?? (title.replace(/[^A-Z]/g, "").slice(0, 2) || title.charAt(0))).toUpperCase();
   const markLight = collapsedLogoUrl ?? logoUrl;
   const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
+  const logoBox =
+    logoSize === "lg"
+      ? "h-14 w-[260px] sm:h-16 sm:w-[300px]"
+      : logoOnly
+        ? "h-12 w-[220px] sm:h-14 sm:w-[260px]"
+        : "h-8 w-[120px]";
 
   if (collapsed) {
     return (
@@ -110,11 +120,7 @@ export function SidebarBrand({
           lightSrc={logoUrl}
           darkSrc={logoDarkUrl}
           alt={logoOnly ? title : ""}
-          className={cn(
-            "shrink-0",
-            // Fixed box — both theme PNGs are normalized to the same canvas so sizes match.
-            logoOnly ? "h-12 w-[220px] sm:h-14 sm:w-[260px]" : "h-8 w-[120px]"
-          )}
+          className={cn("mx-auto shrink-0", logoOnly || logoSize === "lg" ? logoBox : "h-8 w-[120px]")}
         />
       ) : showLogo ? (
         <span className="flex size-8 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600)">

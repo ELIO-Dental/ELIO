@@ -120,6 +120,7 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
             logoDarkUrl={brand.logoDarkUrl}
             collapsedLogoUrl={brand.collapsedLogoUrl}
             logoOnly={brand.logoOnly}
+            logoSize="lg"
           />
         }
         footer={
