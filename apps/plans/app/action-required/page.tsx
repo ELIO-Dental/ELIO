@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { requireLicensedSession } from "@/lib/session";
 import { prisma } from "@elio/db";
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button, PageContent, PageHeader } from "@elio/ui";
+import { Badge, Button, PageContent, PageHeader } from "@elio/ui";
 import { ActionRequiredEmptyState } from "@/components/action-required-empty-state";
+import { PlansMetricTile, PlansSection } from "@/components/plans-page-chrome";
 import { listRedeems, runReconciliation } from "@/lib/plans-service";
+import { AlertCircle, Clock, FileSignature, UserPlus } from "lucide-react";
 
 function currentBillingPeriod() {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function ActionRequiredPage() {
   const session = await requireLicensedSession();
@@ -35,9 +39,6 @@ export default async function ActionRequiredPage() {
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
-    // Reconciliation has no persisted "needs review" table — it's an on-demand
-    // comparison (see reconciliation/reconciliation-runner.tsx). Reuse the same
-    // service function so this queue reflects live mismatches, not duplicated logic.
     runReconciliation(practiceId, period).catch(() => null),
   ]);
 
@@ -49,7 +50,7 @@ export default async function ActionRequiredPage() {
     (reconciliation?.mismatches.length ?? 0);
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Action Required"
         description="Everything currently waiting on staff attention across plans, payments, and documents."
@@ -57,183 +58,196 @@ export default async function ActionRequiredPage() {
       />
 
       {totalCount > 0 ? (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="px-4 py-3">
-            <p className="text-2xl font-bold tabular-nums">{pendingRedeems.length}</p>
-            <p className="text-caption text-(--color-text-secondary)">Pending redeems</p>
-          </Card>
-          <Card className="px-4 py-3">
-            <p className="text-2xl font-bold tabular-nums">{failedPayments.length}</p>
-            <p className="text-caption text-(--color-text-secondary)">Failed payments</p>
-          </Card>
-          <Card className="px-4 py-3">
-            <p className="text-2xl font-bold tabular-nums">{invitedPatients.length}</p>
-            <p className="text-caption text-(--color-text-secondary)">Invited</p>
-          </Card>
-          <Card className="px-4 py-3">
-            <p className="text-2xl font-bold tabular-nums">{unsignedRequests.length}</p>
-            <p className="text-caption text-(--color-text-secondary)">Unsigned docs</p>
-          </Card>
+        <div className="mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+          <PlansMetricTile
+            label="Pending redeems"
+            value={pendingRedeems.length}
+            tone="warning"
+            icon={<Clock className="size-5" aria-hidden />}
+          />
+          <PlansMetricTile
+            label="Failed payments"
+            value={failedPayments.length}
+            tone="danger"
+            icon={<AlertCircle className="size-5" aria-hidden />}
+          />
+          <PlansMetricTile
+            label="Invited"
+            value={invitedPatients.length}
+            icon={<UserPlus className="size-5" aria-hidden />}
+          />
+          <PlansMetricTile
+            label="Unsigned docs"
+            value={unsignedRequests.length}
+            tone="warning"
+            icon={<FileSignature className="size-5" aria-hidden />}
+          />
         </div>
       ) : null}
 
-        {totalCount === 0 ? (
-          <div className="mt-8 rounded-(--radius-lg) border border-(--color-border)">
+      {totalCount === 0 ? (
+        <div className="mt-6 sm:mt-8">
+          <PlansSection>
             <ActionRequiredEmptyState
               title="Nothing needs attention"
               description="Pending invitations, redemptions, failed payments, unsigned documents, and reconciliation mismatches will show up here."
             />
-          </div>
-        ) : (
-          <div className="mt-8 flex flex-col gap-6">
-            {invitedPatients.length > 0 && (
-              <Card>
-                <CardHeader className="flex items-center justify-between">
-                  <CardTitle>Invited patients awaiting signup ({invitedPatients.length})</CardTitle>
-                  <Link href="/patients?status=INVITED">
-                    <Button variant="secondary" size="sm">View in Patients</Button>
-                  </Link>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-y divide-(--color-border-subtle)">
-                    {invitedPatients.slice(0, 8).map((pp) => {
-                      const name =
-                        [pp.patient.firstName, pp.patient.lastName].filter(Boolean).join(" ") ||
-                        "Unknown patient";
-                      return (
-                        <li key={pp.id} className="flex items-center justify-between py-3">
-                          <Link
-                            href={`/patients/${pp.id}`}
-                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
-                          >
-                            {name}
-                          </Link>
-                          <Badge variant="neutral">INVITED</Badge>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+          </PlansSection>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-col gap-5 sm:mt-8 sm:gap-6">
+          {invitedPatients.length > 0 && (
+            <PlansSection
+              title={`Invited patients awaiting signup (${invitedPatients.length})`}
+              actions={
+                <Link href="/patients?status=INVITED">
+                  <Button variant="secondary" size="sm">
+                    View in Patients
+                  </Button>
+                </Link>
+              }
+            >
+              <ul className="divide-y divide-(--color-border-subtle)">
+                {invitedPatients.slice(0, 8).map((pp) => {
+                  const name =
+                    [pp.patient.firstName, pp.patient.lastName].filter(Boolean).join(" ") || "Unknown patient";
+                  return (
+                    <li key={pp.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                      <Link
+                        href={`/patients/${pp.id}`}
+                        className="text-body-sm font-medium text-(--color-text-primary) underline-offset-2 hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      <Badge variant="neutral">INVITED</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PlansSection>
+          )}
 
-            {pendingRedeems.length > 0 && (
-              <Card>
-                <CardHeader className="flex items-center justify-between">
-                  <CardTitle>Redemptions pending approval ({pendingRedeems.length})</CardTitle>
-                  <Link href="/redeems?status=PENDING_APPROVAL">
-                    <Button variant="secondary" size="sm">Review in Redeems</Button>
-                  </Link>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-y divide-(--color-border-subtle)">
-                    {pendingRedeems.slice(0, 8).map((r) => {
-                      const name =
-                        [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
-                        "Unknown patient";
-                      return (
-                        <li key={r.id} className="flex items-center justify-between py-3">
-                          <span className="text-body-sm text-(--color-text-primary)">{name}</span>
-                          <span className="text-body-sm text-(--color-text-secondary)">{r.itemName}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+          {pendingRedeems.length > 0 && (
+            <PlansSection
+              title={`Redemptions pending approval (${pendingRedeems.length})`}
+              actions={
+                <Link href="/redeems?status=PENDING_APPROVAL">
+                  <Button variant="secondary" size="sm">
+                    Review in Redeems
+                  </Button>
+                </Link>
+              }
+            >
+              <ul className="divide-y divide-(--color-border-subtle)">
+                {pendingRedeems.slice(0, 8).map((r) => {
+                  const name =
+                    [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
+                    "Unknown patient";
+                  return (
+                    <li key={r.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                      <span className="text-body-sm font-medium text-(--color-text-primary)">{name}</span>
+                      <span className="truncate text-body-sm text-(--color-text-secondary)">{r.itemName}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PlansSection>
+          )}
 
-            {failedPayments.length > 0 && (
-              <Card accentColor="var(--color-danger)">
-                <CardHeader className="flex items-center justify-between gap-3">
-                  <CardTitle>Failed / charged-back payments ({failedPayments.length})</CardTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href="/payments?status=FAILED">
-                      <Button variant="secondary" size="sm">Review failed</Button>
-                    </Link>
-                    <Link href="/payments?status=CHARGED_BACK">
-                      <Button variant="secondary" size="sm">Charged back</Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-y divide-(--color-border-subtle)">
-                    {failedPayments.slice(0, 8).map((p) => {
-                      const name =
-                        [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
-                        "Unknown patient";
-                      return (
-                        <li key={p.id} className="flex items-center justify-between py-3">
-                          <Link
-                            href={`/patients/${p.planPatientId}`}
-                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
-                          >
-                            {name}
-                          </Link>
-                          <Badge variant="danger">{p.status}</Badge>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            {unsignedRequests.length > 0 && (
-              <Card>
-                <CardHeader className="flex items-center justify-between">
-                  <CardTitle>Unsigned documents ({unsignedRequests.length})</CardTitle>
-                  <Link href="/documents">
-                    <Button variant="secondary" size="sm">Review in Documents</Button>
+          {failedPayments.length > 0 && (
+            <PlansSection
+              title={`Failed / charged-back payments (${failedPayments.length})`}
+              actions={
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/payments?status=FAILED">
+                    <Button variant="secondary" size="sm">
+                      Review failed
+                    </Button>
                   </Link>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-y divide-(--color-border-subtle)">
-                    {unsignedRequests.slice(0, 8).map((r) => {
-                      const name =
-                        [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
-                        "Unknown patient";
-                      return (
-                        <li key={r.id} className="flex items-center justify-between py-3">
-                          <Link
-                            href={`/patients/${r.planPatientId}`}
-                            className="text-body-sm text-(--color-text-primary) underline-offset-2 hover:underline"
-                          >
-                            {name}
-                          </Link>
-                          <span className="text-body-sm text-(--color-text-secondary)">{r.document.title}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            {reconciliation && reconciliation.mismatches.length > 0 && (
-              <Card accentColor="var(--color-warning)">
-                <CardHeader className="flex items-center justify-between">
-                  <CardTitle>
-                    Reconciliation mismatches for {reconciliation.period} ({reconciliation.mismatches.length})
-                  </CardTitle>
-                  <Link href="/reconciliation">
-                    <Button variant="secondary" size="sm">Review in Reconciliation</Button>
+                  <Link href="/payments?status=CHARGED_BACK">
+                    <Button variant="secondary" size="sm">
+                      Charged back
+                    </Button>
                   </Link>
-                </CardHeader>
-                <CardContent>
-                  <ul className="divide-y divide-(--color-border-subtle)">
-                    {reconciliation.mismatches.slice(0, 8).map((m, i) => (
-                      <li key={i} className="flex items-center justify-between py-3">
-                        <Badge variant="warning">{m.type}</Badge>
-                        <span className="text-body-sm text-(--color-text-secondary)">{m.detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+                </div>
+              }
+            >
+              <ul className="divide-y divide-(--color-border-subtle)">
+                {failedPayments.slice(0, 8).map((p) => {
+                  const name =
+                    [p.planPatient.patient.firstName, p.planPatient.patient.lastName].filter(Boolean).join(" ") ||
+                    "Unknown patient";
+                  return (
+                    <li key={p.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                      <Link
+                        href={`/patients/${p.planPatientId}`}
+                        className="text-body-sm font-medium text-(--color-text-primary) underline-offset-2 hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      <Badge variant="danger">{p.status}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PlansSection>
+          )}
+
+          {unsignedRequests.length > 0 && (
+            <PlansSection
+              title={`Unsigned documents (${unsignedRequests.length})`}
+              actions={
+                <Link href="/documents">
+                  <Button variant="secondary" size="sm">
+                    Review in Documents
+                  </Button>
+                </Link>
+              }
+            >
+              <ul className="divide-y divide-(--color-border-subtle)">
+                {unsignedRequests.slice(0, 8).map((r) => {
+                  const name =
+                    [r.planPatient.patient.firstName, r.planPatient.patient.lastName].filter(Boolean).join(" ") ||
+                    "Unknown patient";
+                  return (
+                    <li key={r.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                      <Link
+                        href={`/patients/${r.planPatientId}`}
+                        className="text-body-sm font-medium text-(--color-text-primary) underline-offset-2 hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      <span className="truncate text-body-sm text-(--color-text-secondary)">{r.document.title}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PlansSection>
+          )}
+
+          {reconciliation && reconciliation.mismatches.length > 0 && (
+            <PlansSection
+              title={`Reconciliation mismatches for ${reconciliation.period} (${reconciliation.mismatches.length})`}
+              actions={
+                <Link href="/reconciliation">
+                  <Button variant="secondary" size="sm">
+                    Review in Reconciliation
+                  </Button>
+                </Link>
+              }
+            >
+              <ul className="divide-y divide-(--color-border-subtle)">
+                {reconciliation.mismatches.slice(0, 8).map((m, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <Badge variant="warning">{m.type}</Badge>
+                    <span className="truncate text-body-sm text-(--color-text-secondary)">{m.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </PlansSection>
+          )}
+        </div>
+      )}
     </PageContent>
   );
 }

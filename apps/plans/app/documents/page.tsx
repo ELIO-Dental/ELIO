@@ -24,13 +24,13 @@ export default async function DocumentsPage() {
   }));
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Documents"
         description="Terms & conditions and plan agreements, with acceptance and e-signing status."
       />
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel toolbar={<TableToolbar title="Documents" />}>
           <DocumentsManager documents={rows} canEdit={canEdit} />
         </TablePanel>

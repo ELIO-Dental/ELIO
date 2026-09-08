@@ -47,13 +47,13 @@ export default async function AuditLogPage({
   ]);
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Audit Log"
         description="Every recorded action for your practice, including Plans-specific decisions like redeem approvals and rejections."
       />
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel
           toolbar={
             <TableToolbar title="Audit entries">

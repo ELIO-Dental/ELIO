@@ -58,7 +58,7 @@ describe("filterPlansNavItems", () => {
     expect(ids).not.toContain("payments");
   });
 
-  it("gates audit and users independently", () => {
+  it("never shows users (Portal Team owns roster) even with canManageTeam", () => {
     const ids = filterPlansNavItems(SAMPLE_NAV, {
       canViewPayments: true,
       canEditSettings: true,
@@ -67,7 +67,7 @@ describe("filterPlansNavItems", () => {
       canManageTeam: true,
     }).map((i) => i.id);
     expect(ids).toContain("audit-log");
-    expect(ids).toContain("users");
+    expect(ids).not.toContain("users");
     expect(ids).toContain("action-required");
   });
 });

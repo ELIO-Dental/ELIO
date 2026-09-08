@@ -8,12 +8,12 @@ export default async function DentallyPage() {
   const canManage = true;
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Dentally"
         description="Map Dentally payment plan names to ELIO membership plans for automatic patient import."
       />
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <DentallyMappingsClient canManage={canManage} />
       </div>
     </PageContent>

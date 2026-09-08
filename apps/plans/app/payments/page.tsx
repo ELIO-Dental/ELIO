@@ -17,11 +17,11 @@ import {
   TableToolbar,
   TablePagination,
   parseTablePage,
-  Card,
 } from "@elio/ui";
 import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { PaymentsFilterBar } from "./payments-filter-bar";
 import { PaymentNotifyButton } from "./payment-notify-button";
+import { PlansMetricTile } from "@/components/plans-page-chrome";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   PENDING: "warning",
@@ -33,6 +33,8 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral
 };
 
 const PENDING_STATUSES = ["PENDING", "CONFIRMED"] as const;
+
+export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage({
   searchParams,
@@ -66,40 +68,31 @@ export default async function PaymentsPage({
   ]);
 
   return (
-    <PageContent>
-      <PageHeader title="Payments" description="Track Direct Debit payments and statuses" />
+    <PageContent width="full">
+      <PageHeader title="Payments" description="Track Direct Debit payments and statuses." />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4 px-5 py-4">
-          <div className="flex size-10 items-center justify-center rounded-(--radius-md) bg-(--color-success)/10 text-(--color-success)">
-            <CheckCircle className="size-5" aria-hidden />
-          </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{paidCount}</p>
-            <p className="text-caption text-(--color-text-secondary)">Paid Out</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-5 py-4">
-          <div className="flex size-10 items-center justify-center rounded-(--radius-md) bg-(--color-warning)/10 text-(--color-warning)">
-            <Clock className="size-5" aria-hidden />
-          </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{pendingCount}</p>
-            <p className="text-caption text-(--color-text-secondary)">Pending</p>
-          </div>
-        </Card>
-        <Card className="flex items-center gap-4 px-5 py-4">
-          <div className="flex size-10 items-center justify-center rounded-(--radius-md) bg-(--color-danger)/10 text-(--color-danger)">
-            <AlertCircle className="size-5" aria-hidden />
-          </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{failedCount}</p>
-            <p className="text-caption text-(--color-text-secondary)">Failed</p>
-          </div>
-        </Card>
+      <div className="mt-6 grid gap-2.5 sm:grid-cols-3 sm:gap-3">
+        <PlansMetricTile
+          label="Paid out"
+          value={paidCount}
+          tone="success"
+          icon={<CheckCircle className="size-5" aria-hidden />}
+        />
+        <PlansMetricTile
+          label="Pending"
+          value={pendingCount}
+          tone="warning"
+          icon={<Clock className="size-5" aria-hidden />}
+        />
+        <PlansMetricTile
+          label="Failed"
+          value={failedCount}
+          tone="danger"
+          icon={<AlertCircle className="size-5" aria-hidden />}
+        />
       </div>
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel
           toolbar={
             <TableToolbar>
@@ -136,13 +129,9 @@ export default async function PaymentsPage({
                     <TableRow key={p.id}>
                       <TableCell>
                         <p className="font-medium text-(--color-text-primary)">{name}</p>
-                        {email ? (
-                          <p className="text-caption text-(--color-text-tertiary)">{email}</p>
-                        ) : null}
+                        {email ? <p className="text-caption text-(--color-text-tertiary)">{email}</p> : null}
                         {p.mandate?.status ? (
-                          <p className="text-caption text-(--color-text-tertiary)">
-                            Mandate · {p.mandate.status}
-                          </p>
+                          <p className="text-caption text-(--color-text-tertiary)">Mandate · {p.mandate.status}</p>
                         ) : null}
                       </TableCell>
                       <TableCellMoney>{formatMoneyGBP(p.amountPence)}</TableCellMoney>

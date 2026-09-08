@@ -17,11 +17,11 @@ import {
   TableToolbar,
   TablePagination,
   parseTablePage,
-  Card,
 } from "@elio/ui";
 import { CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { RedeemActions } from "./redeem-actions";
 import { RedeemsFilterBar } from "./redeems-filter-bar";
+import { PlansMetricTile } from "@/components/plans-page-chrome";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   PENDING_APPROVAL: "warning",
@@ -67,7 +67,7 @@ export default async function RedeemsPage({
   const pendingTotal = countByStatus.PENDING_APPROVAL ?? 0;
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Redeems"
         description={
@@ -82,31 +82,34 @@ export default async function RedeemsPage({
         }
       />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {STATUS_CARDS.map((c) => {
           const Icon = c.icon;
           const count = countByStatus[c.key] ?? 0;
           const active = statusFilter === c.key;
           const href = active ? "/redeems" : `/redeems?status=${c.key}`;
+          const tone =
+            c.key === "APPROVED" ? "success" : c.key === "REJECTED" ? "danger" : c.key === "PENDING_APPROVAL" ? "warning" : "default";
           return (
-            <Link key={c.key} href={href}>
-              <Card
-                className={`flex items-center gap-3 px-4 py-3 transition hover:shadow-(--shadow-sm) ${
-                  active ? "border-(--color-primary-500) ring-1 ring-(--color-primary-500)/30" : ""
+            <Link key={c.key} href={href} className="block">
+              <div
+                className={`rounded-(--radius-xl) transition ${
+                  active ? "ring-2 ring-(--color-primary-500)/40" : "hover:opacity-95"
                 }`}
               >
-                <Icon className="size-8 text-(--color-text-tertiary)" aria-hidden />
-                <div>
-                  <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{count}</p>
-                  <p className="text-caption text-(--color-text-secondary)">{c.label}</p>
-                </div>
-              </Card>
+                <PlansMetricTile
+                  label={c.label}
+                  value={count}
+                  tone={tone}
+                  icon={<Icon className="size-5" aria-hidden />}
+                />
+              </div>
             </Link>
           );
         })}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel
           toolbar={
             <TableToolbar title="All Redeems">

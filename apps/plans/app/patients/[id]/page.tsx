@@ -95,7 +95,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   };
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader title={name} description="Membership patient detail" />
       <div className="mt-8">
         <PatientDetailClient detail={serialized} canInvite={canInvite} canEdit={canEdit} pendingDd={pendingDd} />

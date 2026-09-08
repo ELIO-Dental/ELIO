@@ -11,13 +11,13 @@ export default async function ReconciliationPage() {
   const session = await requireLicensedSession();
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Reconciliation"
-        description="Compare expected charges and local payments against GoCardless for a billing period. This mirrors the daily cron job (BUG-1's reconciliation logic) run on demand."
+        description="Compare expected charges and local payments against GoCardless for a billing period."
       />
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <ReconciliationRunner defaultPeriod={currentBillingPeriod()} />
       </div>
     </PageContent>

@@ -3,26 +3,26 @@
 import { usePathname } from "next/navigation";
 import { getModuleColor } from "@elio/ui";
 
+/** Legacy top-tab fallback — keep in sync with PLANS_MODULE_NAV (no Users; Portal owns Team). */
 const LINKS = [
   { href: "/plans/dashboard", label: "Dashboard" },
   { href: "/plans/patients", label: "Patients" },
-  { href: "/plans/dentally", label: "Dentally" },
   { href: "/plans/plans", label: "Plans" },
+  { href: "/plans/redeems", label: "Redeems" },
   { href: "/plans/payments", label: "Payments" },
   { href: "/plans/reconciliation", label: "Reconciliation" },
-  { href: "/plans/redeems", label: "Redeems" },
-  { href: "/plans/reports", label: "Reports" },
+  { href: "/plans/dentally", label: "Dentally" },
   { href: "/plans/documents", label: "Documents" },
+  { href: "/plans/reports", label: "Reports" },
   { href: "/plans/action-required", label: "Action Required" },
+  { href: "/plans/guide", label: "Guide" },
   { href: "/plans/audit-log", label: "Audit Log" },
-  { href: "/plans/users", label: "Users" },
   { href: "/plans/settings", label: "Settings" },
 ];
 
 /**
  * Module-local sub-nav — mirrors the former apps/pay/components/pay-nav.tsx pattern
  * (Pay now uses PAY_MODULE_NAV via ModuleAppLayout).
- * All 12 MASTER_BUILD_GUIDE.md §1.7 screens are real links.
  */
 export function PlansNav() {
   const pathname = usePathname();

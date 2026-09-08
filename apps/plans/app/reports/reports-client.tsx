@@ -1,16 +1,8 @@
 "use client";
 
 import * as React from "react";
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  StatCard,
-} from "@elio/ui";
-import { MoneyStatCard } from "@/components/money-stat-card";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
+import { PlansStatCard } from "@/components/plans-stat-card";
 import type { ReportsData } from "@/lib/reports-service";
 
 const TABS = ["overview", "revenue", "redeems", "breakage"] as const;
@@ -51,14 +43,26 @@ export function ReportsClient({
   const { overview, revenue, redeems, breakage } = data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="inline-flex flex-wrap gap-1 rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle)/50 p-1"
+          role="tablist"
+        >
           {visibleTabs.map((t) => (
-            <button key={t} type="button" onClick={() => setTab(t)}>
-              <Badge variant={tab === t ? "primary" : "neutral"}>
-                {t === "breakage" ? "Breakage & BI" : t.charAt(0).toUpperCase() + t.slice(1)}
-              </Badge>
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={`rounded-(--radius-md) px-3 py-1.5 text-caption font-semibold capitalize transition-colors ${
+                tab === t
+                  ? "bg-(--color-surface) text-(--color-text-primary) shadow-(--shadow-xs)"
+                  : "text-(--color-text-tertiary) hover:text-(--color-text-secondary)"
+              }`}
+            >
+              {t === "breakage" ? "Breakage & BI" : t}
             </button>
           ))}
         </div>
@@ -70,34 +74,34 @@ export function ReportsClient({
       </div>
 
       {tab === "overview" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total patients" value={overview.totalPatients} />
-          <StatCard label="Active" value={overview.activePatients} />
-          <StatCard label="Paused" value={overview.pausedPatients} />
-          <StatCard label="Active plans" value={overview.activePlans} />
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+          <PlansStatCard label="Total patients" value={overview.totalPatients} tone="accent" />
+          <PlansStatCard label="Active" value={overview.activePatients} tone="success" />
+          <PlansStatCard label="Paused" value={overview.pausedPatients} tone="warning" />
+          <PlansStatCard label="Active plans" value={overview.activePlans} />
         </div>
       )}
 
       {tab === "revenue" && canViewFinancial && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MoneyStatCard label="Total collected" value={revenue.totalCollectedPence} />
-            <MoneyStatCard label="Pending" value={revenue.totalPendingPence} />
-            <MoneyStatCard label="Failed" value={revenue.totalFailedPence} />
-            <MoneyStatCard label="Avg per patient" value={revenue.avgPerPatientPence} />
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+            <PlansStatCard label="Total collected" value={revenue.totalCollectedPence} money tone="success" />
+            <PlansStatCard label="Pending" value={revenue.totalPendingPence} money tone="warning" />
+            <PlansStatCard label="Failed" value={revenue.totalFailedPence} money tone="danger" />
+            <PlansStatCard label="Avg per patient" value={revenue.avgPerPatientPence} money />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <MoneyStatCard label="Dentist payout liability" value={revenue.dentistPayoutLiabilityPence} />
-            <MoneyStatCard label="Estimated profit" value={revenue.estimatedProfitPence} />
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <PlansStatCard label="Dentist payout liability" value={revenue.dentistPayoutLiabilityPence} money />
+            <PlansStatCard label="Estimated profit" value={revenue.estimatedProfitPence} money tone="success" />
           </div>
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden shadow-(--shadow-xs)">
+            <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
               <CardTitle>Plan profitability</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-body-sm text-(--color-text-secondary)">
+            <CardContent className="space-y-2 p-4 text-body-sm text-(--color-text-secondary) sm:p-5">
               <p>
-                Profit estimate = collected membership payments minus dentist payout for approved
-                examination redeems (plan override or Settings → Payouts default).
+                Profit estimate = collected membership payments minus dentist payout for approved examination
+                redeems (plan override or Settings → Payouts default).
               </p>
               {revenue.vatEnabled ? (
                 <p className="text-(--color-text-tertiary)">VAT is enabled for this practice (display flag).</p>
@@ -111,22 +115,22 @@ export function ReportsClient({
 
       {tab === "redeems" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total redeems" value={redeems.totalRedeems} />
-            <StatCard label="Approved" value={redeems.approvedRedeems} />
-            <StatCard label="Pending" value={redeems.pendingRedeems} />
-            <StatCard label="Rejected" value={redeems.rejectedRedeems} />
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+            <PlansStatCard label="Total redeems" value={redeems.totalRedeems} />
+            <PlansStatCard label="Approved" value={redeems.approvedRedeems} tone="success" />
+            <PlansStatCard label="Pending" value={redeems.pendingRedeems} tone="warning" />
+            <PlansStatCard label="Rejected" value={redeems.rejectedRedeems} tone="danger" />
           </div>
           {Object.keys(redeems.redeemsByType).length > 0 && (
-            <Card>
-              <CardHeader>
+            <Card className="overflow-hidden shadow-(--shadow-xs)">
+              <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
                 <CardTitle>Redeems by type</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-5">
                 <ul className="divide-y divide-(--color-border-subtle)">
                   {Object.entries(redeems.redeemsByType).map(([type, count]) => (
-                    <li key={type} className="flex items-center justify-between py-3 text-body-sm">
-                      <span>{type}</span>
+                    <li key={type} className="flex items-center justify-between py-3 text-body-sm first:pt-0 last:pb-0">
+                      <span className="font-medium text-(--color-text-primary)">{type}</span>
                       <Badge variant="neutral">{count}</Badge>
                     </li>
                   ))}
@@ -139,36 +143,25 @@ export function ReportsClient({
 
       {tab === "breakage" && canViewFinancial && (
         <div className="space-y-6">
-          <Card accentColor="var(--color-warning)">
-            <CardHeader>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
+            <PlansStatCard label="Not redeeming" value={breakage.patientsNotRedeeming} tone="warning" />
+            <PlansStatCard label="Total active" value={breakage.totalActivePatients} tone="accent" />
+            <PlansStatCard label="Breakage rate %" value={Math.round(breakage.breakageRate)} tone="warning" />
+          </div>
+          <Card className="overflow-hidden shadow-(--shadow-xs)">
+            <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
               <CardTitle>Breakage tracking</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-body-sm text-(--color-text-secondary)">
-                Patients paying but not redeeming their benefits — this is revenue you keep.
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-4 text-center">
-                  <p className="text-h2 font-semibold text-(--color-warning)">{breakage.patientsNotRedeeming}</p>
-                  <p className="text-caption text-(--color-text-tertiary)">Not redeeming</p>
-                </div>
-                <div className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-4 text-center">
-                  <p className="text-h2 font-semibold">{breakage.totalActivePatients}</p>
-                  <p className="text-caption text-(--color-text-tertiary)">Total active</p>
-                </div>
-                <div className="rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface) p-4 text-center">
-                  <p className="text-h2 font-semibold text-(--color-warning)">{breakage.breakageRate.toFixed(1)}%</p>
-                  <p className="text-caption text-(--color-text-tertiary)">Breakage rate</p>
-                </div>
-              </div>
+            <CardContent className="p-4 text-body-sm text-(--color-text-secondary) sm:p-5">
+              Patients paying but not redeeming their benefits — this is revenue you keep.
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden shadow-(--shadow-xs)">
+            <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
               <CardTitle>Provider load impact</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="py-8 text-center text-body-sm text-(--color-text-tertiary)">
+            <CardContent className="p-4 sm:p-5">
+              <p className="py-6 text-center text-body-sm text-(--color-text-tertiary)">
                 Provider load analysis requires Dentally appointment data integration. Configure Dentally in Portal →
                 Settings → Integrations to enable this report.
               </p>

@@ -22,10 +22,19 @@ export default async function SettingsPage() {
     <PageContent width="md">
       <PageHeader
         title="Settings"
-        description="Practice configuration for Plans — branding, GoCardless, membership terms, and payment rules."
+        description={
+          <>
+            Practice configuration for Plans — branding, GoCardless, membership terms, and payment rules. Team
+            invites live in{" "}
+            <a href="/settings/team" className="font-medium text-(--color-primary-fg) hover:underline">
+              ELIO Portal → Team
+            </a>
+            .
+          </>
+        }
       />
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-6 sm:mt-8">
         <SettingsManager
           initialSettings={settings}
           initialBranding={branding}

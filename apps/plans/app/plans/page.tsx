@@ -70,10 +70,10 @@ export default async function PlansPage({
   }));
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader title="Plans" description="Membership plan models patients can enrol on." />
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel
           toolbar={<TableToolbar title="Plan models" />}
           footer={<TablePagination page={page} pageSize={pageSize} totalCount={totalCount} />}

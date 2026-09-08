@@ -9,7 +9,8 @@ export interface PlansNavPermissions {
   canEditSettings: boolean;
   canViewActionRequired: boolean;
   canViewAuditLog: boolean;
-  canManageTeam: boolean;
+  /** @deprecated Team/Users live on Portal — kept for call-site compat, ignored. */
+  canManageTeam?: boolean;
 }
 
 /** Filter Plans sidebar items by permission flags (Aura Plans role gating parity). */
@@ -18,12 +19,13 @@ export function filterPlansNavItems<T extends { id: string }>(
   perms: PlansNavPermissions
 ): T[] {
   return items.filter((item) => {
+    // Users/Team is Portal-only — never show in Plans sidebar.
+    if (item.id === "users") return false;
     if (ALWAYS_NAV_IDS.has(item.id)) return true;
     if (PAYMENTS_NAV_IDS.has(item.id)) return perms.canViewPayments;
     if (SETTINGS_NAV_IDS.has(item.id)) return perms.canEditSettings;
     if (item.id === "action-required") return perms.canViewActionRequired;
     if (item.id === "audit-log") return perms.canViewAuditLog;
-    if (item.id === "users") return perms.canManageTeam;
     return false;
   });
 }

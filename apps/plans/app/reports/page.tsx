@@ -11,12 +11,12 @@ export default async function ReportsPage() {
   const data = await getReportsData(session.practiceId);
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader
         title="Reports"
         description="Analytics, profitability, and business intelligence."
       />
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <ReportsClient data={data} canViewFinancial={canViewFinancial} />
       </div>
     </PageContent>

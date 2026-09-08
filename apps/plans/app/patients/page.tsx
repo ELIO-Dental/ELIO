@@ -130,7 +130,7 @@ export default async function PatientsPage({
         />
       )}
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel
           toolbar={
             <TableToolbar>

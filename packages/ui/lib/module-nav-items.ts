@@ -9,7 +9,6 @@ import {
   FileText,
   AlertCircle,
   ScrollText,
-  UserCog,
   Settings,
   Wrench,
   Link2,
@@ -48,7 +47,7 @@ export const PLANS_MODULE_NAV: ModuleNavLink[] = [
   { id: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
   { id: "action-required", label: "Action Required", href: "/action-required", icon: AlertCircle },
   { id: "guide", label: "Guide", href: "/guide", icon: BookOpen },
-  { id: "users", label: "Users", href: "/users", icon: UserCog },
+  // Team/Users live on ELIO Portal — not duplicated in Plans.
   { id: "audit-log", label: "Audit Log", href: "/audit-log", icon: ScrollText },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];

@@ -21,10 +21,10 @@ export default async function GuidePage() {
   }));
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader title="Guide" description="Help articles for staff using the Plans module." />
 
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <TablePanel toolbar={<TableToolbar title="Guide" />}>
           <GuideManager articles={rows} canEdit={canEdit} />
         </TablePanel>
