@@ -11,7 +11,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "@elio/db";
 
-function loadEnvFile(path: string) {
+function loadEnvFile(path: string, force = false) {
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
     const t = line.trim();
@@ -26,7 +26,7 @@ function loadEnvFile(path: string) {
     ) {
       val = val.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = val;
+    if (force || !process.env[key]) process.env[key] = val;
   }
 }
 
@@ -48,9 +48,12 @@ async function deletePlanPatientCascade(planPatientId: string) {
 }
 
 async function main() {
-  loadEnvFile(join(process.cwd(), "..", "elio-deploy-env", "plans.env"));
-  loadEnvFile(join(process.cwd(), "packages", "db", ".env"));
-  loadEnvFile(join(process.cwd(), "apps", "plans", ".env.local"));
+loadEnvFile(join(process.cwd(), "..", "elio-deploy-env", "plans.env"), true);
+loadEnvFile(join(process.cwd(), "packages", "db", ".env"));
+loadEnvFile(join(process.cwd(), "apps", "plans", ".env.local"));
+if (process.env.DIRECT_DATABASE_URL?.trim()) {
+  process.env.DATABASE_URL = process.env.DIRECT_DATABASE_URL.trim();
+}
 
   const apply = process.env.CONFIRM_DELETE === "1";
   console.log("\n=== CLEANUP PLANS TEST DATA ===");

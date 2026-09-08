@@ -94,6 +94,10 @@ async function main() {
   loadEnvFile(join(process.cwd(), "..", "elio-deploy-env", "plans.env"), new Set(["DATABASE_URL", "DIRECT_DATABASE_URL"]));
   loadEnvFile(join(process.cwd(), "packages", "db", ".env"));
   loadEnvFile(join(process.cwd(), "apps", "plans", ".env.local"));
+  // Prefer direct host — pooler + IPv6 is flaky from some Windows networks
+  if (process.env.DIRECT_DATABASE_URL?.trim()) {
+    process.env.DATABASE_URL = process.env.DIRECT_DATABASE_URL.trim();
+  }
 
   console.log("\n=== Elio Plans data consistency audit (read-only) ===\n");
 
@@ -702,10 +706,10 @@ async function main() {
       await prisma.$queryRawUnsafe<{ count: bigint }[]>(
         `SELECT COUNT(*)::bigint AS count
          FROM plans_patient_plan_enrolments e
-         LEFT JOIN plans_plans pl ON pl.id = e."planModelId"
+         LEFT JOIN plans_plans pl ON pl.id = e."planId"
          WHERE e."practiceId" = $1
            AND e.status = 'ACTIVE'
-           AND (pl.id IS NULL OR pl."isCurrentVersion" = false)`,
+           AND (pl.id IS NULL OR pl."isCurrentVersion" = false OR pl.active = false)`,
         practiceId
       )
     )[0]?.count ?? 0
