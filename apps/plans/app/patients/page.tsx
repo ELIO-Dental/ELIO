@@ -33,6 +33,8 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral
   CANCELLED: "danger",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PatientsPage({
   searchParams,
 }: {
@@ -88,7 +90,7 @@ export default async function PatientsPage({
   const planOptions = plans.map((p) => ({ id: p.id, name: p.name, monthlyPricePence: p.monthlyPricePence }));
 
   return (
-    <PageContent>
+    <PageContent width="full">
       <PageHeader title="Patients" description="Patients enrolled on a membership plan." />
 
       {fromFlow && (

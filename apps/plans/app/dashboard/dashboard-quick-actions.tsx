@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { AlertCircle, BarChart3, CreditCard, Users } from "lucide-react";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@elio/ui";
 
-/** Legacy quick actions row (P3.3). */
+/** Legacy quick actions row — modern surface tiles. */
 export function DashboardQuickActions() {
   const actions = [
-      {
+    {
       href: "/patients?openEnrol=1",
       icon: Users,
       title: "Add patient",
@@ -32,21 +32,25 @@ export function DashboardQuickActions() {
   ] as const;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden shadow-(--shadow-xs)">
+      <CardHeader className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40">
         <CardTitle>Quick actions</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
+      <CardContent className="grid gap-2.5 p-4 sm:grid-cols-2 sm:p-5">
         {actions.map((action) => (
-          <Button key={action.href + action.title} variant="secondary" className="h-auto justify-start py-4" asChild>
-            <Link href={action.href}>
-              <action.icon className="mr-2 size-4 shrink-0" />
-              <div className="text-left">
-                <p className="font-medium">{action.title}</p>
-                <p className="text-caption text-(--color-text-tertiary)">{action.description}</p>
-              </div>
-            </Link>
-          </Button>
+          <Link
+            key={action.href + action.title}
+            href={action.href}
+            className="group flex items-start gap-3 rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface) px-3.5 py-3 transition-colors hover:border-(--color-border) hover:bg-(--color-bg-subtle)/60"
+          >
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600) transition-colors group-hover:bg-(--color-primary-100)">
+              <action.icon className="size-4" />
+            </span>
+            <span className="min-w-0 text-left">
+              <span className="block text-body-sm font-semibold text-(--color-text-primary)">{action.title}</span>
+              <span className="mt-0.5 block text-caption text-(--color-text-tertiary)">{action.description}</span>
+            </span>
+          </Link>
         ))}
       </CardContent>
     </Card>
