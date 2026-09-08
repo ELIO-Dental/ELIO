@@ -317,15 +317,23 @@ export function PatientDetailClient({
         return;
       }
       if (path === "invite" && data.signupUrl) {
-        setLastInviteUrl(String(data.signupUrl));
+        const absolute =
+          String(data.signupUrl).startsWith("http")
+            ? String(data.signupUrl)
+            : `${window.location.origin}${data.signupUrl}`;
+        setLastInviteUrl(absolute);
         toast.success(data.emailed ? "Invite emailed to patient" : successMessage, {
-          description: data.signupUrl,
+          description: absolute,
           duration: 10000,
         });
       } else if (path === "send-terms" && data.signupUrl) {
-        setLastInviteUrl(String(data.signupUrl));
+        const absolute =
+          String(data.signupUrl).startsWith("http")
+            ? String(data.signupUrl)
+            : `${window.location.origin}${data.signupUrl}`;
+        setLastInviteUrl(absolute);
         toast.success(data.emailSent ? "T&C link emailed" : "T&C link created", {
-          description: data.signupUrl,
+          description: absolute,
           duration: 10000,
         });
       } else if (path === "check-gc" && data.discovery) {

@@ -136,7 +136,12 @@ export function EnrolPatientForm({
         {signupUrl && (
           <p className="mb-4 rounded-(--radius-md) border border-(--color-border-subtle) bg-(--color-surface-subtle) p-3 text-body-sm text-(--color-text-primary)">
             Signup link ready — send this to the patient:{" "}
-            <a href={signupUrl} className="text-(--color-primary-600) underline" target="_blank" rel="noreferrer">
+            <a
+              href={typeof window !== "undefined" ? `${window.location.origin}${signupUrl}` : signupUrl}
+              className="text-(--color-primary-600) underline"
+              target="_blank"
+              rel="noreferrer"
+            >
               {typeof window !== "undefined" ? `${window.location.origin}${signupUrl}` : signupUrl}
             </a>
           </p>

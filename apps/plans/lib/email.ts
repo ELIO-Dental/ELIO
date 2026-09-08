@@ -3,6 +3,7 @@
 // when RESEND_API_KEY isn't configured).
 import { Resend } from "resend";
 import type { EmailSendResult } from "./email-types";
+import { absolutePortalUrl } from "./public-portal-url";
 
 export async function sendSignupCompleteEmail(input: {
   to: string;
@@ -47,8 +48,7 @@ export async function sendPatientInviteEmail(input: {
 }): Promise<EmailSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
-  const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  const fullUrl = input.signupUrl.startsWith("http") ? input.signupUrl : `${appOrigin}${input.signupUrl}`;
+  const fullUrl = absolutePortalUrl(input.signupUrl);
   const subject = `Join ${input.practiceName} — ${input.planName}`;
 
   if (!input.to) return { success: false, error: "No recipient email" };
@@ -121,8 +121,7 @@ export async function sendTermsSigningEmail(input: {
 }): Promise<EmailSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "ELIO Plans <no-reply@elio.dev>";
-  const appOrigin = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  const fullUrl = input.signingUrl.startsWith("http") ? input.signingUrl : `${appOrigin}${input.signingUrl}`;
+  const fullUrl = absolutePortalUrl(input.signingUrl);
   const subject = `Terms & Conditions — ${input.planName} — ${input.practiceName}`;
 
   if (!input.to) return { success: false, error: "No recipient email" };
