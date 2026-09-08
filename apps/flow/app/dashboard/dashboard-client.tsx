@@ -185,6 +185,10 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [syncLogOpen, setSyncLogOpen] = React.useState(false);
   const [syncLog, setSyncLog] = React.useState<SyncLogLine[]>([]);
 
+  React.useEffect(() => {
+    setData(initial);
+  }, [initial]);
+
   function appendSyncLog(message: string) {
     setSyncLog((prev) => [...prev, { message, at: new Date().toISOString() }]);
     setSyncLogOpen(true);
@@ -205,7 +209,12 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
       if (nextDentist !== "all") params.set("dentistId", nextDentist);
-      const res = await fetch(`/flow/api/dashboard${params.toString() ? `?${params}` : ""}`);
+      // Bust any intermediary cache — KPIs must match live Neon.
+      params.set("_", String(Date.now()));
+      const res = await fetch(`/flow/api/dashboard?${params.toString()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Failed to load");
       setData(await res.json());
     } catch (err) {

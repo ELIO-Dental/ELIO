@@ -2,12 +2,11 @@
 // Mirrors apps/plans/lib/plans-service.ts's convention: scopedDb() for every
 // tenant-owned read/write, writeAuditLog() for anything that changes state a
 // user might need to trace, plain Error throws for the route layer to map.
-import { scopedDb } from "@elio/db";
+import { prisma, scopedDb } from "@elio/db";
 import { writeAuditLog } from "@elio/auth";
 import {
   getAppointments,
   getFlowSettings,
-  getLatestDentallySyncRun,
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
 } from "@elio/dentally";
@@ -577,6 +576,14 @@ function consultDate(c: {
   return c.appointment?.startsAt ?? c.enquiry?.capturedAt ?? c.createdAt;
 }
 
+/** Local calendar YYYY-MM-DD for table display (avoids UTC day shift from toISOString). */
+function toLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function dashboardStatusLabel(
   c: {
     outcome: string | null;
@@ -617,26 +624,72 @@ export async function getFlowDashboard(
   opts?: { from?: Date; to?: Date; dentistId?: string | null; scope?: FlowPractitionerScope }
 ): Promise<FlowDashboardData> {
   const db = scopedDb(practiceId);
-  const [settings, latestSync] = await Promise.all([
-    getFlowSettings(practiceId),
-    getLatestDentallySyncRun(practiceId),
-  ]);
   const dentistFilter = opts?.scope
     ? resolveEffectiveDentistFilter(opts.scope, opts.dentistId ?? null)
     : opts?.dentistId ?? null;
 
-  const consults = await db.consult.findMany({
-    where: {
-      ...(dentistFilter ? { practitionerDentistId: dentistFilter } : {}),
-    },
-    include: {
-      enquiry: { include: { patient: true } },
-      practitionerDentist: true,
-      appointment: true,
-      reminders: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  // Parallel + narrow selects — avoid loading full patient/appointment/reminder graphs
+  // and skip failStaleDentallySyncRuns (write) on every dashboard paint.
+  const [settings, latestSync, consults, dentistRows] = await Promise.all([
+    getFlowSettings(practiceId),
+    prisma.dentallySyncRun.findFirst({
+      where: { practiceId },
+      orderBy: { startedAt: "desc" },
+      select: { finishedAt: true, startedAt: true },
+    }),
+    db.consult.findMany({
+      where: {
+        ...(dentistFilter ? { practitionerDentistId: dentistFilter } : {}),
+      },
+      select: {
+        id: true,
+        quotePence: true,
+        quotePenceOverride: true,
+        totalPaidPence: true,
+        attended: true,
+        hasDeposit: true,
+        treatmentBooked: true,
+        planSignedUp: true,
+        stuckReason: true,
+        outcome: true,
+        notes: true,
+        bookedBy: true,
+        touchPointsOverride: true,
+        practitionerDentistId: true,
+        createdAt: true,
+        enquiry: {
+          select: {
+            capturedAt: true,
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        appointment: {
+          select: { startsAt: true, dentallyState: true },
+        },
+        practitionerDentist: {
+          select: { id: true, name: true },
+        },
+        _count: {
+          select: {
+            reminders: { where: { sentAt: { not: null } } },
+          },
+        },
+      },
+    }),
+    db.dentist.findMany({
+      where: { practiceId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   const filtered = consults.filter((c) => {
     const d = consultDate(c);
@@ -645,6 +698,7 @@ export async function getFlowDashboard(
     return true;
   });
 
+  const threshold = settings.paidConversionThresholdPence;
   const rows: FlowDashboardRow[] = filtered.map((c) => {
     const patient = c.enquiry.patient;
     const patientName = patient
@@ -652,7 +706,7 @@ export async function getFlowDashboard(
       : "Unlinked lead";
     const d = consultDate(c);
     const planValue = planValuePence(c);
-    const { label, key } = dashboardStatusLabel(c, settings.paidConversionThresholdPence);
+    const { label, key } = dashboardStatusLabel(c, threshold);
 
     return {
       id: c.id,
@@ -663,7 +717,7 @@ export async function getFlowDashboard(
       dentistId: c.practitionerDentistId,
       dentistName: c.practitionerDentist?.name ?? "Unassigned",
       bookedBy: c.bookedBy,
-      consultationDate: d.toISOString().slice(0, 10),
+      consultationDate: toLocalYmd(d),
       appointmentState: c.appointment?.dentallyState ?? null,
       planValuePence: planValue,
       quotePence: c.quotePence,
@@ -677,23 +731,33 @@ export async function getFlowDashboard(
       statusLabel: label,
       statusKey: key,
       planSignedUp: c.planSignedUp,
-      touchPoints: c.touchPointsOverride ?? c.reminders.filter((r) => r.sentAt != null).length,
+      touchPoints: c.touchPointsOverride ?? c._count.reminders,
       notes: c.notes,
     };
   });
 
-  const attended = filtered.filter((c) => c.attended === true).length;
-  const converted = filtered.filter((c) => isLegacyConverted(c, settings.paidConversionThresholdPence)).length;
-  const stuck = filtered.filter(
-    (c) => c.attended === true && !isLegacyConverted(c, settings.paidConversionThresholdPence)
-  ).length;
+  let attended = 0;
+  let converted = 0;
+  let stuck = 0;
+  let planSignUps = 0;
+  let totalPlannedRaw = 0;
+  let totalPaidRaw = 0;
+  let totalPipelineValuePence = 0;
 
-  const totalPipelineValuePence = filtered
-    .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence))
-    .reduce((sum, c) => sum + planValuePence(c), 0);
-
-  const totalPlannedRaw = filtered.reduce((sum, c) => sum + planValuePence(c), 0);
-  const totalPaidRaw = filtered.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0);
+  for (const c of filtered) {
+    const planned = planValuePence(c);
+    const paid = c.totalPaidPence ?? 0;
+    totalPlannedRaw += planned;
+    totalPaidRaw += paid;
+    if (c.planSignedUp) planSignUps += 1;
+    const isConverted = isLegacyConverted(c, threshold);
+    if (c.attended === true) {
+      attended += 1;
+      if (!isConverted) stuck += 1;
+    }
+    if (isConverted) converted += 1;
+    else totalPipelineValuePence += planned;
+  }
 
   const stats: FlowDashboardStats = {
     totalConsultations: filtered.length,
@@ -704,15 +768,10 @@ export async function getFlowDashboard(
     totalPlannedPence: Math.round(totalPlannedRaw / 100) * 100,
     totalPaidPence: Math.round(totalPaidRaw / 100) * 100,
     totalPipelineValuePence,
-    planSignUps: filtered.filter((c) => c.planSignedUp).length,
+    planSignUps,
     conversionRate: attended > 0 ? Math.round((converted / attended) * 100) : 0,
   };
 
-  const dentistRows = await db.dentist.findMany({
-    where: { practiceId },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
   const dentists = dentistRows
     .filter((d) => !opts?.scope || opts.scope.viewAll || d.id === opts.scope.dentistId)
     .map((d) => ({ id: d.id, name: d.name }));

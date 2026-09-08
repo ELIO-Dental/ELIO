@@ -31,7 +31,12 @@ export async function GET(req: Request) {
       dentistId: dentistId && dentistId !== "all" ? dentistId : null,
       scope,
     });
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "private, no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    });
   } catch (e) {
     return errorResponse(e);
   }
