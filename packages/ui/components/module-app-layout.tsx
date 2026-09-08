@@ -102,7 +102,7 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
         };
 
   return (
-    <div className="flex h-screen bg-(--color-bg)">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-(--color-bg-subtle)">
       <Sidebar
         items={sidebarItems}
         activeId={activeId}
@@ -153,7 +153,7 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
           </div>
         }
       />
-      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)/50">{children}</main>
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)">{children}</main>
     </div>
   );
 }

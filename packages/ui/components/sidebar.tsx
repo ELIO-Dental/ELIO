@@ -42,7 +42,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
     <motion.aside
       animate={{ width: collapsed ? 72 : 240 }}
       transition={{ duration: duration.base / 1000, ease: easing.out }}
-      className="flex h-full flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
+      className="flex h-full min-h-0 shrink-0 flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
       <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
         {/* Full-width center — collapse control is absolute so it does not shift the logo. */}
@@ -58,7 +58,7 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 px-2 py-2">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {items.map((item) => {
           const isActive = item.id === activeId;
           const Icon = item.icon;
@@ -107,7 +107,11 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
         })}
       </nav>
 
-      {footer && <div className="border-t border-(--color-border) p-2">{footer}</div>}
+      {footer && (
+        <div className="mt-auto shrink-0 border-t border-(--color-border-subtle) bg-(--color-surface) p-2">
+          {footer}
+        </div>
+      )}
     </motion.aside>
   );
 }

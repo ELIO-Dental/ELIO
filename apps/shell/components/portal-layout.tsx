@@ -117,7 +117,7 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
   const initials = email ? initialsFromEmail(email) : "U";
 
   return (
-    <div className="flex h-screen bg-(--color-bg)">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-(--color-bg-subtle)">
       <Sidebar
         items={navItems}
         activeId={activeId}
@@ -182,7 +182,7 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
           </div>
         }
       />
-      <main className="relative min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)">
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)">
         <div className="portal-main-grid pointer-events-none absolute inset-0 opacity-90" aria-hidden />
         <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
           <div className="portal-theme-chip pointer-events-auto rounded-(--radius-md) p-1">
