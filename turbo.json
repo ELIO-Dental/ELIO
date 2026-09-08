@@ -3,7 +3,30 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "DIRECT_DATABASE_URL",
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "TOKEN_SECRET",
+        "APP_URL",
+        "PORTAL_URL",
+        "NEXT_PUBLIC_PORTAL_URL",
+        "DENTALLY_API_KEY",
+        "CRON_SECRET",
+        "SEED_SECRET",
+        "INITIAL_ADMIN_EMAIL",
+        "INITIAL_ADMIN_PASSWORD",
+        "EMAIL_PROVIDER",
+        "EMAIL_FROM",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
+        "GOCARDLESS_ENVIRONMENT",
+        "GOCARDLESS_ACCESS_TOKEN",
+        "GOCARDLESS_WEBHOOK_SECRET",
+        "GOCARDLESS_ALLOW_MOCK"
+      ]
     },
     "dev": {
       "cache": false,

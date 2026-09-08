@@ -23,7 +23,10 @@ export async function POST(_req: Request, { params }: RouteParams) {
     if (result && "success" in result && result.success === false) {
       return NextResponse.json({ error: result.error ?? "Notify failed" }, { status: 400 });
     }
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({
+      success: true,
+      messageId: result && "messageId" in result ? result.messageId : undefined,
+    });
   } catch (e) {
     return errorResponse(e);
   }
