@@ -7,6 +7,7 @@
  */
 
 export type ModuleId =
+  | "portal"
   | "flow"
   | "pay"
   | "plans"
@@ -36,6 +37,7 @@ export interface ModuleColorInfo {
 }
 
 const MODULES: Record<ModuleId, { name: string; hex: string; status: "built" | "reserved" }> = {
+  portal: { name: "ELIO Portal", hex: "#7c5cfc", status: "built" },
   flow: { name: "ElioFlow", hex: "#8b5cf6", status: "built" },
   pay: { name: "ElioPay", hex: "#3b82f6", status: "built" },
   plans: { name: "ElioPlans", hex: "#6366f1", status: "built" },

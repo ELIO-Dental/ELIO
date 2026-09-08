@@ -7,7 +7,7 @@ import { isDarkModeActive } from "../lib/theme";
 import { Button } from "./button";
 import { useTheme } from "./theme-provider";
 
-/** Compact light/dark toggle for portal and module chrome (top-right). */
+/** Compact light/dark toggle for portal and module sidebar chrome. */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme, mounted } = useTheme();
   const [dark, setDark] = React.useState(false);

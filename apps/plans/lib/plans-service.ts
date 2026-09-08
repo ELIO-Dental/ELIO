@@ -1379,7 +1379,10 @@ async function handleNewMandateFromGoCardless(gocardlessMandateId: string, actio
       return;
     }
 
-    const planPatient = await prisma.planPatient.findFirst({
+    // Tenant-safe auto-link: only proceed when exactly one PlanPatient matches.
+    // A global findFirst by email could activate another practice's membership
+    // when the same email exists under Hisham's tenant and a new practice.
+    const matches = await prisma.planPatient.findMany({
       where: {
         patient: { email: { equals: customerEmail, mode: "insensitive" } },
         mandates: { none: { status: "ACTIVE" } },
@@ -1394,12 +1397,22 @@ async function handleNewMandateFromGoCardless(gocardlessMandateId: string, actio
         },
       },
       orderBy: { createdAt: "desc" },
+      take: 2,
     });
 
-    if (!planPatient) {
+    if (matches.length === 0) {
       console.log(`[GoCardless Webhook] No matching PlanPatient for email: ${customerEmail}`);
       return;
     }
+    const distinctPractices = new Set(matches.map((m) => m.practiceId));
+    if (matches.length > 1 || distinctPractices.size > 1) {
+      console.log(
+        `[GoCardless Webhook] Ambiguous PlanPatient email match for ${customerEmail} — refusing auto-link (use billing_request metadata)`,
+      );
+      return;
+    }
+
+    const planPatient = matches[0]!;
 
     const monthlyPricePence =
       planPatient.planModel?.monthlyPricePence ??

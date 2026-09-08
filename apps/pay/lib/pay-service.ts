@@ -874,13 +874,20 @@ export async function reviewPayLine(
   correctedDentistId: string
 ) {
   const db = scopedDb(practiceId);
-  const before = await db.payLine.findFirst({ where: { id: payLineId } });
+  // PayLine has no practiceId column — scope transitively via CompassStatement (tenant ADR).
+  const before = await db.payLine.findFirst({
+    where: { id: payLineId, compassStatement: { practiceId } },
+  });
   if (!before) throw new Error("PayLine not found");
+
+  // Ensure the correction target dentist also belongs to this practice.
+  const dentist = await db.dentist.findFirst({ where: { id: correctedDentistId } });
+  if (!dentist) throw new Error("Dentist not found");
 
   const updated = await db.payLine.update({
     where: { id: payLineId },
     data: {
-      dentistId: correctedDentistId,
+      dentistId: dentist.id,
       matchConfidence: "CONFIDENT",
       // Attributed to the REAL actor (the Super Admin during impersonation,
       // Step 2.3) — same identity as the AuditLog row below, never the

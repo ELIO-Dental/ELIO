@@ -110,7 +110,7 @@ export async function generatePayslipPdf(payslip: PayslipPdfInput): Promise<{ bu
     margin: 50,
     info: {
       Title: payslip.provisional ? "PROVISIONAL Payslip" : "Payslip",
-      Author: payslip.practiceName?.trim() || "Aura Dental",
+      Author: payslip.practiceName?.trim() || "ELIO Pay",
       Creator: "ElioPay",
       Producer: "ElioPay",
     },
@@ -122,7 +122,7 @@ export async function generatePayslipPdf(payslip: PayslipPdfInput): Promise<{ bu
     doc.on("end", () => resolve(Buffer.concat(chunks)));
   });
 
-  const practice = payslip.practiceName?.trim() || "Aura Dental";
+  const practice = payslip.practiceName?.trim() || "ELIO Pay";
   const performer = payslip.dentist.name;
   const nhsNo = payslip.dentist.nhsPerformerNumber?.trim() || null;
   const paymentDateLabel = formatPayslipPaymentDate(payslip.payPeriod.periodStart);

@@ -123,7 +123,7 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
         activeId={activeId}
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
-        activeModuleId="flow"
+        activeModuleId="portal"
         launcher={
           <SidebarBrand
             collapsed={collapsed}
@@ -138,57 +138,59 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
           />
         }
         footer={
-          <div className="space-y-2">
+          <div className="space-y-1">
             <PwaSidebarInstall config={portalPwa} collapsed={collapsed} />
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex w-full items-center gap-2.5 rounded-(--radius-md) p-2 text-left transition-colors hover:bg-(--color-border-subtle)"
-                data-testid="account-switcher"
-              >
-                <Avatar size="md" initials={initials} />
-                {!collapsed && (
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body-sm font-medium text-(--color-text-primary)">{displayName}</span>
-                    <span className="block truncate text-caption text-(--color-text-tertiary)">{roleLabel(role)}</span>
-                  </span>
-                )}
-                {!collapsed && <ChevronDown className="size-4 shrink-0 text-(--color-text-tertiary)" />}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem asChild>
-                <a href="/settings/profile" className="flex items-center">
-                  <User className="mr-2 size-4" /> Profile
-                </a>
-              </DropdownMenuItem>
-              {canViewTeam && (
-                <DropdownMenuItem asChild data-testid="team-settings-link">
-                  <a href="/settings/team" className="flex items-center">
-                    <Users className="mr-2 size-4" /> Team
-                  </a>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem asChild>
-                <a href="/settings" className="flex items-center">
-                  <Settings className="mr-2 size-4" /> Settings
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => signOut({ callbackUrl: "/login" })} data-testid="logout-button">
-                <LogOut className="mr-2 size-4" /> Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-(--radius-md) p-2 text-left transition-colors hover:bg-(--color-border-subtle)"
+                    data-testid="account-switcher"
+                  >
+                    <Avatar size="sm" initials={initials} />
+                    {!collapsed && (
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-caption font-medium text-(--color-text-primary) sm:text-body-sm">
+                          {displayName}
+                        </span>
+                        <span className="block truncate text-[10px] text-(--color-text-tertiary) sm:text-caption">
+                          {roleLabel(role)}
+                        </span>
+                      </span>
+                    )}
+                    {!collapsed && <ChevronDown className="size-4 shrink-0 text-(--color-text-tertiary)" />}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <a href="/settings/profile" className="flex items-center">
+                      <User className="mr-2 size-4" /> Profile
+                    </a>
+                  </DropdownMenuItem>
+                  {canViewTeam && (
+                    <DropdownMenuItem asChild data-testid="team-settings-link">
+                      <a href="/settings/team" className="flex items-center">
+                        <Users className="mr-2 size-4" /> Team
+                      </a>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <a href="/settings" className="flex items-center">
+                      <Settings className="mr-2 size-4" /> Settings
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => signOut({ callbackUrl: "/login" })} data-testid="logout-button">
+                    <LogOut className="mr-2 size-4" /> Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ThemeToggle />
+            </div>
           </div>
         }
       />
       <main className="relative min-h-0 min-w-0 flex-1 overflow-auto bg-(--color-bg-subtle)">
         <div className="portal-main-grid pointer-events-none absolute inset-0 opacity-90" aria-hidden />
-        <div className="pointer-events-none absolute right-4 top-4 z-20 flex justify-end lg:right-6 lg:top-6">
-          <div className="portal-theme-chip pointer-events-auto rounded-(--radius-md) p-1">
-            <ThemeToggle />
-          </div>
-        </div>
         <div className="relative z-10 min-h-full">{children}</div>
       </main>
     </div>
