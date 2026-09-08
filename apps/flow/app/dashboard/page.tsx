@@ -2,16 +2,22 @@ import { PageContent, PageHeader } from "@elio/ui";
 import type { Role } from "@elio/db";
 import { requireSession, redirectToLogin, resolveFlowScope } from "@/lib/session";
 import { getFlowDashboard } from "@/lib/flow-service";
+import { flowDatePresetRange, parseLocalDateEnd, parseLocalDateStart } from "@/lib/flow-date-range";
 import { DashboardClient } from "./dashboard-client";
 
 /** Always fresh from Neon — never serve a cached SSR KPI payload. */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/**
- * Default = All time so Total Planned / Total Paid match classic sheet totals.
- * Period filter still offers Last 3 Months like old ElioFlow.
- */
+/** Match classic ElioFlow home default: Last 3 Months. */
+function defaultThreeMonthRange() {
+  const range = flowDatePresetRange("3m");
+  return {
+    from: parseLocalDateStart(range.from!),
+    to: parseLocalDateEnd(range.to!),
+  };
+}
+
 /** F2.1 — legacy ElioFlow home dashboard (stats + table). */
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -23,7 +29,10 @@ export default async function DashboardPage() {
     role: session.role as Role,
     permissions: session.permissions ?? [],
   });
-  const data = await getFlowDashboard(session.practiceId, { scope });
+  const data = await getFlowDashboard(session.practiceId, {
+    scope,
+    ...defaultThreeMonthRange(),
+  });
 
   return (
     <PageContent width="full">

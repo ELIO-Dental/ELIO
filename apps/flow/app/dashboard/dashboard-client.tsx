@@ -34,14 +34,14 @@ import { DashboardEditDialog } from "./dashboard-edit-dialog";
 import { DashboardPatientPanel } from "./dashboard-patient-panel";
 
 const DATE_PRESETS = [
-  { id: "all", label: "All time" },
+  { id: "3m", label: "Last 3 months" },
   { id: "this-week", label: "This week" },
   { id: "last-week", label: "Last week" },
   { id: "this-month", label: "This month" },
   { id: "last-month", label: "Last month" },
-  { id: "3m", label: "Last 3 months" },
   { id: "6m", label: "Last 6 months" },
   { id: "12m", label: "Last 12 months" },
+  { id: "all", label: "All time" },
   { id: "custom", label: "Custom range" },
 ] as const;
 
@@ -167,7 +167,8 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
 export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [data, setData] = React.useState(initial);
   // All time = classic sheet totals for Total Planned / Total Paid.
-  const [preset, setPreset] = React.useState("all");
+  // Match classic ElioFlow home: Last 3 Months (All time still available).
+  const [preset, setPreset] = React.useState("3m");
   const [customFrom, setCustomFrom] = React.useState("");
   const [customTo, setCustomTo] = React.useState("");
   const [dentistId, setDentistId] = React.useState("all");
