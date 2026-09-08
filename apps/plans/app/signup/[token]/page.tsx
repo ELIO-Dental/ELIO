@@ -180,10 +180,12 @@ function PublicSignupContent() {
     <div className="min-h-screen bg-(--color-bg) px-4 py-10">
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-8 text-center">
-          {data?.branding?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.branding.logoUrl} alt={data.branding.brandName} className="mx-auto mb-3 h-12 object-contain" />
-          ) : null}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={data?.branding?.logoUrl?.trim() || "/plans/brand/elio-plans.png"}
+            alt={data?.branding?.brandName ?? "ELIO Plans"}
+            className="mx-auto mb-3 h-12 object-contain"
+          />
           <h1
             className="text-h2 text-(--color-text-primary)"
             style={data?.branding?.primaryColor ? { color: data.branding.primaryColor } : undefined}

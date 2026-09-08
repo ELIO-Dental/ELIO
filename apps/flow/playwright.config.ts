@@ -46,7 +46,7 @@ export default defineConfig({
     {
       command: `npx cross-env NEXTAUTH_URL=http://localhost:${SHELL_PORT} next dev -p ${FLOW_PORT}`,
       cwd: __dirname,
-      url: `${FLOW_ORIGIN}/flow/pipeline`,
+      url: `${FLOW_ORIGIN}/flow/dashboard`,
       reuseExistingServer: true,
       timeout: 240_000,
     },

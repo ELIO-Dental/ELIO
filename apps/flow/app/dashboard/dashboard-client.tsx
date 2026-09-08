@@ -150,20 +150,32 @@ function ProgressDots({
   hasDeposit: boolean;
   treatmentBooked: boolean;
 }) {
-  const steps = [attended, hasPlan, hasDeposit, treatmentBooked];
+  const steps = [
+    { on: attended, title: "Consultation attended" },
+    { on: hasPlan, title: "Has active plan" },
+    { on: hasDeposit, title: "Deposit paid" },
+    { on: treatmentBooked, title: "Treatment booked" },
+  ];
   return (
     <div className="flex gap-1" aria-label="Progress: attended, plan, deposit, treatment booked">
-      {steps.map((on, i) => (
+      {steps.map((step, i) => (
         <span
           key={i}
-          className={`inline-block size-2.5 rounded-full ${on ? "bg-(--color-success)" : "bg-(--color-border)"}`}
+          title={step.title}
+          className={`inline-block size-2.5 rounded-full ${step.on ? "bg-(--color-success)" : "bg-(--color-border)"}`}
         />
       ))}
     </div>
   );
 }
 
+/** Legacy Stuck filter: attended and not converted (includes thinking + named stuck reasons). */
+function isStuckRow(row: FlowDashboardRow) {
+  return row.attended === true && row.statusKey !== "converted" && row.statusKey !== "completed";
+}
+
 function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDisplayName: string) {
+  const planHeader = planDisplayName?.trim() ? `${planDisplayName} Signed Up` : "Plan Signed Up";
   const headers = [
     "Name",
     "Phone",
@@ -176,7 +188,7 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
     "Paid",
     "Status",
     "Touchpoints",
-    "Plan Signed Up",
+    planHeader,
     "Notes",
   ];
   const lines = rows.map((r) => [
@@ -215,7 +227,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [dentistId, setDentistId] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
-  const [sortField, setSortField] = React.useState<SortField>("date");
+  const [sortField, setSortField] = React.useState<SortField>("days");
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
   const [loading, setLoading] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
@@ -294,6 +306,9 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         toast.success("Payment sync started", {
           description: body.message ?? "Refreshing financial fields for all consults in the background.",
         });
+        // Background job — refresh now and again shortly so the table catches up.
+        await loadDashboard();
+        window.setTimeout(() => void loadDashboard(), 5000);
         return;
       }
       if (!res.ok) throw new Error(body.error ?? "Payment sync failed");
@@ -328,11 +343,14 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         toast.success("Full sync started", {
           description: body.message ?? "Check Portal Integrations for progress.",
         });
+        await loadDashboard();
+        window.setTimeout(() => void loadDashboard(), 8000);
         return;
       }
       if (!res.ok) throw new Error(body.error ?? "Full sync failed");
       appendSyncLog(body.message ?? "Full sync started.");
       toast.success("Full sync started");
+      await loadDashboard();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Check Portal Integrations settings.";
       appendSyncLog(`Full sync failed: ${msg}`);
@@ -354,12 +372,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const sortedRows = React.useMemo(() => {
     const filtered = data.rows.filter((row) => {
       if (statusFilter === "stuck") {
-        if (
-          row.statusKey !== "stuck" &&
-          !["thinking", "failed-finance", "price-shopping", "bad-experience", "out-of-budget"].includes(row.statusKey)
-        ) {
-          return false;
-        }
+        if (!isStuckRow(row)) return false;
       } else if (statusFilter !== "all" && row.statusKey !== statusFilter) {
         return false;
       }
@@ -413,12 +426,10 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   ]);
 
   const statusCounts = React.useMemo(() => {
-    const counts: Record<string, number> = { all: data.rows.length };
+    const counts: Record<string, number> = { all: data.rows.length, stuck: 0 };
     for (const row of data.rows) {
       counts[row.statusKey] = (counts[row.statusKey] ?? 0) + 1;
-      if (["stuck", "thinking", "failed-finance", "price-shopping", "bad-experience", "out-of-budget"].includes(row.statusKey)) {
-        counts.stuck = (counts.stuck ?? 0) + 1;
-      }
+      if (isStuckRow(row)) counts.stuck = (counts.stuck ?? 0) + 1;
     }
     return counts;
   }, [data.rows]);
@@ -510,6 +521,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             value={dentistId}
             onChange={(e) => {
               setDentistId(e.target.value);
+              if (preset === "custom" && (!customFrom || !customTo)) return;
               void loadDashboard(preset, e.target.value);
             }}
           >
@@ -526,13 +538,13 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </p>
           )}
         </div>
-        <Button variant="secondary" loading={loading} onClick={() => loadDashboard()}>
+        <Button variant="secondary" loading={loading} onClick={() => loadDashboard()} data-testid="flow-refresh">
           Refresh
         </Button>
         <Button
           loading={importing || syncingPayments || syncingFull}
           onClick={async () => {
-            // Legacy ElioFlow had one "Sync Dentally" — run import then payments, with full sync as fallback path.
+            // Legacy ElioFlow: one Sync Dentally — import consults then refresh payments.
             await importFromDentally();
             await syncPaymentsFromDentally();
           }}
@@ -540,20 +552,11 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         >
           Sync Dentally
         </Button>
-        <Button variant="secondary" loading={importing} onClick={importFromDentally} data-testid="flow-import-consults">
-          Import consults
-        </Button>
-        <Button variant="secondary" loading={syncingPayments} onClick={syncPaymentsFromDentally} data-testid="flow-sync-payments">
-          Sync payments
-        </Button>
-        <Button variant="secondary" loading={syncingFull} onClick={syncFullFromDentally} data-testid="flow-sync-full">
-          Full sync
-        </Button>
         <a
           href="/settings/integrations"
-          className="text-body-sm font-medium text-(--color-brand) underline underline-offset-2"
+          className="inline-flex h-10 items-center text-body-sm font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted)"
         >
-          Sync status (Portal)
+          Portal Integrations
         </a>
         {data.lastSyncedAt ? (
           <p className="w-full text-caption text-(--color-text-tertiary)" data-testid="flow-last-synced">
@@ -694,13 +697,15 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                       <TableCell>
                         <button
                           type="button"
-                          onClick={() => setDetailRow(row)}
+                          onClick={() => setEditRow(row)}
                           className="text-left font-medium text-(--color-brand) underline-offset-2 hover:underline"
                         >
                           {row.patientName}
                         </button>
-                        {row.patientPhone ? (
-                          <div className="text-caption text-(--color-text-tertiary)">{row.patientPhone}</div>
+                        {(row.patientPhone || row.patientEmail) ? (
+                          <div className="text-caption text-(--color-text-tertiary)">
+                            {row.patientPhone || row.patientEmail}
+                          </div>
                         ) : null}
                       </TableCell>
                       <TableCell>{row.dentistName}</TableCell>
@@ -733,16 +738,25 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
                           treatmentBooked={row.treatmentBooked}
                         />
                       </TableCell>
-                      <TableCellMoney>{row.daysSinceConsult}</TableCellMoney>
+                      <TableCellMoney>
+                        <span className={row.daysSinceConsult > 30 ? "font-semibold text-(--color-danger)" : undefined}>
+                          {row.daysSinceConsult}d
+                        </span>
+                      </TableCellMoney>
                       <TableCell>
                         <Badge variant={row.statusKey === "converted" || row.statusKey === "completed" ? "success" : "neutral"}>
                           {row.statusLabel}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
-                          Edit
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setDetailRow(row)}>
+                            Details
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
+                            Edit
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -777,6 +791,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       <DashboardEditDialog
         row={editRow}
         dentists={data.dentists}
+        planDisplayName={data.planDisplayName}
         open={editRow !== null}
         onOpenChange={(open) => {
           if (!open) setEditRow(null);

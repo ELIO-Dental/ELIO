@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     <PageContent width="xl">
       <PageHeader
         title="Dashboard"
-        description="Cosmetic consultation overview — same pipeline table as classic ElioFlow, in the ELIO theme."
+        description="Cosmetic consultation tracking — same home view as classic ElioFlow (stats, table, charts)."
       />
       <div className="mt-8">
         <DashboardClient initial={data} />

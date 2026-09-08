@@ -101,6 +101,7 @@ export function SidebarBrand({
       data-testid={testId}
       className={cn(
         "flex h-full w-full items-center justify-center gap-2.5 px-1",
+        logoOnly && subtitle ? "flex-col gap-1" : null,
         title.length > 12 ? "text-body-sm" : "text-body"
       )}
     >
@@ -122,7 +123,13 @@ export function SidebarBrand({
       ) : null}
       {logoOnly ? (
         <span className="sr-only">{title}</span>
-      ) : (
+      ) : null}
+      {logoOnly && subtitle ? (
+        <span className="mt-0.5 block max-w-[9rem] truncate text-[10px] leading-none text-(--color-text-tertiary)">
+          {subtitle}
+        </span>
+      ) : null}
+      {!logoOnly ? (
         <span className="min-w-0 text-left">
           <span className="block font-bold leading-tight tracking-[0.12em] text-(--color-text-primary)">
             {title}
@@ -133,7 +140,7 @@ export function SidebarBrand({
             </span>
           ) : null}
         </span>
-      )}
+      ) : null}
     </span>
   );
 }

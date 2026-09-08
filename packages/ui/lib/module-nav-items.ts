@@ -16,11 +16,7 @@ import {
   BookOpen,
   FlaskConical,
   Calendar,
-  Kanban,
-  MessageSquare,
-  Bell,
   Archive,
-  Building2,
 } from "lucide-react";
 import type { ModuleNavLink } from "../components/module-app-layout";
 
@@ -58,12 +54,8 @@ export const PLANS_MODULE_NAV: ModuleNavLink[] = [
 ];
 
 export const FLOW_MODULE_NAV: ModuleNavLink[] = [
+  // Legacy ElioFlow home was labeled "Pipeline" but was stats+table+charts (not a kanban).
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
-  { id: "pipeline", label: "Pipeline", href: "/pipeline", icon: Kanban },
-  { id: "reporting", label: "Reporting", href: "/reporting", icon: BarChart3 },
-  { id: "enquiries", label: "Enquiries", href: "/enquiries", icon: MessageSquare },
-  { id: "reminders", label: "Reminders", href: "/reminders", icon: Bell },
-  { id: "team", label: "Team", href: "/team", icon: UserCog },
-  { id: "practice", label: "Practice", href: "/practice", icon: Building2 },
+  // Settings stays in-module (branding / Flow options). Team + auth live on Portal.
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];

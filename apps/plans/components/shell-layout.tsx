@@ -17,7 +17,7 @@ export interface ShellLayoutProps {
   /** team:manage */
   canManageTeam?: boolean;
   brandTitle?: string;
-  /** Practice logo when uploaded in Plans settings; otherwise sidebar shows text title only. */
+  /** Practice logo when uploaded in Plans settings; otherwise ELIO Plans default wordmark. */
   brandLogoUrl?: string;
   faviconUrl?: string;
   children: React.ReactNode;

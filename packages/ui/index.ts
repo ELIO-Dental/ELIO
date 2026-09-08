@@ -44,6 +44,7 @@ export * from "./lib/module-nav-items";
 export * from "./components/page-header";
 export * from "./components/module-loading";
 export * from "./components/settings-page-loading";
+export * from "./lib/resolve-module-brand-logos";
 export * from "./components/module-app-layout";
 export * from "./components/stepper";
 export * from "./components/success-check";

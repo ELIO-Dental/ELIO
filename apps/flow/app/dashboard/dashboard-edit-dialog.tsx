@@ -40,12 +40,14 @@ const LEGACY_STATUS_OPTIONS = [
 export function DashboardEditDialog({
   row,
   dentists,
+  planDisplayName = "elioCare",
   open,
   onOpenChange,
   onSaved,
 }: {
   row: FlowDashboardRow | null;
   dentists: { id: string; name: string }[];
+  planDisplayName?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
@@ -188,7 +190,7 @@ export function DashboardEditDialog({
 
             <div className="flex items-center justify-between rounded-(--radius-md) border border-(--color-border-subtle) px-3 py-2">
               <div>
-                <Label htmlFor="edit-plan-signed-up">Plan signed up (elioCare)</Label>
+                <Label htmlFor="edit-plan-signed-up">Signed to {planDisplayName}</Label>
               </div>
               <Switch id="edit-plan-signed-up" checked={planSignedUp} onCheckedChange={setPlanSignedUp} />
             </div>

@@ -9,14 +9,15 @@ export interface ShellLayoutProps {
   isOwner?: boolean;
   /** Step 30 — false for linked clinicians (own payslips only); hides ops nav. */
   viewAll?: boolean;
-  /** Practice logo when uploaded in Pay settings; otherwise sidebar shows text "ELIO PAY". */
+  /** Practice logo when uploaded in Pay settings; otherwise ELIO Pay default wordmark. */
   brandLogoUrl?: string;
   /** Clinic name under ELIO PAY (AuraPay parity). */
   brandSubtitle?: string;
   children: React.ReactNode;
 }
 
-/** ElioPay app chrome — page tabs in sidebar, ELIO Portal back link only. */
+/** ElioPay app chrome — page tabs in sidebar, ELIO Portal back link only.
+ * Sidebar brand: practice `clinic_logo_url` if uploaded, else ELIO Pay wordmark. */
 export function ShellLayout({
   userEmail,
   isOwner,

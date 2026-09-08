@@ -9,6 +9,7 @@ import { Avatar } from "./avatar";
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobileViewport } from "../lib/use-is-mobile-viewport";
 import type { ModuleId } from "../lib/get-module-color";
+import { resolveModuleBrandLogos, type BrandModuleId } from "../lib/resolve-module-brand-logos";
 import { PwaSidebarInstall, getPwaConfig, type PwaAppId } from "@elio/pwa";
 
 export interface ModuleNavLink {
@@ -22,9 +23,12 @@ export interface ModuleNavLink {
 
 export interface ModuleAppLayoutProps {
   brandTitle: string;
-  /** Optional practice logo beside the module title (F3.3 Flow branding). */
+  /**
+   * Practice-uploaded logo URL. When empty, the ELIO product wordmark is used
+   * (elio pay / plans / flow) — never legacy ElioPay/ElioPlans/ElioFlow icons.
+   */
   brandLogoUrl?: string;
-  /** Optional clinic name under the module title (AuraPay parity). */
+  /** Optional clinic name under the brand mark. */
   brandSubtitle?: string;
   moduleId: ModuleId;
   navItems: ModuleNavLink[];
@@ -86,6 +90,16 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
   const displayName = email ? displayNameFromEmail(email) : "User";
   const initials = email ? initialsFromEmail(email) : "U";
   const pwaConfig = pwaAppId ? getPwaConfig(pwaAppId) : null;
+  const brand =
+    moduleId === "pay" || moduleId === "plans" || moduleId === "flow"
+      ? resolveModuleBrandLogos(moduleId as BrandModuleId, brandLogoUrl)
+      : {
+          logoUrl: brandLogoUrl?.trim() || undefined,
+          logoDarkUrl: undefined as string | undefined,
+          collapsedLogoUrl: undefined as string | undefined,
+          logoOnly: Boolean(brandLogoUrl?.trim()),
+          usingCustom: Boolean(brandLogoUrl?.trim()),
+        };
 
   return (
     <div className="flex h-screen bg-(--color-bg)">
@@ -102,7 +116,10 @@ export function ModuleAppLayout({ brandTitle, brandLogoUrl, brandSubtitle, modul
             subtitle={brandSubtitle}
             testId="module-brand"
             shortLabel={brandTitle.replace("ELIO ", "").slice(0, 2).toUpperCase()}
-            logoUrl={brandLogoUrl}
+            logoUrl={brand.logoUrl}
+            logoDarkUrl={brand.logoDarkUrl}
+            collapsedLogoUrl={brand.collapsedLogoUrl}
+            logoOnly={brand.logoOnly}
           />
         }
         footer={

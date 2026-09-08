@@ -565,8 +565,16 @@ function planValuePence(c: { quotePenceOverride: number | null; quotePence: numb
   return c.quotePenceOverride ?? c.quotePence ?? 0;
 }
 
-function consultDate(c: { appointment: { startsAt: Date | null } | null; createdAt: Date }) {
-  return c.appointment?.startsAt ?? c.createdAt;
+/**
+ * Legacy ElioFlow dated rows by sheet `consultationDate`.
+ * Migration stored that on Enquiry.capturedAt; live Dentally consults use appointment.startsAt.
+ */
+function consultDate(c: {
+  appointment: { startsAt: Date | null } | null;
+  enquiry?: { capturedAt: Date } | null;
+  createdAt: Date;
+}) {
+  return c.appointment?.startsAt ?? c.enquiry?.capturedAt ?? c.createdAt;
 }
 
 function dashboardStatusLabel(
@@ -746,10 +754,10 @@ export async function getConversionReport(
     where: {
       ...(scope && !scope.viewAll && scope.dentistId ? { practitionerDentistId: scope.dentistId } : {}),
     },
-    include: { practitionerDentist: true, appointment: true },
+    include: { practitionerDentist: true, appointment: true, enquiry: true },
   });
 
-  // Same date basis as the dashboard: appointment.startsAt ?? createdAt.
+  // Same date basis as the dashboard: appointment.startsAt ?? enquiry.capturedAt ?? createdAt.
   const consults = dateRange
     ? allConsults.filter((c) => {
         const d = consultDate(c);

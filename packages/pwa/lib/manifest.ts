@@ -91,7 +91,7 @@ function buildShortcuts(config: PwaAppConfig): WebManifestShortcut[] | undefined
     return [{ name: "Patients", url: "/plans/patients", icons: [{ src: "/plans/icons/icon-192.png", sizes: "192x192" }] }];
   }
   if (config.id === "flow") {
-    return [{ name: "Pipeline", url: "/flow/pipeline", icons: [{ src: "/flow/icons/icon-192.png", sizes: "192x192" }] }];
+    return [{ name: "Dashboard", url: "/flow/dashboard", icons: [{ src: "/flow/icons/icon-192.png", sizes: "192x192" }] }];
   }
 
   return undefined;

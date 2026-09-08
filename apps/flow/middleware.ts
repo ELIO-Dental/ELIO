@@ -26,6 +26,8 @@ export default auth(async (req) => {
     pathname.endsWith("/sw.js") ||
     pathname.startsWith("/icons/") ||
     pathname.includes("/icons/") ||
+    pathname.startsWith("/brand/") ||
+    pathname.includes("/brand/") ||
     pathname === "/offline.html" ||
     pathname.endsWith("/offline.html") ||
     pathname === "/manifest.webmanifest" ||
