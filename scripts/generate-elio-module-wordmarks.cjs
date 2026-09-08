@@ -1,6 +1,6 @@
 /**
- * Build ELIO Pay / Plans / Flow wordmarks from the official portal mark + text,
- * matching elio-portal.png canvas size (2172x724).
+ * Build ELIO Pay / Plans / Flow wordmarks from the official portal mark + text.
+ * Canvas is trimmed to content (+ padding) so sidebar object-contain stays large.
  */
 const path = require("node:path");
 const fs = require("node:fs");
@@ -10,13 +10,14 @@ const ROOT = path.join(__dirname, "..");
 const BRAND = path.join(ROOT, "apps", "shell", "public", "brand");
 const MARK = path.join(BRAND, "elio-mark.png");
 
-const W = 2172;
-const H = 724;
-const MARK_SIZE = 420;
-const MARK_X = 120;
+const W = 2400;
+const H = 640;
+const MARK_SIZE = 480;
+const MARK_X = 40;
 const MARK_Y = Math.round((H - MARK_SIZE) / 2);
-const TEXT_X = MARK_X + MARK_SIZE + 48;
-const FONT_SIZE = 210;
+const TEXT_X = MARK_X + MARK_SIZE + 36;
+const FONT_SIZE = 248;
+const PAD = 28;
 
 const PRODUCTS = [
   { id: "pay", label: "eliopay" },
@@ -54,7 +55,7 @@ function wordmarkSvg(label, textColor) {
 async function build(label, textColor, outPath) {
   const markBuf = await extractMarkOnTransparent();
   const textBuf = await sharp(wordmarkSvg(label, textColor)).png().toBuffer();
-  await sharp({
+  const composed = await sharp({
     create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     .composite([
@@ -62,8 +63,22 @@ async function build(label, textColor, outPath) {
       { input: textBuf, left: 0, top: 0 },
     ])
     .png()
+    .toBuffer();
+
+  // Crop empty canvas so the sidebar box is filled by the real mark + word.
+  await sharp(composed)
+    .trim({ threshold: 0 })
+    .extend({
+      top: PAD,
+      bottom: PAD,
+      left: PAD,
+      right: PAD,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
     .toFile(outPath);
-  console.log("wrote", outPath);
+  const meta = await sharp(outPath).metadata();
+  console.log("wrote", outPath, `${meta.width}x${meta.height}`);
 }
 
 async function main() {

@@ -21,7 +21,7 @@ export interface SidebarBrandProps {
   logoOnly?: boolean;
   /** Collapsed mark image (square favicon) — falls back to logoUrl. */
   collapsedLogoUrl?: string;
-  /** `lg` = larger centered wordmark for Pay/Plans/Flow sidebars. */
+  /** `lg` = large centered wordmark for Portal + Pay/Plans/Flow sidebars. */
   logoSize?: "md" | "lg";
 }
 
@@ -84,9 +84,9 @@ export function SidebarBrand({
   const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
   const logoBox =
     logoSize === "lg"
-      ? "h-14 w-[min(100%,280px)] sm:h-[4.25rem] sm:w-[min(100%,300px)]"
+      ? "h-[4.5rem] w-[min(100%,200px)] sm:h-[5rem] sm:w-[min(100%,208px)]"
       : logoOnly
-        ? "h-12 w-[min(100%,220px)] sm:h-14 sm:w-[min(100%,260px)]"
+        ? "h-14 w-[min(100%,200px)] sm:h-16 sm:w-[min(100%,220px)]"
         : "h-8 w-[120px]";
 
   if (collapsed) {
