@@ -14,6 +14,8 @@
     "test": "turbo run test",
     "verify:dentally-sync": "tsx scripts/verify-dentally-sync-infra.ts",
     "verify:plans-parity": "tsx scripts/verify-plans-parity.ts",
+    "audit:plans-data": "tsx scripts/audit-plans-data-consistency.ts",
+    "cleanup:plans-test-data": "tsx scripts/cleanup-plans-test-data.ts",
     "verify:pay-parity": "tsx scripts/verify-pay-parity.ts",
     "verify:flow-parity": "tsx scripts/verify-flow-parity.ts",
     "verify:production-env": "node scripts/verify-production-env.mjs",

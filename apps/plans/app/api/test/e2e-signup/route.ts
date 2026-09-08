@@ -10,15 +10,21 @@ import { randomUUID } from "crypto";
  * real product, then hand back the public token so the suite can drive the
  * actual unauthenticated /signup/[token] UI against it.
  *
- * Hard-gated so it can never do anything outside a Playwright run against a
- * mock GoCardless: refuses unless GOCARDLESS_MOCK_MODE="true", which is only
- * ever set by apps/plans/playwright.config.ts's webServer env, never in a
- * real dev/staging/prod environment.
+ * Hard-gated: refuses unless GOCARDLESS_MOCK_MODE=true AND the host is not
+ * a production / Vercel deployment (previous leak wrote E2E plans into live Neon).
  */
 export const runtime = "nodejs";
 
 function guard() {
-  return process.env.GOCARDLESS_MOCK_MODE === "true";
+  if (process.env.GOCARDLESS_MOCK_MODE !== "true") return false;
+  if (process.env.VERCEL === "1" || process.env.VERCEL_ENV === "production") return false;
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_E2E_SEED !== "true") return false;
+  const appUrl = `${process.env.APP_URL ?? ""} ${process.env.NEXTAUTH_URL ?? ""} ${process.env.NEXT_PUBLIC_APP_URL ?? ""}`;
+  if (/elioportal\.co\.uk/i.test(appUrl) && process.env.ALLOW_E2E_ON_PROD_HOST !== "true") return false;
+  // Known live Aura Neon — never seed E2E rows here unless explicitly overridden.
+  const db = process.env.DATABASE_URL ?? "";
+  if (/ep-lucky-glade/i.test(db) && process.env.ALLOW_E2E_ON_SHARED_DB !== "true") return false;
+  return true;
 }
 
 export async function POST(req: Request) {
