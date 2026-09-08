@@ -40,5 +40,5 @@ export function PageContent({
   className?: string;
   width?: keyof typeof WIDTH;
 }) {
-  return <div className={cn("mx-auto w-full px-6 py-8", WIDTH[width], className)}>{children}</div>;
+  return <div className={cn("mx-auto w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8", WIDTH[width], className)}>{children}</div>;
 }

@@ -279,22 +279,26 @@ function ChartCard({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) shadow-(--shadow-xs) ${className ?? ""}`}
+      className={`overflow-hidden rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) shadow-(--shadow-xs) transition-shadow hover:shadow-(--shadow-sm) ${className ?? ""}`}
     >
-      <header className="border-b border-(--color-border-subtle) px-5 py-3.5">
+      <header className="border-b border-(--color-border-subtle) bg-(--color-bg-subtle)/40 px-4 py-3 sm:px-5 sm:py-3.5">
         <h3 className="text-body-sm font-semibold text-(--color-text-primary)">{title}</h3>
         {subtitle ? <p className="mt-0.5 text-caption text-(--color-text-tertiary)">{subtitle}</p> : null}
       </header>
-      <div className="px-3 py-4 sm:px-4">{children}</div>
+      <div className="px-2 py-3 sm:px-4 sm:py-4">{children}</div>
     </section>
   );
 }
 
 function QuickStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-bg-subtle)/80 px-4 py-3.5">
-      <p className="text-caption font-medium tracking-wide text-(--color-text-tertiary) uppercase">{label}</p>
-      <p className="mt-1.5 text-h3 font-semibold tabular-nums tracking-tight text-(--color-text-primary)">{value}</p>
+    <div className="rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) px-3.5 py-3 shadow-(--shadow-xs) sm:px-4 sm:py-3.5">
+      <p className="text-[10px] font-semibold tracking-[0.08em] text-(--color-text-tertiary) uppercase sm:text-caption">
+        {label}
+      </p>
+      <p className="mt-1.5 text-body font-semibold tabular-nums tracking-tight text-(--color-text-primary) sm:text-h3">
+        {value}
+      </p>
     </div>
   );
 }

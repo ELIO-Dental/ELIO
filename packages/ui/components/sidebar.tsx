@@ -45,11 +45,14 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       className="flex h-full flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
       <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
-        <div className="flex h-full min-w-0 flex-1 items-center justify-center pr-9">{launcher}</div>
+        {/* Full-width center — collapse control is absolute so it does not shift the logo left. */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-10">
+          <div className="pointer-events-auto flex h-full w-full max-w-full items-center justify-center">{launcher}</div>
+        </div>
         <button
           onClick={() => onCollapsedChange(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)"
+          className="absolute top-1/2 right-2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-(--radius-sm) text-(--color-text-secondary) transition-colors hover:bg-(--color-border-subtle) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary-500)"
         >
           {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
         </button>

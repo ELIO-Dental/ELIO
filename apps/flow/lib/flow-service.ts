@@ -692,13 +692,17 @@ export async function getFlowDashboard(
     .filter((c) => !isLegacyConverted(c, settings.paidConversionThresholdPence))
     .reduce((sum, c) => sum + planValuePence(c), 0);
 
+  const totalPlannedRaw = filtered.reduce((sum, c) => sum + planValuePence(c), 0);
+  const totalPaidRaw = filtered.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0);
+
   const stats: FlowDashboardStats = {
     totalConsultations: filtered.length,
     attended,
     converted,
     stuck,
-    totalPlannedPence: filtered.reduce((sum, c) => sum + planValuePence(c), 0),
-    totalPaidPence: filtered.reduce((sum, c) => sum + (c.totalPaidPence ?? 0), 0),
+    // Whole-pound totals — classic ElioFlow sheet / formatCurrency used 0 dp.
+    totalPlannedPence: Math.round(totalPlannedRaw / 100) * 100,
+    totalPaidPence: Math.round(totalPaidRaw / 100) * 100,
     totalPipelineValuePence,
     planSignUps: filtered.filter((c) => c.planSignedUp).length,
     conversionRate: attended > 0 ? Math.round((converted / attended) * 100) : 0,

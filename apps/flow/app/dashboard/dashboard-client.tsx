@@ -27,6 +27,7 @@ import {
   useClientTablePagination,
 } from "@elio/ui";
 import { FlowStatCard } from "@/components/flow-stat-card";
+import { flowDatePresetRange } from "@/lib/flow-date-range";
 import type { FlowDashboardData, FlowDashboardRow } from "@/lib/flow-service";
 import { DashboardCharts } from "./dashboard-charts";
 import { DashboardEditDialog } from "./dashboard-edit-dialog";
@@ -38,9 +39,9 @@ const DATE_PRESETS = [
   { id: "last-week", label: "Last week" },
   { id: "this-month", label: "This month" },
   { id: "last-month", label: "Last month" },
-  { id: "3m", label: "3 months" },
-  { id: "6m", label: "6 months" },
-  { id: "12m", label: "12 months" },
+  { id: "3m", label: "Last 3 months" },
+  { id: "6m", label: "Last 6 months" },
+  { id: "12m", label: "Last 12 months" },
   { id: "custom", label: "Custom range" },
 ] as const;
 
@@ -69,62 +70,6 @@ type SortField =
 type SortDirection = "asc" | "desc";
 
 type SyncLogLine = { message: string; at: string };
-
-function presetRange(preset: string): { from?: string; to?: string } {
-  if (preset === "all" || preset === "custom") return {};
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-
-  const monday = (d: Date) => {
-    const x = new Date(d);
-    const day = x.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0, 0, 0, 0);
-    return x;
-  };
-
-  switch (preset) {
-    case "this-week": {
-      const s = monday(now);
-      return { from: s.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    }
-    case "last-week": {
-      const s = monday(now);
-      s.setDate(s.getDate() - 7);
-      const e = new Date(s);
-      e.setDate(e.getDate() + 6);
-      e.setHours(23, 59, 59, 999);
-      return { from: s.toISOString().slice(0, 10), to: e.toISOString().slice(0, 10) };
-    }
-    case "this-month": {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    }
-    case "last-month": {
-      start.setMonth(start.getMonth() - 1);
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      end.setDate(0);
-      end.setHours(23, 59, 59, 999);
-      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    }
-    case "3m":
-      start.setMonth(start.getMonth() - 3);
-      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    case "6m":
-      start.setMonth(start.getMonth() - 6);
-      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    case "12m":
-      start.setMonth(start.getMonth() - 12);
-      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-    default:
-      return {};
-  }
-}
 
 function appointmentStateClass(attended: boolean, state: string | null) {
   if (attended) return "text-(--color-success)";
@@ -221,7 +166,8 @@ function exportRowsCsv(rows: FlowDashboardRow[], planDisplayName: string, appDis
 
 export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [data, setData] = React.useState(initial);
-  const [preset, setPreset] = React.useState("3m");
+  // All time = classic sheet totals for Total Planned / Total Paid.
+  const [preset, setPreset] = React.useState("all");
   const [customFrom, setCustomFrom] = React.useState("");
   const [customTo, setCustomTo] = React.useState("");
   const [dentistId, setDentistId] = React.useState("all");
@@ -254,7 +200,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     setLoading(true);
     try {
       const range =
-        nextPreset === "custom" ? { from: nextFrom, to: nextTo } : presetRange(nextPreset);
+        nextPreset === "custom" ? { from: nextFrom, to: nextTo } : flowDatePresetRange(nextPreset);
       const params = new URLSearchParams();
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
@@ -461,13 +407,13 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end gap-3 rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) p-4 shadow-(--shadow-xs) sm:p-5">
-        <div>
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-wrap items-end gap-3 rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) p-3.5 shadow-(--shadow-xs) sm:gap-4 sm:p-5">
+        <div className="min-w-[9.5rem] flex-1 sm:flex-none">
           <Label htmlFor="date-preset">Period</Label>
           <select
             id="date-preset"
-            className="mt-1 block h-10 rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
+            className="mt-1 block h-10 w-full rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
             value={preset}
             onChange={(e) => {
               const next = e.target.value;
@@ -511,13 +457,13 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </Button>
           </>
         ) : null}
-        <div>
+        <div className="min-w-[9.5rem] flex-1 sm:flex-none">
           <Label htmlFor="dentist-filter">Dentist</Label>
           {data.practitionerScope.viewAll ? (
           <select
             id="dentist-filter"
             data-testid="dentist-filter"
-            className="mt-1 block h-10 rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
+            className="mt-1 block h-10 w-full rounded-(--radius-md) border border-(--color-border) bg-(--color-bg) px-3 text-body-sm"
             value={dentistId}
             onChange={(e) => {
               setDentistId(e.target.value);
@@ -538,29 +484,32 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             </p>
           )}
         </div>
-        <Button variant="secondary" loading={loading} onClick={() => loadDashboard()} data-testid="flow-refresh">
-          Refresh
-        </Button>
-        <Button
-          loading={importing || syncingPayments || syncingFull}
-          onClick={async () => {
-            // Legacy ElioFlow: one Sync Dentally — import consults then refresh payments.
-            await importFromDentally();
-            await syncPaymentsFromDentally();
-          }}
-          data-testid="flow-sync-dentally"
-        >
-          Sync Dentally
-        </Button>
-        <a
-          href="/settings/integrations"
-          className="inline-flex h-10 items-center text-body-sm font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted)"
-        >
-          Portal Integrations
-        </a>
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <Button variant="secondary" loading={loading} onClick={() => loadDashboard()} data-testid="flow-refresh">
+            Refresh
+          </Button>
+          <Button
+            loading={importing || syncingPayments || syncingFull}
+            onClick={async () => {
+              // Legacy ElioFlow: one Sync Dentally — import consults then refresh payments.
+              await importFromDentally();
+              await syncPaymentsFromDentally();
+            }}
+            data-testid="flow-sync-dentally"
+          >
+            Sync Dentally
+          </Button>
+          <a
+            href="/settings/integrations"
+            className="inline-flex h-10 items-center text-body-sm font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted)"
+          >
+            Portal Integrations
+          </a>
+        </div>
         {data.lastSyncedAt ? (
           <p className="w-full text-caption text-(--color-text-tertiary)" data-testid="flow-last-synced">
             Last sync: {new Date(data.lastSyncedAt).toLocaleString("en-GB")}
+            {preset !== "all" ? " · Totals are for the selected period" : " · Showing all-time totals"}
           </p>
         ) : (
           <p className="w-full text-caption text-(--color-text-tertiary)" data-testid="flow-last-synced">
@@ -569,27 +518,30 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4" data-testid="flow-stat-cards">
+      <div
+        className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4 xl:grid-cols-8"
+        data-testid="flow-stat-cards"
+      >
         <FlowStatCard label="Consultations" value={data.stats.totalConsultations} />
         <FlowStatCard label="Attended" value={data.stats.attended} />
-        <FlowStatCard label="Converted" value={data.stats.converted} />
-        <FlowStatCard label="Stuck" value={data.stats.stuck} />
+        <FlowStatCard label="Converted" value={data.stats.converted} tone="success" />
+        <FlowStatCard label="Stuck" value={data.stats.stuck} tone="warning" />
         <FlowStatCard label="Total Planned" value={data.stats.totalPlannedPence} money />
-        <FlowStatCard label="Total Paid" value={data.stats.totalPaidPence} money />
-        <FlowStatCard label={data.planDisplayName} value={data.stats.planSignUps} />
+        <FlowStatCard label="Total Paid" value={data.stats.totalPaidPence} money tone="success" />
+        <FlowStatCard label={data.planDisplayName} value={data.stats.planSignUps} tone="accent" />
         <FlowStatCard label="Conversion" value={data.stats.conversionRate} suffix="%" />
       </div>
 
       <div>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-2">
+          <div className="inline-flex rounded-(--radius-lg) border border-(--color-border-subtle) bg-(--color-surface) p-1 shadow-(--shadow-xs)">
             <button
               type="button"
               onClick={() => setView("table")}
-              className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
+              className={`rounded-(--radius-md) px-3.5 py-1.5 text-body-sm font-medium transition-colors ${
                 view === "table"
-                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
-                  : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
+                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg) shadow-(--shadow-xs)"
+                  : "text-(--color-text-secondary) hover:text-(--color-text-primary)"
               }`}
             >
               Table
@@ -597,10 +549,10 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             <button
               type="button"
               onClick={() => setView("charts")}
-              className={`rounded-(--radius-md) px-3 py-1.5 text-body-sm font-medium ${
+              className={`rounded-(--radius-md) px-3.5 py-1.5 text-body-sm font-medium transition-colors ${
                 view === "charts"
-                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
-                  : "bg-(--color-bg-subtle) text-(--color-text-secondary)"
+                  ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg) shadow-(--shadow-xs)"
+                  : "text-(--color-text-secondary) hover:text-(--color-text-primary)"
               }`}
             >
               Charts
@@ -617,16 +569,16 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           <DashboardCharts rows={data.rows} stats={data.stats} />
         ) : (
           <>
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-1.5 sm:gap-2">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setStatusFilter(f.id)}
-              className={`rounded-full px-3 py-1 text-caption font-medium transition-colors ${
+              className={`rounded-(--radius-md) px-2.5 py-1 text-caption font-medium transition-colors sm:px-3 ${
                 statusFilter === f.id
                   ? "bg-(--color-primary-button-bg) text-(--color-primary-button-fg)"
-                  : "bg-(--color-bg-subtle) text-(--color-text-secondary) hover:text-(--color-text-primary)"
+                  : "border border-(--color-border-subtle) bg-(--color-surface) text-(--color-text-secondary) hover:border-(--color-border) hover:text-(--color-text-primary)"
               }`}
             >
               {f.label}

@@ -4,16 +4,10 @@ import { requireSession, redirectToLogin, resolveFlowScope } from "@/lib/session
 import { getFlowDashboard } from "@/lib/flow-service";
 import { DashboardClient } from "./dashboard-client";
 
-/** Default period matches legacy ElioFlow home (last 3 months). */
-function defaultThreeMonthRange() {
-  const to = new Date();
-  to.setHours(23, 59, 59, 999);
-  const from = new Date(to);
-  from.setMonth(from.getMonth() - 3);
-  from.setHours(0, 0, 0, 0);
-  return { from, to };
-}
-
+/**
+ * Default = All time so Total Planned / Total Paid match classic sheet totals.
+ * Period filter still offers Last 3 Months like old ElioFlow.
+ */
 /** F2.1 — legacy ElioFlow home dashboard (stats + table). */
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -25,18 +19,15 @@ export default async function DashboardPage() {
     role: session.role as Role,
     permissions: session.permissions ?? [],
   });
-  const data = await getFlowDashboard(session.practiceId, {
-    scope,
-    ...defaultThreeMonthRange(),
-  });
+  const data = await getFlowDashboard(session.practiceId, { scope });
 
   return (
-    <PageContent width="xl">
+    <PageContent width="full">
       <PageHeader
-        title="Dashboard"
-        description="Cosmetic consultation tracking — same home view as classic ElioFlow (stats, table, charts)."
+        title="Pipeline"
+        description="Cosmetic consultation tracking — stats, table, and charts."
       />
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <DashboardClient initial={data} />
       </div>
     </PageContent>

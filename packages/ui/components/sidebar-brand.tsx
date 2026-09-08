@@ -84,9 +84,9 @@ export function SidebarBrand({
   const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
   const logoBox =
     logoSize === "lg"
-      ? "h-14 w-[260px] sm:h-16 sm:w-[300px]"
+      ? "h-14 w-[min(100%,280px)] sm:h-[4.25rem] sm:w-[min(100%,300px)]"
       : logoOnly
-        ? "h-12 w-[220px] sm:h-14 sm:w-[260px]"
+        ? "h-12 w-[min(100%,220px)] sm:h-14 sm:w-[min(100%,260px)]"
         : "h-8 w-[120px]";
 
   if (collapsed) {

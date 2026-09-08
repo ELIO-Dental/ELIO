@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePermission, resolveFlowScope } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { getFlowDashboard } from "@/lib/flow-service";
+import { parseLocalDateEnd, parseLocalDateStart } from "@/lib/flow-date-range";
 
 /** F2 — dashboard stats + table rows with optional ?from=&to=&dentistId= filters. */
 export async function GET(req: Request) {
@@ -16,12 +17,12 @@ export async function GET(req: Request) {
     let from: Date | undefined;
     let to: Date | undefined;
     if (fromParam && toParam) {
-      from = new Date(fromParam);
-      to = new Date(toParam);
+      // Local calendar days — same basis as classic ElioFlow date filtering.
+      from = parseLocalDateStart(fromParam);
+      to = parseLocalDateEnd(toParam);
       if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
         return NextResponse.json({ error: "Invalid from/to date" }, { status: 400 });
       }
-      to.setHours(23, 59, 59, 999);
     }
 
     const data = await getFlowDashboard(session.practiceId, {

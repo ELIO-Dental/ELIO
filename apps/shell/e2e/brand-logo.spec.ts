@@ -124,9 +124,9 @@ test.describe("Sidebar brand logo (logged in)", () => {
       const h = headerEl.getBoundingClientRect();
       const i = imgEl.getBoundingClientRect();
       return {
-        brand: { y: b.y, height: b.height, width: b.width },
-        header: { y: h.y, height: h.height },
-        img: { y: i.y, height: i.height, width: i.width },
+        brand: { y: b.y, height: b.height, width: b.width, x: b.x },
+        header: { y: h.y, height: h.height, width: h.width, x: h.x },
+        img: { y: i.y, height: i.height, width: i.width, x: i.x },
       };
     });
     expect(lightMetrics).toBeTruthy();
@@ -135,6 +135,11 @@ test.describe("Sidebar brand logo (logged in)", () => {
       lightMetrics!.img.height / 2 -
       (lightMetrics!.header.y + lightMetrics!.header.height / 2);
     expect(Math.abs(lightOffset)).toBeLessThanOrEqual(4);
+    const lightHOffset =
+      lightMetrics!.img.x +
+      lightMetrics!.img.width / 2 -
+      (lightMetrics!.header.x + lightMetrics!.header.width / 2);
+    expect(Math.abs(lightHOffset)).toBeLessThanOrEqual(8);
     expect(lightMetrics!.img.width).toBeGreaterThanOrEqual(160);
     expect(lightMetrics!.img.height).toBeGreaterThanOrEqual(40);
 
