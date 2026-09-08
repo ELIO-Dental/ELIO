@@ -178,6 +178,7 @@ export function PatientDetailClient({
     signedAt?: string | null;
   } | null>(null);
   const [linkOpen, setLinkOpen] = React.useState(false);
+  const [mandateIdInput, setMandateIdInput] = React.useState("");
   const [lastInviteUrl, setLastInviteUrl] = React.useState<string | null>(null);
   const [redeemOpen, setRedeemOpen] = React.useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = React.useState("");
