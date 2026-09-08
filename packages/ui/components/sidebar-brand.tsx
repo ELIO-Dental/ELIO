@@ -84,7 +84,8 @@ export function SidebarBrand({
   const markDark = collapsedLogoUrl ? undefined : logoDarkUrl;
   const logoBox =
     logoSize === "lg"
-      ? "h-[4.5rem] w-[min(100%,200px)] sm:h-[5rem] sm:w-[min(100%,208px)]"
+      ? // Shared box for Portal + Pay + Plans + Flow (same visual size).
+        "h-14 w-[min(100%,200px)] sm:h-16 sm:w-[min(100%,220px)]"
       : logoOnly
         ? "h-14 w-[min(100%,200px)] sm:h-16 sm:w-[min(100%,220px)]"
         : "h-8 w-[120px]";
@@ -120,7 +121,10 @@ export function SidebarBrand({
           lightSrc={logoUrl}
           darkSrc={logoDarkUrl}
           alt={logoOnly ? title : ""}
-          className={cn("mx-auto shrink-0", logoOnly || logoSize === "lg" ? logoBox : "h-8 w-[120px]")}
+          className={cn(
+            "mx-auto shrink-0 object-contain object-center",
+            logoOnly || logoSize === "lg" ? logoBox : "h-8 w-[120px]"
+          )}
         />
       ) : showLogo ? (
         <span className="flex size-8 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600)">

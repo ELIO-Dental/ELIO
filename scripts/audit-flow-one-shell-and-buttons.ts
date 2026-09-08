@@ -71,10 +71,14 @@ assert(
 assert(!nav.includes('FLOW_MODULE_NAV') || !/FLOW_MODULE_NAV[\s\S]*href: "\/team"/.test(nav), "No Team tab in Flow (Portal owns Team)", "Flow still has Team tab");
 
 const brand = read("packages/ui/components/sidebar-brand.tsx");
-assert(brand.includes("h-[4.5rem]") || brand.includes("h-[5rem]"), "Sidebar brand lg size increased", "Logo size not increased");
+assert(
+  brand.includes("h-14") && brand.includes("sm:h-16") && brand.includes("220px"),
+  "Sidebar brand lg size shared with Portal/Pay/Plans",
+  "Logo size not unified"
+);
 
 const sidebar = read("packages/ui/components/sidebar.tsx");
-assert(sidebar.includes("h-28"), "Sidebar header taller for logo", "Sidebar header not h-28");
+assert(sidebar.includes("h-24"), "Sidebar header h-24 (shared)", "Sidebar header not h-24");
 
 console.log(JSON.stringify({ ok: ok.length, fails: fails.length, passed: ok, failed: fails }, null, 2));
 process.exit(fails.length ? 1 : 0);

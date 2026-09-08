@@ -44,10 +44,10 @@ export function Sidebar({ items, activeId, collapsed, onCollapsedChange, activeM
       transition={{ duration: duration.base / 1000, ease: easing.out }}
       className="flex h-full flex-col border-r border-(--color-border-subtle) bg-(--color-surface)"
     >
-      <div className="relative flex h-28 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
-        {/* Full-width center — collapse control is absolute so it does not shift the logo left. */}
+      <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-(--color-border-subtle) px-2">
+        {/* Full-width center — collapse control is absolute so it does not shift the logo. */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-9">
-          <div className="pointer-events-auto flex h-full w-full max-w-full items-center justify-center">{launcher}</div>
+          <div className="pointer-events-auto flex h-full w-full items-center justify-center">{launcher}</div>
         </div>
         <button
           onClick={() => onCollapsedChange(!collapsed)}
