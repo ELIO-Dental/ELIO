@@ -68,7 +68,15 @@ type PlanPatientDetail = {
     status: string;
     patient: { firstName: string | null; lastName: string | null };
   }>;
-  mandates: Array<{ id: string; status: string; gocardlessMandateId: string; createdAt: string }>;
+  mandates: Array<{
+    id: string;
+    status: string;
+    gocardlessMandateId: string;
+    bankName: string | null;
+    accountNumberEnding: string | null;
+    accountHolderName: string | null;
+    createdAt: string;
+  }>;
   payments: Array<{
     id: string;
     amountPence: number;
@@ -170,7 +178,7 @@ export function PatientDetailClient({
     signedAt?: string | null;
   } | null>(null);
   const [linkOpen, setLinkOpen] = React.useState(false);
-  const [mandateIdInput, setMandateIdInput] = React.useState("");
+  const [lastInviteUrl, setLastInviteUrl] = React.useState<string | null>(null);
   const [redeemOpen, setRedeemOpen] = React.useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = React.useState("");
   const [redeeming, setRedeeming] = React.useState(false);
@@ -308,11 +316,13 @@ export function PatientDetailClient({
         return;
       }
       if (path === "invite" && data.signupUrl) {
+        setLastInviteUrl(String(data.signupUrl));
         toast.success(data.emailed ? "Invite emailed to patient" : successMessage, {
           description: data.signupUrl,
           duration: 10000,
         });
       } else if (path === "send-terms" && data.signupUrl) {
+        setLastInviteUrl(String(data.signupUrl));
         toast.success(data.emailSent ? "T&C link emailed" : "T&C link created", {
           description: data.signupUrl,
           duration: 10000,
@@ -481,6 +491,22 @@ export function PatientDetailClient({
                 >
                   Send invite
                 </Button>
+                {lastInviteUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(lastInviteUrl);
+                        toast.success("Invite link copied");
+                      } catch {
+                        toast.error("Could not copy link");
+                      }
+                    }}
+                  >
+                    Copy invite link
+                  </Button>
+                ) : null}
                 <Button
                   variant="secondary"
                   size="sm"
@@ -833,6 +859,23 @@ export function PatientDetailClient({
                 <span className="text-(--color-text-secondary)">Mandate:</span>{" "}
                 {activeMandate ? `${activeMandate.status} (${activeMandate.gocardlessMandateId})` : "None"}
               </p>
+              {activeMandate?.bankName ? (
+                <p>
+                  <span className="text-(--color-text-secondary)">Bank:</span> {activeMandate.bankName}
+                </p>
+              ) : null}
+              {activeMandate?.accountNumberEnding ? (
+                <p>
+                  <span className="text-(--color-text-secondary)">Account:</span> ****
+                  {activeMandate.accountNumberEnding}
+                </p>
+              ) : null}
+              {activeMandate?.accountHolderName ? (
+                <p>
+                  <span className="text-(--color-text-secondary)">Account holder:</span>{" "}
+                  {activeMandate.accountHolderName}
+                </p>
+              ) : null}
               <p>
                 <span className="text-(--color-text-secondary)">Phone:</span> {detail.patient.phone ?? "—"}
               </p>

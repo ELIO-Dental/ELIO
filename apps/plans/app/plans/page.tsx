@@ -39,6 +39,7 @@ export default async function PlansPage({
     active: p.active,
     eligibilityDentalFit: p.eligibilityDentalFit,
     requiresAdultMembership: p.requiresAdultMembership,
+    dentistPayoutPerExamPence: p.dentistPayoutPerExamPence,
     description: p.description,
     publicDescription: p.publicDescription,
     gocardlessLink: p.gocardlessLink,

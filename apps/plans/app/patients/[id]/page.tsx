@@ -51,6 +51,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       id: m.id,
       status: m.status,
       gocardlessMandateId: m.gocardlessMandateId,
+      bankName: m.bankName,
+      accountNumberEnding: m.accountNumberEnding,
+      accountHolderName: m.accountHolderName,
       createdAt: m.createdAt.toISOString(),
     })),
     payments: detail.payments.map((p) => ({

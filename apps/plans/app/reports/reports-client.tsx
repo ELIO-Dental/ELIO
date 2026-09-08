@@ -86,14 +86,24 @@ export function ReportsClient({
             <MoneyStatCard label="Failed" value={revenue.totalFailedPence} />
             <MoneyStatCard label="Avg per patient" value={revenue.avgPerPatientPence} />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <MoneyStatCard label="Dentist payout liability" value={revenue.dentistPayoutLiabilityPence} />
+            <MoneyStatCard label="Estimated profit" value={revenue.estimatedProfitPence} />
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Plan profitability</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="py-8 text-center text-body-sm text-(--color-text-tertiary)">
-                Profitability analysis will be calculated from live data once patients and payments are active.
+            <CardContent className="space-y-2 text-body-sm text-(--color-text-secondary)">
+              <p>
+                Profit estimate = collected membership payments minus dentist payout for approved
+                examination redeems (plan override or Settings → Payouts default).
               </p>
+              {revenue.vatEnabled ? (
+                <p className="text-(--color-text-tertiary)">VAT is enabled for this practice (display flag).</p>
+              ) : (
+                <p className="text-(--color-text-tertiary)">VAT is not enabled for this practice.</p>
+              )}
             </CardContent>
           </Card>
         </div>

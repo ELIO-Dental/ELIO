@@ -42,6 +42,7 @@ import {
   mapPaymentStatus,
   verifyWebhookSignature,
   classifyGcMandatePollStatus,
+  resolveMandateBankDetails,
 } from "@elio/plans-engine";
 import { formatMoneyGBP } from "@elio/ui";
 
@@ -771,14 +772,46 @@ export async function recordMandate(
   input: { planPatientId: string; gocardlessMandateId: string },
 ) {
   const db = scopedDb(practiceId);
-  return idempotentCreate({
+  const bank = await resolveMandateBankDetails(input.gocardlessMandateId).catch(() => ({
+    bankName: null as string | null,
+    accountNumberEnding: null as string | null,
+    accountHolderName: null as string | null,
+  }));
+
+  const mandate = await idempotentCreate({
     create: () =>
       db.planMandate.create({
-        data: { practiceId, planPatientId: input.planPatientId, gocardlessMandateId: input.gocardlessMandateId, status: "PENDING" },
+        data: {
+          practiceId,
+          planPatientId: input.planPatientId,
+          gocardlessMandateId: input.gocardlessMandateId,
+          status: "PENDING",
+          bankName: bank.bankName,
+          accountNumberEnding: bank.accountNumberEnding,
+          accountHolderName: bank.accountHolderName,
+        },
       }),
     findExisting: () => db.planMandate.findUnique({ where: { gocardlessMandateId: input.gocardlessMandateId } }),
     isUniqueConstraintError,
   });
+
+  // Backfill bank details on existing rows that were linked before enrichment.
+  if (
+    mandate &&
+    (bank.bankName || bank.accountNumberEnding || bank.accountHolderName) &&
+    (!mandate.bankName || !mandate.accountNumberEnding)
+  ) {
+    return db.planMandate.update({
+      where: { id: mandate.id },
+      data: {
+        bankName: bank.bankName ?? mandate.bankName,
+        accountNumberEnding: bank.accountNumberEnding ?? mandate.accountNumberEnding,
+        accountHolderName: bank.accountHolderName ?? mandate.accountHolderName,
+      },
+    });
+  }
+
+  return mandate;
 }
 
 // ---------------------------------------------------------------------------
@@ -2185,6 +2218,21 @@ export async function checkPlanPatientGoCardless(practiceId: string, planPatient
     let newStatus = mandate.status;
     let action = "unchanged";
 
+    // Refresh bank details whenever we poll (fills gaps for older mandates).
+    if (!mandate.bankName || !mandate.accountNumberEnding) {
+      const bank = await resolveMandateBankDetails(mandate.gocardlessMandateId).catch(() => null);
+      if (bank && (bank.bankName || bank.accountNumberEnding || bank.accountHolderName)) {
+        await db.planMandate.update({
+          where: { id: mandate.id },
+          data: {
+            bankName: bank.bankName ?? mandate.bankName,
+            accountNumberEnding: bank.accountNumberEnding ?? mandate.accountNumberEnding,
+            accountHolderName: bank.accountHolderName ?? mandate.accountHolderName,
+          },
+        });
+      }
+    }
+
     if (outcome === "activate") {
       await db.planMandate.update({ where: { id: mandate.id }, data: { status: "ACTIVE" } });
       await activatePlanMembershipAfterMandate(practiceId, planPatientId);
@@ -2253,4 +2301,4 @@ export async function bulkCheckGoCardlessMandates(practiceId: string) {
   return { checked, linked, errors: errors.slice(0, 50) };
 }
 
-export { getMandate, getCustomer };
+export { getMandate, getCustomer, resolveMandateBankDetails };

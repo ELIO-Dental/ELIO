@@ -1291,6 +1291,10 @@ model PlanMandate {
   planPatient         PlanPatient       @relation(fields: [planPatientId], references: [id])
   gocardlessMandateId String            @unique
   status              PlanMandateStatus @default(PENDING)
+  /** Legacy ElioPlans parity — from GoCardless customer bank account. */
+  bankName            String?
+  accountNumberEnding String?
+  accountHolderName   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -46,6 +46,12 @@ interface SignupData {
     secondaryColor: string;
     accentColor: string;
   };
+  collectionInfo?: {
+    collectionDay: string;
+    retryDay: string;
+    minTermMonths: string;
+    practiceName: string;
+  };
 }
 
 const STEPS = [
@@ -268,10 +274,11 @@ function SignupSteps({
   if (stepIndex === 2) {
     return <MandateStep token={token} onDone={() => setStepIndex(3)} />;
   }
-  return <CompleteStep />;
+  return <CompleteStep data={data} />;
 }
 
 function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void }) {
+  const info = data.collectionInfo;
   return (
     <Card>
       <CardHeader>
@@ -316,6 +323,17 @@ function DetailsStep({ data, onNext }: { data: SignupData; onNext: () => void })
             )}
           </div>
         )}
+
+        {info ? (
+          <div className="rounded-(--radius-md) border border-(--color-border-subtle) px-4 py-3 text-body-sm text-(--color-text-secondary)">
+            <p className="font-medium text-(--color-text-primary)">Direct Debit collection</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Payments are usually collected on day {info.collectionDay} of each month.</li>
+              <li>Failed payments are retried around day {info.retryDay}.</li>
+              <li>Minimum membership term is {info.minTermMonths} months.</li>
+            </ul>
+          </div>
+        ) : null}
 
         <Button className="w-full" onClick={onNext}>
           Continue
@@ -630,15 +648,19 @@ function MandateStep({ token, onDone }: { token: string; onDone: () => void }) {
   );
 }
 
-function CompleteStep() {
+function CompleteStep({ data }: { data: SignupData }) {
+  const planName = data.plan?.name ?? "membership";
+  const minTerm = data.collectionInfo?.minTermMonths ?? "12";
+  const collectionDay = data.collectionInfo?.collectionDay ?? "1";
   return (
     <Card>
       <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
         <SuccessCheck />
         <p className="text-h2 text-(--color-text-primary)">You&apos;re all set</p>
         <p className="max-w-sm text-body-sm text-(--color-text-secondary)">
-          Your membership signup is complete and your Direct Debit is being set up. You&apos;ll receive a
-          confirmation email shortly.
+          Your <strong>{planName}</strong> signup is complete and your Direct Debit is being set up.
+          First collection is typically on day {collectionDay} of the month. Minimum term is {minTerm} months.
+          You&apos;ll receive a confirmation email shortly.
         </p>
       </CardContent>
     </Card>

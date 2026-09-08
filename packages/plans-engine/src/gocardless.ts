@@ -428,6 +428,52 @@ export async function getMandate(mandateId: string) {
   return client.mandates.find(mandateId);
 }
 
+/** Customer bank account linked to a mandate (bank name / ****ending). */
+export async function getCustomerBankAccount(bankAccountId: string) {
+  const client = requireClient();
+  return client.customerBankAccounts.find(bankAccountId);
+}
+
+/**
+ * Resolve bank display fields for a GoCardless mandate.
+ * Prefers customer_bank_account link; falls back to mandate.payer if present.
+ */
+export async function resolveMandateBankDetails(mandateId: string): Promise<{
+  bankName: string | null;
+  accountNumberEnding: string | null;
+  accountHolderName: string | null;
+}> {
+  try {
+    const gcMandate = await getMandate(mandateId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = gcMandate as any;
+    const bankAccountId = m?.links?.customer_bank_account as string | undefined;
+    if (bankAccountId) {
+      try {
+        const ba = await getCustomerBankAccount(bankAccountId);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const b = ba as any;
+        return {
+          bankName: (b?.bank_name as string) || null,
+          accountNumberEnding: (b?.account_number_ending as string) || null,
+          accountHolderName: (b?.account_holder_name as string) || null,
+        };
+      } catch (err) {
+        console.warn(`[GoCardless] getCustomerBankAccount(${bankAccountId}) failed:`, err);
+      }
+    }
+    const payer = m?.payer;
+    return {
+      bankName: (payer?.bank_name as string) || null,
+      accountNumberEnding: (payer?.account_number_ending as string) || null,
+      accountHolderName: (payer?.account_holder_name as string) || null,
+    };
+  } catch (err) {
+    console.warn(`[GoCardless] resolveMandateBankDetails(${mandateId}) failed:`, err);
+    return { bankName: null, accountNumberEnding: null, accountHolderName: null };
+  }
+}
+
 export async function getPayment(paymentId: string) {
   const client = requireClient();
   return client.payments.find(paymentId);

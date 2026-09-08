@@ -36,6 +36,8 @@ export async function POST(req: Request) {
       active: body.active !== false,
       eligibilityDentalFit: body.eligibilityDentalFit === true,
       requiresAdultMembership: body.requiresAdultMembership === true,
+      dentistPayoutPerExamPence:
+        typeof body.dentistPayoutPerExamPence === "number" ? body.dentistPayoutPerExamPence : null,
       inclusions: Array.isArray(body.inclusions) ? body.inclusions : [],
       discounts: Array.isArray(body.discounts) ? body.discounts : [],
       eligibilityRules: Array.isArray(body.eligibilityRules) ? body.eligibilityRules : [],

@@ -62,6 +62,7 @@ export type PlanRow = {
   active: boolean;
   eligibilityDentalFit: boolean;
   requiresAdultMembership: boolean;
+  dentistPayoutPerExamPence: number | null;
   description: string | null;
   publicDescription: string | null;
   gocardlessLink: string | null;
@@ -75,6 +76,7 @@ export type PlanRow = {
 const EMPTY_FORM = {
   name: "",
   monthlyPrice: "",
+  dentistPayoutPerExam: "",
   description: "",
   publicDescription: "",
   gocardlessLink: "",
@@ -103,6 +105,8 @@ function planToForm(plan: PlanRow) {
   return {
     name: plan.name,
     monthlyPrice: (plan.monthlyPricePence / 100).toFixed(2),
+    dentistPayoutPerExam:
+      plan.dentistPayoutPerExamPence != null ? (plan.dentistPayoutPerExamPence / 100).toFixed(2) : "",
     description: plan.description ?? "",
     publicDescription: plan.publicDescription ?? "",
     gocardlessLink: plan.gocardlessLink ?? "",
@@ -158,9 +162,18 @@ export function PlansManager({
   }
 
   function buildPayload() {
+    const payoutRaw = form.dentistPayoutPerExam.trim();
+    const dentistPayoutPerExamPence =
+      payoutRaw === ""
+        ? null
+        : Math.round(parseFloat(payoutRaw || "0") * 100);
     return {
       name: form.name.trim(),
       monthlyPricePence: Math.round(parseFloat(form.monthlyPrice || "0") * 100),
+      dentistPayoutPerExamPence:
+        dentistPayoutPerExamPence != null && Number.isFinite(dentistPayoutPerExamPence)
+          ? dentistPayoutPerExamPence
+          : null,
       description: form.description || null,
       publicDescription: form.publicDescription || null,
       gocardlessLink: form.gocardlessLink.trim() || null,
@@ -395,6 +408,21 @@ export function PlansManager({
                   value={form.monthlyPrice}
                   onChange={(e) => setForm({ ...form, monthlyPrice: e.target.value })}
                 />
+              </div>
+              <div>
+                <Label htmlFor="plan-dentist-payout">Dentist payout per exam (£)</Label>
+                <Input
+                  id="plan-dentist-payout"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.dentistPayoutPerExam}
+                  onChange={(e) => setForm({ ...form, dentistPayoutPerExam: e.target.value })}
+                  placeholder="Leave blank to use Settings default"
+                />
+                <p className="mt-1 text-caption text-(--color-text-tertiary)">
+                  Optional override of Settings → Payouts for this plan.
+                </p>
               </div>
             </div>
 

@@ -1,4 +1,5 @@
 import { scopedDb } from "@elio/db";
+import { getAllPlanSettings, SettingKeys } from "./plans-settings";
 
 export type ReportsData = {
   overview: {
@@ -15,6 +16,9 @@ export type ReportsData = {
     totalPendingPence: number;
     totalFailedPence: number;
     avgPerPatientPence: number;
+    dentistPayoutLiabilityPence: number;
+    estimatedProfitPence: number;
+    vatEnabled: boolean;
   };
   redeems: {
     totalRedeems: number;
@@ -51,6 +55,8 @@ export async function getReportsData(practiceId: string): Promise<ReportsData> {
     rejectedRedeems,
     redeemsByType,
     patientsWithApprovedRedeems,
+    approvedExamRedeems,
+    settings,
   ] = await Promise.all([
     db.planPatient.count(),
     db.planPatient.count({ where: { status: "ACTIVE" } }),
@@ -72,12 +78,31 @@ export async function getReportsData(practiceId: string): Promise<ReportsData> {
       select: { planPatientId: true },
       distinct: ["planPatientId"],
     }),
+    db.planRedeem.findMany({
+      where: { status: "APPROVED", itemType: "EXAMINATION" },
+      include: {
+        patientPlanEnrolment: { include: { plan: { select: { dentistPayoutPerExamPence: true } } } },
+      },
+    }),
+    getAllPlanSettings(practiceId),
   ]);
 
   const totalCollectedPence = paidOutPayments._sum.amountPence ?? 0;
   const totalPendingPence = pendingPayments._sum.amountPence ?? 0;
   const totalFailedPence = failedPayments._sum.amountPence ?? 0;
   const avgPerPatientPence = activePatients > 0 ? Math.round(totalCollectedPence / activePatients) : 0;
+
+  const defaultPayoutPounds = parseFloat(settings[SettingKeys.DENTIST_PAYOUT_PER_EXAM] || "25");
+  const defaultPayoutPence = Number.isFinite(defaultPayoutPounds)
+    ? Math.round(defaultPayoutPounds * 100)
+    : 2500;
+  let dentistPayoutLiabilityPence = 0;
+  for (const redeem of approvedExamRedeems) {
+    const override = redeem.patientPlanEnrolment?.plan?.dentistPayoutPerExamPence;
+    dentistPayoutLiabilityPence += override != null ? override : defaultPayoutPence;
+  }
+  const estimatedProfitPence = totalCollectedPence - dentistPayoutLiabilityPence;
+  const vatEnabled = settings[SettingKeys.PRACTICE_VAT_ENABLED] === "true";
 
   const patientsNotRedeeming = Math.max(0, activePatients - patientsWithApprovedRedeems.length);
   const breakageRate = activePatients > 0 ? (patientsNotRedeeming / activePatients) * 100 : 0;
@@ -102,6 +127,9 @@ export async function getReportsData(practiceId: string): Promise<ReportsData> {
       totalPendingPence,
       totalFailedPence,
       avgPerPatientPence,
+      dentistPayoutLiabilityPence,
+      estimatedProfitPence,
+      vatEnabled,
     },
     redeems: {
       totalRedeems,
