@@ -1,9 +1,8 @@
 // Manual "sync now" trigger — preserves the UX pattern from ElioPay aurapay's
 // synchronous /api/dentally route, but per project-docs/PERFORMANCE_SCALABILITY.md
-// section 1 this must NOT run the sync inline: it enqueues the background job
-// and returns immediately (202-style), letting the UI poll for completion
-// rather than blocking the request on a full-practice sync.
-import { NextResponse } from "next/server";
+// section 1 this must NOT run the sync inline in the request body: it enqueues
+// (Inngest) or schedules via Next `after()` and returns 202 immediately.
+import { after, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@elio/auth";
 import type { Role } from "@elio/db";
@@ -43,12 +42,16 @@ export async function POST() {
     );
   }
 
-  const { ids } = await requestDentallySync(session.practiceId, "manual");
+  const { ids, mode } = await requestDentallySync(session.practiceId, "manual", {
+    scheduleInline: (job) => after(job),
+  });
 
   return NextResponse.json(
     {
       ok: true,
-      message: "Dentally sync started — this runs in the background and may take a few minutes for a large practice.",
+      mode,
+      message:
+        "Dentally sync started — this runs in the background and may take a few minutes for a large practice.",
       eventId: ids[0] ?? null,
     },
     { status: 202 }

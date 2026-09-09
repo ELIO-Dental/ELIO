@@ -39,16 +39,23 @@ async function main() {
 
   const inngestCloud = Boolean(process.env.INNGEST_EVENT_KEY?.trim());
   const inngestDev = process.env.INNGEST_DEV === "1";
+  const isRemoteShell = /elioportal\.co\.uk|vercel\.app/i.test(SHELL_URL);
   if (inngestCloud) {
     record("inngest", true, "INNGEST_EVENT_KEY set (Cloud/Dev Server mode)");
     requireEnv("INNGEST_SIGNING_KEY");
   } else if (inngestDev) {
     record("inngest", true, "INNGEST_DEV=1 (local Dev Server — run: npx inngest-cli@latest dev)");
+  } else if (isRemoteShell) {
+    record(
+      "inngest",
+      false,
+      "MISSING on production shell — set INNGEST_EVENT_KEY + INNGEST_SIGNING_KEY (inline after() is a backup only)"
+    );
   } else {
     record(
       "inngest",
       true,
-      "not configured — manual sync uses inline fallback (dev only); set INNGEST_EVENT_KEY + INNGEST_SIGNING_KEY for production"
+      "not configured — local uses Next after()/inline fallback; set INNGEST_* for production"
     );
   }
 

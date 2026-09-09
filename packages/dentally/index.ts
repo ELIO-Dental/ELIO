@@ -13,7 +13,7 @@ export {
 export type { DentallyClientOptions } from "./src/client";
 export { resolveInvoicePractitionerUserId } from "./src/invoice-attribution";
 
-export { syncPracticeDentallyData, syncPracticeDentallyPhase, syncPracticeDentallyPhasePage, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS } from "./src/sync";
+export { syncPracticeDentallyData, syncPracticeDentallyPhase, syncPracticeDentallyPhasePage, mergeSyncCounts, DENTALLY_SYNC_PHASES, EMPTY_SYNC_COUNTS, appointmentSyncDateParams, APPOINTMENT_SYNC_LOOKBACK_MONTHS, APPOINTMENT_SYNC_LOOKAHEAD_MONTHS } from "./src/sync";
 export type { SyncResult, SyncError, SyncCounts, SyncPhaseResult, SyncPhasePageResult, DentallySyncPhase } from "./src/sync";
 
 export {

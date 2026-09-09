@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { writeAuditLog, resolveAuditActor } from "@elio/auth";
 import {
   DentallySyncConfigError,
+  hasActiveDentallySyncRun,
   requestDentallySync,
   resolvePracticeDentallyApiKey,
   syncAllConsultFinancialsFromSyncedCore,
@@ -20,20 +21,22 @@ export async function POST(req: Request) {
     if (mode === "payments") {
       const practiceId = session.practiceId;
       const actor = resolveAuditActor(session);
-      void syncAllConsultFinancialsFromSyncedCore(practiceId)
-        .then(async (result) => {
-          await writeAuditLog({
-            ...actor,
-            practiceId,
-            action: "flow.sync.payments",
-            targetType: "Practice",
-            targetId: practiceId,
-            metadata: { ...result },
-          });
-        })
-        .catch((err) => {
-          console.error(`[flow] payment sync failed practice=${practiceId}`, err);
-        });
+      after(() =>
+        syncAllConsultFinancialsFromSyncedCore(practiceId)
+          .then(async (result) => {
+            await writeAuditLog({
+              ...actor,
+              practiceId,
+              action: "flow.sync.payments",
+              targetType: "Practice",
+              targetId: practiceId,
+              metadata: { ...result },
+            });
+          })
+          .catch((err) => {
+            console.error(`[flow] payment sync failed practice=${practiceId}`, err);
+          })
+      );
 
       return NextResponse.json(
         {
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
           mode: "payments",
           message: "Payment sync started — this runs in the background for all consults.",
         },
-        { status: 202 },
+        { status: 202 }
       );
     }
 
@@ -55,20 +58,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { ids } = await requestDentallySync(session.practiceId, "manual");
+    if (await hasActiveDentallySyncRun(session.practiceId)) {
+      return NextResponse.json(
+        { error: "A Dentally sync is already running. Wait for it to finish, then try again." },
+        { status: 409 }
+      );
+    }
+
+    const { ids, mode: syncMode } = await requestDentallySync(session.practiceId, "manual", {
+      scheduleInline: (job) => after(job),
+    });
     await writeAuditLog({
       ...resolveAuditActor(session),
       practiceId: session.practiceId,
       action: "flow.sync.full",
       targetType: "Practice",
       targetId: session.practiceId,
-      metadata: { eventId: ids[0] ?? null },
+      metadata: { eventId: ids[0] ?? null, syncMode },
     });
 
     return NextResponse.json(
       {
         ok: true,
         mode: "full",
+        syncMode,
         message:
           "Dentally sync started — this runs in the background. Cosmetic consult import runs automatically when sync completes.",
         eventId: ids[0] ?? null,

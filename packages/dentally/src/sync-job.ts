@@ -138,24 +138,43 @@ function inngestConfigured(): boolean {
   return Boolean(process.env.INNGEST_EVENT_KEY?.trim() || process.env.INNGEST_DEV === "1");
 }
 
-/** Enqueues a sync (Inngest Cloud/Dev Server) or runs inline when Inngest is not configured. */
+export type DentallySyncRequestResult = {
+  ids: string[];
+  /** `inngest` = background worker; `inline` = caller must schedule via `scheduleInline` / `after()`. */
+  mode: "inngest" | "inline";
+};
+
+/**
+ * Enqueues a sync (Inngest Cloud/Dev Server) or schedules an inline job.
+ * On Vercel without Inngest, callers MUST pass `scheduleInline: (job) => after(job)`
+ * so the sync survives the HTTP response (bare `void` is killed on serverless).
+ */
 export async function requestDentallySync(
   practiceId: string,
-  trigger: "manual" | "scheduled"
-) {
+  trigger: "manual" | "scheduled",
+  opts?: { scheduleInline?: (job: () => Promise<void>) => void }
+): Promise<DentallySyncRequestResult> {
   if (inngestConfigured()) {
     const { inngest } = await import("./inngest");
-    return inngest.send({
+    const sent = await inngest.send({
       name: "dentally/sync.requested",
       data: { practiceId, trigger },
     });
+    return { ids: sent.ids, mode: "inngest" };
   }
 
-  // Local dev without Inngest — fire-and-forget so the API still returns 202 immediately.
-  void runDentallySyncJob(practiceId, trigger).catch((err) => {
-    console.error(`[dentally-sync] inline fallback failed practice=${practiceId}`, err);
-  });
-  return { ids: ["inline-dev-sync"] };
+  const run = () =>
+    runDentallySyncJob(practiceId, trigger).catch((err) => {
+      console.error(`[dentally-sync] inline fallback failed practice=${practiceId}`, err);
+    });
+
+  if (opts?.scheduleInline) {
+    opts.scheduleInline(() => run().then(() => undefined));
+  } else {
+    // Local Node without Next `after` — fire-and-forget (dev only).
+    void run();
+  }
+  return { ids: ["inline-dev-sync"], mode: "inline" };
 }
 
 export { inngestConfigured };

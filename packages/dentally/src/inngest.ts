@@ -38,7 +38,8 @@ export const dentallySyncFunction = inngest.createFunction(
     id: "dentally-full-sync",
     retries: 2,
     // Wall-clock budget across many short serverless invocations (not one step).
-    timeouts: { finish: "2h" },
+    timeouts: { finish: "12h" },
+    concurrency: [{ limit: 1, key: "event.data.practiceId" }],
     onFailure: async ({ error, event }) => {
       const original = event.data.event;
       const practiceId = original?.data?.practiceId as string | undefined;

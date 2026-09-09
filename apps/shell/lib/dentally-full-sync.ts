@@ -14,6 +14,8 @@ export const dentallyFullSyncFunction = inngest.createFunction(
     id: "dentally-full-sync",
     retries: 2,
     timeouts: { finish: "12h" },
+    // One active full sync per practice — prevents overlapping cron+manual truncating each other.
+    concurrency: [{ limit: 1, key: "event.data.practiceId" }],
     onFailure: async ({ error, event }) => {
       const original = event.data.event;
       const practiceId = original?.data?.practiceId as string | undefined;

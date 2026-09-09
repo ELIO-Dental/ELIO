@@ -175,6 +175,48 @@ describe("DentallyClient.paginate", () => {
     expect(total).toBe(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("continues when {total, page} says more pages remain (no total_pages)", async () => {
+    // Regression: with per_page=500 the API still returned ≤100 items, short-page
+    // detection stopped after page 1, and most of the practice never synced.
+    const pages = [
+      jsonResponse({
+        patients: Array.from({ length: 100 }, (_, i) => ({ id: i + 1 })),
+        meta: { total: 250, page: 1 },
+      }),
+      jsonResponse({
+        patients: Array.from({ length: 100 }, (_, i) => ({ id: i + 101 })),
+        meta: { total: 250, page: 2 },
+      }),
+      jsonResponse({
+        patients: Array.from({ length: 50 }, (_, i) => ({ id: i + 201 })),
+        meta: { total: 250, page: 3 },
+      }),
+    ];
+    let call = 0;
+    const fetchImpl = vi.fn(async () => pages[call++]);
+    const client = new DentallyClient({ apiKey: "k", fetchImpl: fetchImpl as unknown as typeof fetch });
+
+    const total = await client.paginate("/patients", "patients", {}, () => {}, { perPage: 100 });
+
+    expect(total).toBe(250);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not treat a full capped page as done when total is unknown", async () => {
+    const pages = [
+      jsonResponse({ patients: Array.from({ length: 100 }, (_, i) => ({ id: i + 1 })), meta: {} }),
+      jsonResponse({ patients: Array.from({ length: 20 }, (_, i) => ({ id: i + 101 })), meta: {} }),
+    ];
+    let call = 0;
+    const fetchImpl = vi.fn(async () => pages[call++]);
+    const client = new DentallyClient({ apiKey: "k", fetchImpl: fetchImpl as unknown as typeof fetch });
+
+    const total = await client.paginate("/patients", "patients", {}, () => {}, { perPage: 100 });
+
+    expect(total).toBe(120);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("partial-failure isolation", () => {

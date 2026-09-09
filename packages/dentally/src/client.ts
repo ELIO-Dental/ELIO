@@ -219,11 +219,19 @@ export class DentallyClient {
     const items = (data[listKey] as TItem[] | undefined) ?? [];
     if (items.length === 0) return { items, done: true, page };
 
-    const meta = (data.meta ?? {}) as { total_pages?: number; total?: number };
+    const meta = (data.meta ?? {}) as {
+      total_pages?: number;
+      total?: number;
+      current_page?: number;
+      page?: number;
+    };
     const totalPages = meta.total_pages;
     let done = false;
-    if (totalPages !== undefined) {
+    if (typeof totalPages === "number" && totalPages > 0) {
       done = page >= totalPages;
+    } else if (typeof meta.total === "number" && meta.total >= 0) {
+      // Patients (and some lists) return `{ total, page }` without total_pages.
+      done = page * perPage >= meta.total || items.length < perPage;
     } else {
       done = items.length < perPage;
     }

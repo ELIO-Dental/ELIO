@@ -143,18 +143,39 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** Dentally `/appointments` returns 0 rows unless `after`/`before` are set (confirmed live). */
+export const APPOINTMENT_SYNC_LOOKBACK_MONTHS = 24;
+export const APPOINTMENT_SYNC_LOOKAHEAD_MONTHS = 12;
+
+export function appointmentSyncDateParams(now = new Date()): { after: string; before: string } {
+  const after = new Date(now);
+  after.setMonth(after.getMonth() - APPOINTMENT_SYNC_LOOKBACK_MONTHS);
+  const before = new Date(now);
+  before.setMonth(before.getMonth() + APPOINTMENT_SYNC_LOOKAHEAD_MONTHS);
+  return {
+    after: after.toISOString().slice(0, 10),
+    before: before.toISOString().slice(0, 10),
+  };
+}
+
 const PHASE_LIST: Record<
   DentallySyncPhase,
   { path: string; listKey: string; perPage: number }
 > = {
-  // Invoices are heavier (derive treatments) — smaller pages keep steps under Vercel 300s.
-  patients: { path: "/patients", listKey: "patients", perPage: 500 },
-  appointments: { path: "/appointments", listKey: "appointments", perPage: 500 },
+  // Dentally documents max per_page=100. Requesting 500 made short-page detection
+  // fire after page 1 (API returns ≤100) and silently truncated every phase.
+  patients: { path: "/patients", listKey: "patients", perPage: 100 },
+  appointments: { path: "/appointments", listKey: "appointments", perPage: 100 },
   invoices: { path: "/invoices", listKey: "invoices", perPage: 100 },
-  payments: { path: "/payments", listKey: "payments", perPage: 500 },
-  accounts: { path: "/accounts", listKey: "accounts", perPage: 500 },
-  payment_plans: { path: "/payment_plans", listKey: "payment_plans", perPage: 500 },
+  payments: { path: "/payments", listKey: "payments", perPage: 100 },
+  accounts: { path: "/accounts", listKey: "accounts", perPage: 100 },
+  payment_plans: { path: "/payment_plans", listKey: "payment_plans", perPage: 100 },
 };
+
+function phaseListParams(phase: DentallySyncPhase): Record<string, string | number | undefined> {
+  if (phase === "appointments") return appointmentSyncDateParams();
+  return {};
+}
 
 async function upsertPatientsPage(practiceId: string, patients: DentallyPatientRaw[]): Promise<SyncPhaseResult> {
   const counts = { ...EMPTY_SYNC_COUNTS };
@@ -318,17 +339,29 @@ async function upsertPhasePage(
 
 async function syncPatientsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
   const parts: SyncPhaseResult[] = [];
-  await client.paginate<DentallyPatientRaw>("/patients", "patients", {}, async (patients) => {
-    parts.push(await upsertPatientsPage(practiceId, patients));
-  });
+  await client.paginate<DentallyPatientRaw>(
+    "/patients",
+    "patients",
+    phaseListParams("patients"),
+    async (patients) => {
+      parts.push(await upsertPatientsPage(practiceId, patients));
+    },
+    { perPage: PHASE_LIST.patients.perPage }
+  );
   return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncAppointmentsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
   const parts: SyncPhaseResult[] = [];
-  await client.paginate<DentallyAppointmentRaw>("/appointments", "appointments", {}, async (appointments) => {
-    parts.push(await upsertAppointmentsPage(practiceId, appointments));
-  });
+  await client.paginate<DentallyAppointmentRaw>(
+    "/appointments",
+    "appointments",
+    phaseListParams("appointments"),
+    async (appointments) => {
+      parts.push(await upsertAppointmentsPage(practiceId, appointments));
+    },
+    { perPage: PHASE_LIST.appointments.perPage }
+  );
   return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
@@ -337,7 +370,7 @@ async function syncInvoicesPhase(practiceId: string, client: DentallyClient): Pr
   await client.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
-    {},
+    phaseListParams("invoices"),
     async (invoices) => {
       parts.push(await upsertInvoicesPage(practiceId, invoices));
     },
@@ -348,25 +381,43 @@ async function syncInvoicesPhase(practiceId: string, client: DentallyClient): Pr
 
 async function syncPaymentsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
   const parts: SyncPhaseResult[] = [];
-  await client.paginate<DentallyPaymentRaw>("/payments", "payments", {}, async (payments) => {
-    parts.push(await upsertPaymentsPage(practiceId, payments));
-  });
+  await client.paginate<DentallyPaymentRaw>(
+    "/payments",
+    "payments",
+    phaseListParams("payments"),
+    async (payments) => {
+      parts.push(await upsertPaymentsPage(practiceId, payments));
+    },
+    { perPage: PHASE_LIST.payments.perPage }
+  );
   return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncAccountsPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
   const parts: SyncPhaseResult[] = [];
-  await client.paginate<DentallyAccountRaw>("/accounts", "accounts", {}, async (accounts) => {
-    parts.push(await upsertAccountsPage(practiceId, accounts));
-  });
+  await client.paginate<DentallyAccountRaw>(
+    "/accounts",
+    "accounts",
+    phaseListParams("accounts"),
+    async (accounts) => {
+      parts.push(await upsertAccountsPage(practiceId, accounts));
+    },
+    { perPage: PHASE_LIST.accounts.perPage }
+  );
   return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
 async function syncPaymentPlansPhase(practiceId: string, client: DentallyClient): Promise<SyncPhaseResult> {
   const parts: SyncPhaseResult[] = [];
-  await client.paginate<DentallyPaymentPlanRaw>("/payment_plans", "payment_plans", {}, async (plans) => {
-    parts.push(await upsertPaymentPlansPage(practiceId, plans));
-  });
+  await client.paginate<DentallyPaymentPlanRaw>(
+    "/payment_plans",
+    "payment_plans",
+    phaseListParams("payment_plans"),
+    async (plans) => {
+      parts.push(await upsertPaymentPlansPage(practiceId, plans));
+    },
+    { perPage: PHASE_LIST.payment_plans.perPage }
+  );
   return { counts: mergeSyncCounts(...parts.map((p) => p.counts)), errors: parts.flatMap((p) => p.errors) };
 }
 
@@ -388,9 +439,13 @@ export async function syncPracticeDentallyPhasePage(
 ): Promise<SyncPhasePageResult> {
   const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const cfg = PHASE_LIST[phase];
-  const { items, done } = await dentallyClient.getListPage<unknown>(cfg.path, cfg.listKey, {}, page, {
-    perPage: cfg.perPage,
-  });
+  const { items, done } = await dentallyClient.getListPage<unknown>(
+    cfg.path,
+    cfg.listKey,
+    phaseListParams(phase),
+    page,
+    { perPage: cfg.perPage }
+  );
   if (items.length === 0) {
     return { counts: { ...EMPTY_SYNC_COUNTS }, errors: [], page, done: true, nextPage: page };
   }

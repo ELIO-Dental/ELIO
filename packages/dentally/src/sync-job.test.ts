@@ -63,6 +63,19 @@ describe("DENTALLY_SYNC_PHASES", () => {
   });
 });
 
+describe("appointmentSyncDateParams", () => {
+  it("spans lookback and lookahead windows required by Dentally appointments API", async () => {
+    const { appointmentSyncDateParams, APPOINTMENT_SYNC_LOOKBACK_MONTHS, APPOINTMENT_SYNC_LOOKAHEAD_MONTHS } =
+      await import("./sync");
+    const now = new Date("2026-09-09T12:00:00Z");
+    const { after, before } = appointmentSyncDateParams(now);
+    expect(after).toBe("2024-09-09");
+    expect(before).toBe("2027-09-09");
+    expect(APPOINTMENT_SYNC_LOOKBACK_MONTHS).toBe(24);
+    expect(APPOINTMENT_SYNC_LOOKAHEAD_MONTHS).toBe(12);
+  });
+});
+
 describe("runDentallySyncJobWithSteps", () => {
   it("runs create + one page step per phase + finalize", async () => {
     const calls: string[] = [];

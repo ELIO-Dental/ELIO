@@ -1,11 +1,8 @@
 // Scheduled full-practice Dentally sync — dispatched by Vercel Cron (see
-// vercel.json), authenticated via CRON_SECRET (already scaffolded in
-// apps/shell/.env.local). This route itself does no syncing work — it just
-// enqueues one background job per connected practice and returns; the actual
-// pull happens in packages/dentally's Inngest function
-// (project-docs/PERFORMANCE_SCALABILITY.md section 1 — never sync inline).
-import { NextRequest, NextResponse } from "next/server";
-import { requestDentallySync } from "@elio/dentally";
+// vercel.json), authenticated via CRON_SECRET. Enqueues Inngest jobs or
+// schedules inline via Next `after()` when Inngest is not configured.
+import { after, NextRequest, NextResponse } from "next/server";
+import { hasActiveDentallySyncRun, requestDentallySync } from "@elio/dentally";
 import { listPracticesForScheduledSync } from "@/lib/dentally-cron";
 
 export async function GET(req: NextRequest) {
@@ -15,11 +12,24 @@ export async function GET(req: NextRequest) {
   }
 
   const practices = await listPracticesForScheduledSync();
+  let enqueued = 0;
+  let skippedActive = 0;
 
-  const results = await Promise.allSettled(
-    practices.map((p) => requestDentallySync(p.id, "scheduled"))
-  );
-  const enqueued = results.filter((r) => r.status === "fulfilled").length;
+  for (const p of practices) {
+    if (await hasActiveDentallySyncRun(p.id)) {
+      skippedActive++;
+      continue;
+    }
+    await requestDentallySync(p.id, "scheduled", {
+      scheduleInline: (job) => after(job),
+    });
+    enqueued++;
+  }
 
-  return NextResponse.json({ ok: true, practices: practices.length, enqueued });
+  return NextResponse.json({
+    ok: true,
+    practices: practices.length,
+    enqueued,
+    skippedActive,
+  });
 }

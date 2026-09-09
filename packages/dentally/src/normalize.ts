@@ -65,7 +65,8 @@ export function normalizeTreatmentsFromInvoice(raw: DentallyInvoiceRaw) {
     ];
   }
   return items.map((item, index) => ({
-    dentallyId: `${raw.id}:${item.id ?? index}`,
+    // Prefer Dentally item id; never key only on array index across syncs when id exists.
+    dentallyId: item.id != null ? `${raw.id}:${item.id}` : `${raw.id}:line:${index}`,
     dentallyPatientId: raw.patient_id != null ? String(raw.patient_id) : null,
     completedAt,
     amountPence: item.amount != null ? toPence(item.amount) : null,

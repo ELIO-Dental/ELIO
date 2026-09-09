@@ -79,6 +79,17 @@ describe("normalizeInvoice / normalizeTreatmentsFromInvoice", () => {
       },
     ]);
   });
+
+  it("falls back to invoice:line:index when invoice item has no id", () => {
+    const invoice = {
+      id: 3,
+      patient_id: 9,
+      dated_on: "2026-01-01",
+      invoice_items: [{ amount: "12.00" }, { amount: "8.00" }],
+    };
+    const treatments = normalizeTreatmentsFromInvoice(invoice);
+    expect(treatments.map((t) => t.dentallyId)).toEqual(["3:line:0", "3:line:1"]);
+  });
 });
 
 describe("normalizePayment", () => {
