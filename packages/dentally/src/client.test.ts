@@ -54,7 +54,7 @@ describe("requireDentallySiteId", () => {
 });
 
 describe("resolveInvoicePractitionerUserId", () => {
-  it("prefers invoice line practitioner_id (Dentally user.id)", () => {
+  it("prefers invoice line practitioner_id (resource or user id — resolve via practitioners map)", () => {
     expect(
       resolveInvoicePractitionerUserId({
         id: 1,

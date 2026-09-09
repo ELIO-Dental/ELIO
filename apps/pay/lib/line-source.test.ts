@@ -15,6 +15,34 @@ describe("line source / Step 32 traceability", () => {
     });
   });
 
+  it("prefers Dentally item id for stable line keys (no duplicate amount collisions)", () => {
+    expect(
+      dentallyLineSourceFields({
+        dentallyInvoiceId: "inv-9",
+        amountPence: 15000,
+        dentallyItemId: "item-42",
+      })
+    ).toEqual({
+      dentallyInvoiceId: "inv-9",
+      dentallyLineKey: "di:item-42",
+      sourceType: "DENTALLY",
+    });
+  });
+
+  it("uses amount occurrence suffix when item id is absent", () => {
+    expect(
+      dentallyLineSourceFields({
+        dentallyInvoiceId: "inv-9",
+        amountPence: 15000,
+        amountOccurrence: 2,
+      })
+    ).toEqual({
+      dentallyInvoiceId: "inv-9",
+      dentallyLineKey: "amt:15000#2",
+      sourceType: "DENTALLY",
+    });
+  });
+
   it("manual lines require note and author", () => {
     expect(() =>
       manualLineSourceFields({ amountPence: 100, actorUserId: "u1", note: "" })

@@ -5,6 +5,11 @@ import {
   fetchDentallyForPayPeriod,
   type DentallyFetchResult,
 } from "./dentally-fetch";
+import {
+  isPayDentallyFetchStale,
+  PAY_DENTALLY_FETCH_STALE_MS,
+  STALE_FETCH_ERROR_MESSAGE,
+} from "./dentally-fetch-stale";
 
 export type PayDentallyFetchStatusDto = "IDLE" | "RUNNING" | "SUCCESS" | "ERROR";
 
@@ -21,11 +26,45 @@ function asFetchResult(json: unknown): DentallyFetchResult | null {
   return json as DentallyFetchResult;
 }
 
+/**
+ * If a fetch was marked RUNNING but never finished (after() crash, deploy, timeout),
+ * flip it to ERROR so UI/calc/retry are not permanently blocked.
+ */
+export async function recoverStalePayPeriodDentallyFetch(
+  practiceId: string,
+  payPeriodId: string,
+  now: Date = new Date(),
+  staleMs: number = PAY_DENTALLY_FETCH_STALE_MS
+): Promise<boolean> {
+  const db = scopedDb(practiceId);
+  const period = await db.payPeriod.findUnique({
+    where: { id: payPeriodId },
+    select: { dentallyFetchStatus: true, dentallyFetchStartedAt: true },
+  });
+  if (!period || period.dentallyFetchStatus !== "RUNNING") return false;
+  if (!isPayDentallyFetchStale(period.dentallyFetchStartedAt, now, staleMs)) return false;
+
+  const result = await db.payPeriod.updateMany({
+    where: {
+      id: payPeriodId,
+      dentallyFetchStatus: "RUNNING",
+    },
+    data: {
+      dentallyFetchStatus: "ERROR",
+      dentallyFetchFinishedAt: now,
+      dentallyFetchError: STALE_FETCH_ERROR_MESSAGE,
+    },
+  });
+  return result.count > 0;
+}
+
 /** Read fetch job status from DB (UI / GET — never hits Dentally). */
 export async function getPayPeriodDentallyFetchStatus(
   practiceId: string,
   payPeriodId: string
 ): Promise<PayDentallyFetchStatusResponse> {
+  await recoverStalePayPeriodDentallyFetch(practiceId, payPeriodId);
+
   const db = scopedDb(practiceId);
   const period = await db.payPeriod.findUnique({
     where: { id: payPeriodId },
@@ -48,10 +87,30 @@ export async function getPayPeriodDentallyFetchStatus(
   };
 }
 
-async function markFetchRunning(practiceId: string, payPeriodId: string) {
+/**
+ * Atomic claim: only one RUNNING writer per period.
+ * Returns whether we claimed, or why we could not.
+ */
+export async function claimPayPeriodDentallyFetchRunning(
+  practiceId: string,
+  payPeriodId: string
+): Promise<"claimed" | "already_running" | "locked" | "not_found"> {
   const db = scopedDb(practiceId);
-  await db.payPeriod.update({
+  const period = await db.payPeriod.findUnique({
     where: { id: payPeriodId },
+    select: { status: true },
+  });
+  if (!period) return "not_found";
+  if (period.status === "LOCKED") return "locked";
+
+  await recoverStalePayPeriodDentallyFetch(practiceId, payPeriodId);
+
+  const claimed = await db.payPeriod.updateMany({
+    where: {
+      id: payPeriodId,
+      status: { not: "LOCKED" },
+      dentallyFetchStatus: { not: "RUNNING" },
+    },
     data: {
       dentallyFetchStatus: "RUNNING",
       dentallyFetchStartedAt: new Date(),
@@ -60,6 +119,16 @@ async function markFetchRunning(practiceId: string, payPeriodId: string) {
       dentallyFetchResultJson: Prisma.DbNull,
     },
   });
+
+  if (claimed.count === 1) return "claimed";
+
+  const again = await db.payPeriod.findUnique({
+    where: { id: payPeriodId },
+    select: { status: true, dentallyFetchStatus: true },
+  });
+  if (!again) return "not_found";
+  if (again.status === "LOCKED") return "locked";
+  return "already_running";
 }
 
 async function markFetchSuccess(
@@ -117,25 +186,19 @@ export type EnqueuePayDentallyFetchResult =
   | { mode: "already_running"; status: "RUNNING" };
 
 /**
- * Marks the period RUNNING and schedules the fetch after the HTTP response
- * (Next.js `after` — survives the request without blocking the UI).
+ * Marks the period RUNNING (atomic claim) and schedules the fetch after the HTTP
+ * response (Next.js `after` — survives the request without blocking the UI).
  */
 export async function enqueuePayPeriodDentallyFetch(
   practiceId: string,
   payPeriodId: string
 ): Promise<EnqueuePayDentallyFetchResult> {
-  const db = scopedDb(practiceId);
-  const period = await db.payPeriod.findUnique({
-    where: { id: payPeriodId },
-    select: { status: true, dentallyFetchStatus: true },
-  });
-  if (!period) throw new Error("Pay period not found");
-  if (period.status === "LOCKED") throw new Error("Pay period is locked");
-  if (period.dentallyFetchStatus === "RUNNING") {
+  const claim = await claimPayPeriodDentallyFetchRunning(practiceId, payPeriodId);
+  if (claim === "not_found") throw new Error("Pay period not found");
+  if (claim === "locked") throw new Error("Pay period is locked");
+  if (claim === "already_running") {
     return { mode: "already_running", status: "RUNNING" };
   }
-
-  await markFetchRunning(practiceId, payPeriodId);
 
   after(() =>
     runPayPeriodDentallyFetchJob(practiceId, payPeriodId).catch((err) => {
