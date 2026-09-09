@@ -7,8 +7,20 @@ import { scopedDb } from "@elio/db";
 import { getAccounts, getAppointments, getAllPaymentsForPatient } from "./queries";
 import { getFlowSettings } from "./flow-settings-service";
 import { mergeConsultFinancialUpdate } from "./flow-financial-merge";
+import {
+  buildDentistIdByPractitionerLookup,
+  lookupDentistId,
+} from "./dentist-practitioner-lookup";
 
 const CONSULT_IMPORT_MONTHS = 12;
+
+/** Dentally appointment states that mean the patient was seen (case-insensitive). */
+export function deriveAttendedFromDentallyState(state: string | null | undefined): boolean | null {
+  if (!state) return null;
+  const normalized = state.trim().toLowerCase();
+  if (normalized === "completed" || normalized === "in surgery") return true;
+  return null;
+}
 
 export function resolveConsultBookedBy(bookedByName: string | null | undefined): string | null {
   const trimmed = bookedByName?.trim();
@@ -55,7 +67,7 @@ export async function syncConsultFinancialsFromSyncedCore(practiceId: string, co
   const [payments, accounts, futureAppointments, appointmentCount] = await Promise.all([
     getAllPaymentsForPatient(practiceId, patientId),
     getAccounts(practiceId, { patientId, take: 1 }),
-    getAppointments(practiceId, { patientId, from: new Date(), take: 50 }),
+    getAppointments(practiceId, { patientId, from: new Date(), take: 100, orderByStartsAt: "asc" }),
     db.appointment.count({ where: { practiceId, patientId } }),
   ]);
 
@@ -127,6 +139,8 @@ export async function importCosmeticConsultsFromDentally(
     if (!latestByPatient.has(apt.patientId)) latestByPatient.set(apt.patientId, apt);
   }
 
+  const dentistByPractitioner = await buildDentistIdByPractitionerLookup(practiceId);
+
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -135,16 +149,9 @@ export async function importCosmeticConsultsFromDentally(
   for (const apt of latestByPatient.values()) {
     try {
       const patientId = apt.patientId!;
-      const derivedAttended =
-        apt.dentallyState === "Completed" || apt.dentallyState === "In surgery" ? true : null;
+      const derivedAttended = deriveAttendedFromDentallyState(apt.dentallyState);
 
-      let practitionerDentistId: string | null = null;
-      if (apt.practitionerId) {
-        const dentist = await db.dentist.findFirst({
-          where: { practiceId, dentallyPractitionerId: apt.practitionerId },
-        });
-        practitionerDentistId = dentist?.id ?? null;
-      }
+      const practitionerDentistId = lookupDentistId(dentistByPractitioner, apt.practitionerId);
 
       const bookedBy = resolveConsultBookedBy(apt.bookedByName);
 
@@ -155,7 +162,10 @@ export async function importCosmeticConsultsFromDentally(
       });
 
       if (!existing) {
-        let enquiry = await db.enquiry.findFirst({ where: { practiceId, patientId } });
+        let enquiry = await db.enquiry.findFirst({
+          where: { practiceId, patientId },
+          orderBy: { createdAt: "desc" },
+        });
         if (!enquiry) {
           enquiry = await db.enquiry.create({
             data: { practiceId, patientId, source: "dentally" },
@@ -204,8 +214,44 @@ export async function importCosmeticConsultsFromDentally(
       }
 
       await syncConsultFinancialsFromSyncedCore(practiceId, existing.id);
-    } catch {
+    } catch (err) {
       errors++;
+      console.error(
+        `[flow-consult-import] failed practice=${practiceId} appointment=${apt.id}`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  // Backfill empty practitioners on existing consults (e.g. after dentist id-space fix).
+  const needsPractitioner = await db.consult.findMany({
+    where: {
+      practiceId,
+      practitionerDentistId: null,
+      practitionerEdited: false,
+      appointmentId: { not: null },
+    },
+    include: { appointment: { select: { practitionerId: true } } },
+    take: 5000,
+  });
+  for (const consult of needsPractitioner) {
+    try {
+      const candidate = lookupDentistId(
+        dentistByPractitioner,
+        consult.appointment?.practitionerId
+      );
+      if (!candidate) continue;
+      await db.consult.update({
+        where: { id: consult.id },
+        data: { practitionerDentistId: candidate },
+      });
+      updated++;
+    } catch (err) {
+      errors++;
+      console.error(
+        `[flow-consult-import] practitioner backfill failed consult=${consult.id}`,
+        err instanceof Error ? err.message : err
+      );
     }
   }
 
@@ -234,8 +280,12 @@ export async function syncAllConsultFinancialsFromSyncedCore(
     try {
       await syncConsultFinancialsFromSyncedCore(practiceId, consult.id);
       updated++;
-    } catch {
+    } catch (err) {
       errors++;
+      console.error(
+        `[flow-financial-sync] failed practice=${practiceId} consult=${consult.id}`,
+        err instanceof Error ? err.message : err
+      );
     }
   }
 

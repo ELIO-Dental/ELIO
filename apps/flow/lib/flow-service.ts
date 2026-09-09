@@ -9,6 +9,9 @@ import {
   getFlowSettings,
   importCosmeticConsultsFromDentally,
   syncConsultFinancialsFromSyncedCore,
+  buildDentistIdByPractitionerLookup,
+  lookupDentistId,
+  deriveAttendedFromDentallyState,
 } from "@elio/dentally";
 
 import {
@@ -481,15 +484,12 @@ export async function linkConsultToAppointment(practiceId: string, consultId: st
   if (!consult) throw new Error("Consult not found");
   if (!appointment) throw new Error("Appointment not found");
 
-  const derivedAttended =
-    appointment.dentallyState === "Completed" || appointment.dentallyState === "In surgery" ? true : null;
+  const derivedAttended = deriveAttendedFromDentallyState(appointment.dentallyState);
 
   let practitionerDentistId = consult.practitionerDentistId;
   if (!consult.practitionerEdited && !practitionerDentistId && appointment.practitionerId) {
-    const dentist = await db.dentist.findFirst({
-      where: { dentallyPractitionerId: appointment.practitionerId },
-    });
-    practitionerDentistId = dentist?.id ?? null;
+    const lookup = await buildDentistIdByPractitionerLookup(practiceId);
+    practitionerDentistId = lookupDentistId(lookup, appointment.practitionerId);
   }
 
   return db.consult.update({

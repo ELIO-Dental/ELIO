@@ -66,8 +66,15 @@ export {
   syncAllConsultFinancialsFromSyncedCore,
   resolveConsultBookedBy,
   shouldUpdatePractitionerFromSync,
+  deriveAttendedFromDentallyState,
 } from "./src/flow-consult-import";
 export type { CosmeticConsultImportResult, SyncAllConsultFinancialsResult } from "./src/flow-consult-import";
+
+export {
+  buildDentistIdByPractitionerLookup,
+  lookupDentistId,
+  siteIdFromPaySettingsJson,
+} from "./src/dentist-practitioner-lookup";
 
 export { fetchLivePatientPanel } from "./src/live-patient";
 

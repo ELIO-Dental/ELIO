@@ -6,6 +6,18 @@ import {
 } from "./flow-consult-import";
 import { mergeConsultFinancialUpdate } from "./flow-financial-merge";
 
+describe("deriveAttendedFromDentallyState", () => {
+  it("matches Completed / In surgery case-insensitively", async () => {
+    const { deriveAttendedFromDentallyState } = await import("./flow-consult-import");
+    expect(deriveAttendedFromDentallyState("Completed")).toBe(true);
+    expect(deriveAttendedFromDentallyState("completed")).toBe(true);
+    expect(deriveAttendedFromDentallyState("In surgery")).toBe(true);
+    expect(deriveAttendedFromDentallyState("IN SURGERY")).toBe(true);
+    expect(deriveAttendedFromDentallyState("Cancelled")).toBeNull();
+    expect(deriveAttendedFromDentallyState(null)).toBeNull();
+  });
+});
+
 describe("resolveConsultBookedBy", () => {
   it("trims and returns null for empty values", () => {
     expect(resolveConsultBookedBy("  Reception  ")).toBe("Reception");

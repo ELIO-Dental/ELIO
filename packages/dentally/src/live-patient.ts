@@ -5,6 +5,7 @@
 import { prisma } from "@elio/db";
 import type { DentallyClient } from "./client";
 import { getDentallyClientForPractice } from "./resolve-api-key";
+import { appointmentSyncDateParams } from "./appointment-window";
 import type {
   DentallyAccountRaw,
   DentallyAppointmentRaw,
@@ -97,10 +98,12 @@ export async function fetchLivePatientPanel(
   }
 
   const appointments: DentallyAppointmentRaw[] = [];
+  // Dentally returns 0 appointment rows without after/before (confirmed live).
+  const { after, before } = appointmentSyncDateParams();
   await dentallyClient.paginate<DentallyAppointmentRaw>(
     "/appointments",
     "appointments",
-    { patient_id: dentallyId, per_page: 50 },
+    { patient_id: dentallyId, after, before, per_page: 50 },
     (page) => {
       appointments.push(...page);
     },

@@ -1,7 +1,7 @@
 // Ops helper: mark abandoned Dentally sync runs FAILED so Sync now unlocks.
 // Auth: Bearer CRON_SECRET (same as other shell crons).
 //
-// GET  /api/cron/clear-stuck-dentally-sync          → fail RUNNING older than 30m
+// GET  /api/cron/clear-stuck-dentally-sync          → fail RUNNING older than STALE_RUNNING_MS (2h)
 // GET  /api/cron/clear-stuck-dentally-sync?force=1 → fail ALL RUNNING (any age)
 import { NextRequest, NextResponse } from "next/server";
 import { failStaleDentallySyncRuns, STALE_RUNNING_MS } from "@elio/dentally";

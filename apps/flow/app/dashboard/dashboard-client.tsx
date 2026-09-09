@@ -297,7 +297,9 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       if (res.status === 202) {
         appendSyncLog(body.message ?? "Full sync started — check Portal Integrations for progress.");
         toast.success("Full sync started", {
-          description: body.message ?? "Check Portal Integrations for progress.",
+          description:
+            body.message ??
+            "Background Dentally pull started. Check Portal Integrations for progress; consults refresh when it finishes.",
         });
         await loadDashboard();
         window.setTimeout(() => void loadDashboard(), 8000);
@@ -501,7 +503,8 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           <Button
             loading={importing || syncingPayments || syncingFull}
             onClick={async () => {
-              // Legacy ElioFlow: one Sync Dentally — import consults then refresh payments.
+              // Full core pull (background) + immediate consult/payment refresh from cache.
+              await syncFullFromDentally();
               await importFromDentally();
               await syncPaymentsFromDentally();
             }}

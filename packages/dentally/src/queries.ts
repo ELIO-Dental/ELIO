@@ -32,7 +32,15 @@ export async function getPatients(
 
 export async function getAppointments(
   practiceId: string,
-  opts: { patientId?: string; from?: Date; to?: Date; cursor?: string; take?: number } = {}
+  opts: {
+    patientId?: string;
+    from?: Date;
+    to?: Date;
+    cursor?: string;
+    take?: number;
+    /** Prefer startsAt for treatment-booked / timeline checks (default id for stable paging). */
+    orderByStartsAt?: "asc" | "desc";
+  } = {}
 ) {
   const take = Math.min(opts.take ?? 50, 200);
   return prisma.appointment.findMany({
@@ -45,7 +53,9 @@ export async function getAppointments(
     },
     take,
     ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
-    orderBy: { id: "asc" },
+    orderBy: opts.orderByStartsAt
+      ? [{ startsAt: opts.orderByStartsAt }, { id: "asc" }]
+      : { id: "asc" },
   });
 }
 

@@ -38,7 +38,7 @@ describe("resolveRunStatus", () => {
 });
 
 describe("STALE_RUNNING_MS", () => {
-  it("is 12 hours so multi-step Inngest syncs are not abandoned mid-run", () => {
-    expect(STALE_RUNNING_MS).toBe(12 * 60 * 60 * 1000);
+  it("is 2 hours so dead runs unlock without waiting half a day", () => {
+    expect(STALE_RUNNING_MS).toBe(2 * 60 * 60 * 1000);
   });
 });

@@ -36,6 +36,16 @@ import type {
   DentallyAccountRaw,
   DentallyPaymentPlanRaw,
 } from "./types";
+import { appointmentSyncDateParams } from "./appointment-window";
+export {
+  APPOINTMENT_SYNC_LOOKBACK_MONTHS,
+  APPOINTMENT_SYNC_LOOKAHEAD_MONTHS,
+  appointmentSyncDateParams,
+} from "./appointment-window";
+import {
+  buildDentistIdByPractitionerLookup,
+  lookupDentistId,
+} from "./dentist-practitioner-lookup";
 
 export interface SyncError {
   resource: "patient" | "appointment" | "invoice" | "treatment" | "payment" | "account" | "payment_plan";
@@ -121,17 +131,33 @@ async function resolvePatientId(
 }
 
 /**
- * Resolves a raw Dentally `practitioner_id` (from invoice_item.practitioner_id)
- * to ELIO's own Dentist row, matched on `Dentist.dentallyPractitionerId` for
- * this practice. Returns null (not an error) when unmatched — a practice may
- * not have linked every Dentally practitioner to an ELIO Dentist yet; this
- * only degrades attribution, it never blocks the sync.
+ * Resolves a raw Dentally `practitioner_id` to ELIO's Dentist row.
+ * Matches both practitioner resource ids and user ids via expanded lookup.
  */
+const dentistLookupCache = new Map<string, Promise<Map<string, string>>>();
+
+export function clearDentistLookupCache(practiceId?: string): void {
+  if (practiceId) dentistLookupCache.delete(practiceId);
+  else dentistLookupCache.clear();
+}
+
 async function resolveDentistId(
   practiceId: string,
   dentallyPractitionerId: string | null
 ): Promise<string | null> {
   if (!dentallyPractitionerId) return null;
+  let pending = dentistLookupCache.get(practiceId);
+  if (!pending) {
+    pending = buildDentistIdByPractitionerLookup(practiceId);
+    dentistLookupCache.set(practiceId, pending);
+  }
+  try {
+    const lookup = await pending;
+    const fromMap = lookupDentistId(lookup, dentallyPractitionerId);
+    if (fromMap) return fromMap;
+  } catch {
+    // fall through to exact match
+  }
   const dentist = await prisma.dentist.findFirst({
     where: { practiceId, dentallyPractitionerId },
     select: { id: true },
@@ -141,21 +167,6 @@ async function resolveDentistId(
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-/** Dentally `/appointments` returns 0 rows unless `after`/`before` are set (confirmed live). */
-export const APPOINTMENT_SYNC_LOOKBACK_MONTHS = 24;
-export const APPOINTMENT_SYNC_LOOKAHEAD_MONTHS = 12;
-
-export function appointmentSyncDateParams(now = new Date()): { after: string; before: string } {
-  const after = new Date(now);
-  after.setMonth(after.getMonth() - APPOINTMENT_SYNC_LOOKBACK_MONTHS);
-  const before = new Date(now);
-  before.setMonth(before.getMonth() + APPOINTMENT_SYNC_LOOKAHEAD_MONTHS);
-  return {
-    after: after.toISOString().slice(0, 10),
-    before: before.toISOString().slice(0, 10),
-  };
 }
 
 const PHASE_LIST: Record<
@@ -498,6 +509,7 @@ export async function syncPracticeDentallyData(
   practiceId: string,
   client?: DentallyClient
 ): Promise<SyncResult> {
+  clearDentistLookupCache(practiceId);
   const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const startedAt = new Date();
   const parts: SyncPhaseResult[] = [];
