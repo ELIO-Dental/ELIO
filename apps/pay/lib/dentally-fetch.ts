@@ -158,6 +158,11 @@ export interface DentallyFetchResult {
   debug: DentallyFetchDebug;
   summary: Record<string, DentallyFetchSummaryEntry>;
   dentistsUpdated: number;
+  /** Non-fatal: a sub-fetch (appointments/payments) failed and the run continued with
+   *  degraded data instead of aborting. Without this, a genuine Dentally outage on one
+   *  of these endpoints looks identical to "there was nothing there" — empty chair-time
+   *  analytics or finance detection with no indication anything went wrong. */
+  warnings: string[];
 }
 
 function isClinicianRole(role?: string): boolean {
@@ -335,6 +340,10 @@ export async function fetchDentallyForPayPeriod(
     }
   };
 
+  // Non-fatal sub-fetch failures (appointments/payments) — the run continues with
+  // degraded data rather than aborting the whole fetch, but the user needs to know.
+  const warnings: string[] = [];
+
   const { getPaySettings } = await import("./pay-settings-service");
   const paySettings = await getPaySettings(practiceId);
 
@@ -420,8 +429,12 @@ export async function fetchDentallyForPayPeriod(
         await reportProgress(`appointments (page ${++appointmentPageNum})`);
       }
     );
-  } catch {
-    // Appointments optional for gross revenue; analytics/therapy degrade gracefully.
+  } catch (err) {
+    // Appointments optional for gross revenue; analytics/therapy degrade gracefully —
+    // but the user must be told, not just left with a suspiciously-empty result.
+    warnings.push(
+      `Appointments could not be fetched (${err instanceof Error ? err.message : String(err)}) — chair-time analytics and therapy detection may be incomplete.`
+    );
   }
 
   const appointmentMap = buildAppointmentMap(appointments);
@@ -444,8 +457,12 @@ export async function fetchDentallyForPayPeriod(
         await reportProgress(`payments (page ${++paymentPageNum})`);
       }
     );
-  } catch {
-    // Finance detection degrades to invoice-level heuristics if payments fail.
+  } catch (err) {
+    // Finance detection degrades to invoice-level heuristics if payments fail —
+    // but the user must be told, not just left with a suspiciously-empty result.
+    warnings.push(
+      `Payments could not be fetched (${err instanceof Error ? err.message : String(err)}) — finance/Tabeo detection falls back to invoice-level heuristics only.`
+    );
   }
   const invoicePaymentMethodMap = buildInvoicePaymentMethodMap(allPayments);
   const patientFinanceSet = buildPatientFinanceSet(allPayments);
@@ -1036,5 +1053,6 @@ export async function fetchDentallyForPayPeriod(
     },
     summary,
     dentistsUpdated,
+    warnings,
   };
 }

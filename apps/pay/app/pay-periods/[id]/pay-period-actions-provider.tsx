@@ -39,6 +39,9 @@ export interface FetchResult {
       invoiceDate: string;
     }>;
   };
+  /** Non-fatal sub-fetch failures (e.g. appointments/payments down but invoices OK) —
+   *  the fetch still succeeded, but with degraded data the user should know about. */
+  warnings?: string[];
 }
 
 interface PayPeriodActionsContextValue {
@@ -190,6 +193,11 @@ export function PayPeriodActionsProvider({
 
       setFetchResult(final);
       toast.success(final.message || "Fetched from Dentally");
+      for (const warning of final.warnings ?? []) {
+        // Fetch succeeded overall but a sub-fetch (appointments/payments) degraded —
+        // a separate toast per warning so it can't be missed among the success toasts.
+        toast.warning(warning);
+      }
       // Step 34 — do not auto-calculate; ops must confirm finance/labs/therapy/UDAs first, then Run calculation.
       toast.info("Review finance terms and ops fields, then run calculation");
 

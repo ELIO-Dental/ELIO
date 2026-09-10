@@ -55,6 +55,14 @@ export function FetchResultsBanner() {
 
       <p className="mt-2 text-body-sm text-(--color-text-primary)">{fetchResult.message}</p>
 
+      {fetchResult.warnings && fetchResult.warnings.length > 0 && (
+        <div className="mt-2 space-y-1 rounded-(--radius-md) border border-(--color-warning)/40 bg-(--color-warning-bg) px-3 py-2 text-caption text-(--color-warning)">
+          {fetchResult.warnings.map((w, i) => (
+            <p key={i}>{w}</p>
+          ))}
+        </div>
+      )}
+
       {fetchResult.debug && (
         <div className="mt-3 space-y-1 text-caption text-(--color-text-secondary)">
           <p>
