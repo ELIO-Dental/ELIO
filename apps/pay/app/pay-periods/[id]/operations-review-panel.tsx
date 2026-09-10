@@ -8,6 +8,12 @@ import type { OpsReviewItem } from "@/lib/ops-review";
 /**
  * PDF §7 / Step 13 — unified ops review queue (unpaid, finance term, unmapped, duplicates).
  * Server-rendered from period data; not dismissible.
+ *
+ * Collapsed by default via <details> (no client JS needed) — a busy period can have
+ * dozens/hundreds of exceptions, and rendering them all open by default pushed the
+ * whole page to tens of thousands of pixels tall (found live on a real August period).
+ * Auto-expands only when small enough (≤5) that showing it immediately is more useful
+ * than an extra click.
  */
 export function OperationsReviewPanel({ items }: { items: OpsReviewItem[] }) {
   if (items.length === 0) return null;
@@ -15,20 +21,20 @@ export function OperationsReviewPanel({ items }: { items: OpsReviewItem[] }) {
   const unresolved = items.filter((i) => !i.resolved);
 
   return (
-    <section
+    <details
       className="mb-8 rounded-(--radius-lg) border border-(--color-warning)/40 bg-(--color-warning)/5 px-5 py-4"
       data-testid="operations-review-panel"
-      aria-label="Operations review list"
+      open={unresolved.length <= 5}
     >
-      <h2 className="text-body font-semibold text-(--color-text-primary)">
+      <summary className="cursor-pointer text-body font-semibold text-(--color-text-primary)">
         Operations review ({unresolved.length}
         {unresolved.length !== items.length ? ` / ${items.length}` : ""})
-      </h2>
+      </summary>
       <p className="mt-1 text-body-sm text-(--color-text-secondary)">
         Exceptions to clear before finalize — unpaid/partial, finance term, unmapped practitioners,
         and possible duplicates from a previous month. Ops/admin only.
       </p>
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto pr-1">
         {items.map((d, index) => (
           <li
             key={`${d.type}-${d.invoiceId ?? d.practitionerId ?? d.lineId ?? index}-${index}`}
@@ -59,6 +65,6 @@ export function OperationsReviewPanel({ items }: { items: OpsReviewItem[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
