@@ -36,7 +36,7 @@ export interface DentistListItem {
   dentallyPractitionerId: string | null;
   isNhs: boolean;
   active: boolean;
-  privateSplitPercent: unknown;
+  privateSplitPercent: number | null;
   udaRatePence: number | null;
 }
 

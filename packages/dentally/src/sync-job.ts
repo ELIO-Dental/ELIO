@@ -155,12 +155,21 @@ export async function requestDentallySync(
   opts?: { scheduleInline?: (job: () => Promise<void>) => void }
 ): Promise<DentallySyncRequestResult> {
   if (inngestConfigured()) {
-    const { inngest } = await import("./inngest");
-    const sent = await inngest.send({
-      name: "dentally/sync.requested",
-      data: { practiceId, trigger },
-    });
-    return { ids: sent.ids, mode: "inngest" };
+    try {
+      const { inngest } = await import("./inngest");
+      const sent = await inngest.send({
+        name: "dentally/sync.requested",
+        data: { practiceId, trigger },
+      });
+      return { ids: sent.ids, mode: "inngest" };
+    } catch (err) {
+      // Local/dev often has INNGEST_EVENT_KEY set but no reachable Inngest —
+      // fall through to Next `after()` / void so manual sync still works.
+      console.error(
+        `[dentally-sync] Inngest send failed practice=${practiceId}; falling back to inline`,
+        err
+      );
+    }
   }
 
   const run = () =>

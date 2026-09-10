@@ -76,6 +76,36 @@ describe("appointmentSyncDateParams", () => {
   });
 });
 
+describe("requestDentallySync", () => {
+  it("falls back to inline when Inngest send fails", async () => {
+    vi.resetModules();
+    process.env.INNGEST_EVENT_KEY = "test-key";
+    delete process.env.INNGEST_DEV;
+
+    vi.doMock("./inngest", () => ({
+      inngest: {
+        send: vi.fn(async () => {
+          throw new Error("fetch failed");
+        }),
+      },
+    }));
+
+    const { requestDentallySync } = await import("./sync-job");
+    const scheduled: Array<() => Promise<void>> = [];
+    const result = await requestDentallySync("seed-practice", "manual", {
+      scheduleInline: (job) => scheduled.push(job),
+    });
+
+    expect(result.mode).toBe("inline");
+    expect(result.ids).toEqual(["inline-dev-sync"]);
+    expect(scheduled).toHaveLength(1);
+
+    delete process.env.INNGEST_EVENT_KEY;
+    vi.doUnmock("./inngest");
+    vi.resetModules();
+  });
+});
+
 describe("runDentallySyncJobWithSteps", () => {
   it("runs create + one page step per phase + finalize", async () => {
     const calls: string[] = [];

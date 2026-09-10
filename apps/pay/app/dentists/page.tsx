@@ -28,7 +28,9 @@ export default async function DentistsPage() {
           dentallyPractitionerId: d.dentallyPractitionerId,
           isNhs: d.isNhs,
           active: d.active,
-          privateSplitPercent: d.privateSplitPercent,
+          // Prisma Decimal is not RSC→client serializable — coerce before props.
+          privateSplitPercent:
+            d.privateSplitPercent != null ? Number(d.privateSplitPercent) : null,
           udaRatePence: d.udaRatePence,
         }))}
       />

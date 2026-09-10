@@ -117,6 +117,11 @@ describe("fetchLivePatientPanel", () => {
     expect(panel.invoices[0]?.amountPence).toBe(150_000);
     expect(panel.payments[0]?.amountPence).toBe(5_000);
     expect(panel.account?.plannedPrivateTreatmentValuePence).toBe(600_000);
+
+    const aptCalls = fetchImpl.mock.calls
+      .map((c) => String(c[0]))
+      .filter((u) => u.includes("/appointments"));
+    expect(aptCalls.some((u) => u.includes("after=") && u.includes("before="))).toBe(true);
   });
 
   it("throws when patient is not found in ELIO", async () => {

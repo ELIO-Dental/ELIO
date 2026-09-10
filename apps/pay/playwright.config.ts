@@ -5,6 +5,9 @@ import { defineConfig } from "@playwright/test";
 // The Playwright test runner process (which runs beforeAll/afterAll's direct `prisma`
 // calls) does NOT get Next.js's automatic .env.local loading — only the webServer
 // child processes do. Load it explicitly so DATABASE_URL etc. are available here too.
+// Shell holds INITIAL_ADMIN_* (shared Auth.js seed); pay may omit them — load shell
+// first, then pay overrides.
+dotenv.config({ path: path.resolve(__dirname, "../shell/.env.local") });
 dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 
 // Multi-zone (next.config.ts): apps/pay renders "inside" apps/shell's origin — the

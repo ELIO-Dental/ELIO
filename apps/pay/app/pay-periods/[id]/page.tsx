@@ -314,11 +314,13 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       nhsPeriodStart={nhsPeriodStart}
                       nhsPeriodEnd={nhsPeriodEnd}
                       payType={p.payType}
-                      udas={p.udas}
+                      udas={p.udas != null ? Number(p.udas) : null}
                       udaRatePence={p.udaRatePence}
                       nhsEarningsPence={p.nhsEarningsPence}
                       grossPrivateRevenuePence={p.grossPrivateRevenuePence}
-                      privateSplitPercent={p.privateSplitPercent}
+                      privateSplitPercent={
+                        p.privateSplitPercent != null ? Number(p.privateSplitPercent) : null
+                      }
                       privateEarningsPence={p.privateEarningsPence}
                       consultationExclusionsPence={p.consultationExclusionsPence}
                       labDeductionPence={p.labDeductionPence}
@@ -326,7 +328,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
                       therapyMinutes={p.therapyMinutes != null ? Number(p.therapyMinutes) : null}
                       therapyRatePerMinute={p.therapyRatePerMinute != null ? Number(p.therapyRatePerMinute) : null}
                       therapyHourlyPence={p.dentist.therapyHourlyPence}
-                      hoursWorked={p.hoursWorked}
+                      hoursWorked={p.hoursWorked != null ? Number(p.hoursWorked) : null}
                       hourlyRatePence={p.hourlyRatePence}
                       hourlyEarningsPence={p.hourlyEarningsPence}
                       manualAdjustmentsPence={p.manualAdjustmentsPence}

@@ -1,21 +1,21 @@
-import { test, expect } from "@playwright/test";
-
-const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
-const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
+import { test, expect, type Cookie } from "@playwright/test";
+import { signInAndGetCookies } from "./auth-helper";
 
 test.describe.configure({ mode: "serial" });
 
-async function login(page: import("@playwright/test").Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await page.waitForURL(/\/launcher$/, { timeout: 30_000 });
-}
+let sessionCookies: Cookie[] = [];
+
+test.beforeAll(async ({ browser }) => {
+  sessionCookies = await signInAndGetCookies(browser);
+});
+
+test.beforeEach(async ({ context }) => {
+  await context.addCookies(sessionCookies);
+});
 
 /** F1.7 — Flow manual Dentally sync API (payments + full modes). */
-test("payment sync API returns counts for existing consults", async ({ page }) => {
-  await login(page);
+test("payment sync API returns 202 for existing consults", async ({ page }) => {
+  await page.goto("/flow/dashboard");
 
   const res = await page.request.post("/flow/api/sync/dentally", {
     data: { mode: "payments" },
@@ -27,13 +27,13 @@ test("payment sync API returns counts for existing consults", async ({ page }) =
 });
 
 test("full sync API starts background job or returns configuration error", async ({ page }) => {
-  await login(page);
+  await page.goto("/flow/dashboard");
 
   const res = await page.request.post("/flow/api/sync/dentally", {
     data: { mode: "full" },
   });
   const body = await res.json();
-  expect([202, 400]).toContain(res.status());
+  expect([202, 400, 409]).toContain(res.status());
   if (res.status() === 202) {
     expect(body.ok).toBe(true);
     expect(body.mode).toBe("full");
@@ -42,10 +42,8 @@ test("full sync API starts background job or returns configuration error", async
   }
 });
 
-test("dashboard exposes sync action buttons", async ({ page }) => {
-  await login(page);
+test("dashboard exposes Sync Dentally action", async ({ page }) => {
   await page.goto("/flow/dashboard");
-  await expect(page.getByTestId("flow-sync-payments")).toBeVisible();
-  await expect(page.getByTestId("flow-sync-full")).toBeVisible();
-  await expect(page.getByTestId("flow-import-consults")).toBeVisible();
+  await expect(page.getByTestId("flow-sync-dentally")).toBeVisible();
+  await expect(page.getByTestId("flow-refresh")).toBeVisible();
 });

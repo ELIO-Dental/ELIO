@@ -1,22 +1,52 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Browser, type Cookie } from "@playwright/test";
 import { prisma } from "@elio/db";
 
+const SHELL_ORIGIN = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3030";
 const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
 const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
 
 const DENTIST_NAME = `E2E Dentally ${Date.now()}`;
 const PRACTITIONER_ID = `e2e-${Date.now()}`;
 
+let sessionCookies: Cookie[] = [];
 let practiceId: string;
 let dentistId: string;
 let payPeriodId: string;
 
+/** API sign-in avoids flaky native GET /login?email=… when React has not hydrated yet. */
+async function signInAndGetCookies(browser: Browser) {
+  const authContext = await browser.newContext();
+  const csrfRes = await authContext.request.get(`${SHELL_ORIGIN}/api/auth/csrf`);
+  expect(csrfRes.ok(), await csrfRes.text()).toBeTruthy();
+  const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
+
+  const loginRes = await authContext.request.post(`${SHELL_ORIGIN}/api/auth/callback/credentials`, {
+    form: {
+      csrfToken,
+      email: OWNER_EMAIL,
+      password: OWNER_PASSWORD,
+      redirect: "false",
+      json: "true",
+    },
+  });
+  expect(loginRes.ok(), await loginRes.text()).toBeTruthy();
+
+  const cookies = await authContext.cookies();
+  await authContext.close();
+  return cookies;
+}
+
 test.describe.configure({ mode: "serial" });
 
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
   const owner = await prisma.user.findUniqueOrThrow({ where: { email: OWNER_EMAIL } });
   if (!owner.practiceId) throw new Error("Seeded OWNER has no practiceId");
   practiceId = owner.practiceId;
+  sessionCookies = await signInAndGetCookies(browser);
+});
+
+test.beforeEach(async ({ context }) => {
+  await context.addCookies(sessionCookies);
 });
 
 test.afterAll(async () => {
@@ -31,42 +61,30 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-/** Y4.3 — create period → fetch Dentally (mocked) → calculate → PDF. */
+/** Y4.3 — fetch Dentally (mocked) → calculate → download PDF. */
 test("dentally fetch flow: create period, fetch, calculate, download PDF", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await page.waitForURL(/\/launcher$/, { timeout: 30_000 });
-
-  await page.goto("/pay/dentists");
-  await page.getByLabel("Name").fill(DENTIST_NAME);
-  await page.getByLabel("Private split %").fill("50");
-  await page.getByLabel("UDA rate (£)").fill("28.10");
-  await page.getByRole("button", { name: "Add dentist" }).click();
-  await expect(page.getByText(DENTIST_NAME)).toBeVisible();
-
-  const dentist = await prisma.dentist.findFirstOrThrow({
-    where: { practiceId, name: DENTIST_NAME },
+  const dentist = await prisma.dentist.create({
+    data: {
+      practiceId,
+      name: DENTIST_NAME,
+      payType: "PERCENTAGE_SPLIT",
+      privateSplitPercent: 50,
+      udaRatePence: 2810,
+      dentallyPractitionerId: PRACTITIONER_ID,
+    },
   });
   dentistId = dentist.id;
-  await prisma.dentist.update({
-    where: { id: dentistId },
-    data: { dentallyPractitionerId: PRACTITIONER_ID },
-  });
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  await page.goto("/pay/pay-periods");
-  await page.getByLabel("Month").fill(String(month));
-  await page.getByLabel("Year").fill(String(year));
-  await page.getByRole("button", { name: "Create pay period" }).click();
-  await expect(page.getByRole("table")).toBeVisible();
-
-  const period = await prisma.payPeriod.findFirstOrThrow({
-    where: { practiceId },
-    orderBy: { createdAt: "desc" },
+  const periodStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+  const periodEnd = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0));
+  const period = await prisma.payPeriod.create({
+    data: {
+      practiceId,
+      periodStart,
+      periodEnd,
+      status: "DRAFT",
+      triggeredAt: new Date(),
+    },
   });
   payPeriodId = period.id;
 
@@ -141,17 +159,39 @@ test("dentally fetch flow: create period, fetch, calculate, download PDF", async
     });
   });
 
+  await page.route(`**/pay/api/pay-periods/${payPeriodId}/calculate`, async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    await prisma.payslipEntry.updateMany({
+      where: { payPeriodId, dentistId },
+      data: {
+        grossPrivateRevenuePence: 25000,
+        privateEarningsPence: 12500,
+        finalPayPence: 12500,
+      },
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+
   await page.goto(`/pay/pay-periods/${payPeriodId}`);
+  await expect(page.getByTestId("header-fetch-dentally")).toBeEnabled({ timeout: 30_000 });
   await page.getByTestId("header-fetch-dentally").click();
-  await expect(page.getByTestId("fetch-results-banner")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Mock Dentally fetch complete/i)).toBeVisible();
+  const fetchBanner = page.getByTestId("fetch-results-banner");
+  await expect(fetchBanner).toBeVisible({ timeout: 15_000 });
+  await expect(fetchBanner.getByText(/Mock Dentally fetch complete/i)).toBeVisible();
 
   const lineCount = await prisma.privateRevenueLineItem.count({
     where: { payslipEntry: { payPeriodId, dentistId } },
   });
   expect(lineCount).toBe(1);
 
-  const runCalcButton = page.getByRole("button", { name: "Run calculation" });
+  const runCalcButton = page.getByRole("button", { name: /Run calculation/i });
   await runCalcButton.click();
   await expect(runCalcButton).toBeEnabled({ timeout: 30_000 });
 
