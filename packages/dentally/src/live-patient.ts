@@ -103,7 +103,7 @@ export async function fetchLivePatientPanel(
   await dentallyClient.paginate<DentallyAppointmentRaw>(
     "/appointments",
     "appointments",
-    { patient_id: dentallyId, after, before, per_page: 50 },
+    { patient_id: dentallyId, after, before },
     (page) => {
       appointments.push(...page);
     },
@@ -114,7 +114,7 @@ export async function fetchLivePatientPanel(
   await dentallyClient.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
-    { patient_id: dentallyId, per_page: 50 },
+    { patient_id: dentallyId },
     (page) => {
       invoices.push(...page);
     },
@@ -125,7 +125,7 @@ export async function fetchLivePatientPanel(
   await dentallyClient.paginate<DentallyPaymentRaw>(
     "/payments",
     "payments",
-    { patient_id: dentallyId, per_page: 50 },
+    { patient_id: dentallyId },
     (page) => {
       payments.push(...page);
     },
@@ -136,7 +136,7 @@ export async function fetchLivePatientPanel(
   await dentallyClient.paginate<DentallyAccountRaw>(
     "/accounts",
     "accounts",
-    { patient_id: dentallyId, per_page: 50 },
+    { patient_id: dentallyId },
     (page) => {
       accounts.push(...page);
     },

@@ -199,6 +199,8 @@ export function PatientDetailClient({
     }>;
     dentallyConfigured: boolean;
   } | null>(null);
+  const [paymentTrailLoading, setPaymentTrailLoading] = React.useState(false);
+  const [paymentTrailError, setPaymentTrailError] = React.useState<string | null>(null);
   const [notes, setNotes] = React.useState<Array<{
     id: string;
     content: string;
@@ -230,6 +232,30 @@ export function PatientDetailClient({
     [detail.patient.firstName, detail.patient.lastName].filter(Boolean).join(" ") || "Unknown patient";
   const activeMandate = detail.mandates.find((m) => m.status === "ACTIVE") ?? detail.mandates[0];
   const activeEnrolment = detail.patientPlans.find((pp) => pp.status === "ACTIVE") ?? detail.patientPlans[0];
+
+  async function loadPaymentTrail() {
+    setPaymentTrailLoading(true);
+    setPaymentTrailError(null);
+    try {
+      const res = await fetch(`/plans/api/patients/${detail.id}/payment-trail`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to load payment trail");
+      }
+      setPaymentTrail({
+        trail: data.trail ?? [],
+        dentallyConfigured: data.dentallyConfigured !== false,
+      });
+    } catch (err) {
+      // Previously this branch set { trail: [], dentallyConfigured: false } on ANY
+      // failure — a genuine network/API error rendered identically to "Dentally not
+      // configured for this practice," which is misleading, not just silent.
+      const message = err instanceof Error ? err.message : "Failed to load payment trail";
+      setPaymentTrailError(message);
+    } finally {
+      setPaymentTrailLoading(false);
+    }
+  }
 
   async function loadAppointments(force = false) {
     if (!force && appointments !== null && !appointmentsError) return appointments;
@@ -431,16 +457,8 @@ export function PatientDetailClient({
     if (tab === "Appointments" && appointments === null && !appointmentsLoading && !appointmentsError) {
       void loadAppointments();
     }
-    if (tab === "Payments" && paymentTrail === null) {
-      void fetch(`/plans/api/patients/${detail.id}/payment-trail`)
-        .then((r) => r.json())
-        .then((data) =>
-          setPaymentTrail({
-            trail: data.trail ?? [],
-            dentallyConfigured: data.dentallyConfigured !== false,
-          }),
-        )
-        .catch(() => setPaymentTrail({ trail: [], dentallyConfigured: false }));
+    if (tab === "Payments" && paymentTrail === null && !paymentTrailLoading && !paymentTrailError) {
+      void loadPaymentTrail();
     }
     if (tab === "Notes" && notes === null) {
       void fetch(`/plans/api/patients/${detail.id}/notes`)
@@ -459,7 +477,18 @@ export function PatientDetailClient({
         )
         .catch(() => setCorrespondence({ emails: [], documentAcceptances: [] }));
     }
-  }, [tab, detail.id, appointments, appointmentsLoading, appointmentsError, paymentTrail, notes, correspondence]);
+  }, [
+    tab,
+    detail.id,
+    appointments,
+    appointmentsLoading,
+    appointmentsError,
+    paymentTrail,
+    paymentTrailLoading,
+    paymentTrailError,
+    notes,
+    correspondence,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -960,11 +989,30 @@ export function PatientDetailClient({
             <CardTitle>Payment trail</CardTitle>
           </CardHeader>
           <CardContent>
-            {paymentTrail === null ? (
-              <p className="text-body-sm text-(--color-text-secondary)">Loading payments…</p>
-            ) : paymentTrail.trail.length === 0 ? (
-              <EmptyState title="No payments" description="No GoCardless or Dentally payments found." className="py-8" />
-            ) : (
+            {paymentTrailLoading || (paymentTrail === null && !paymentTrailError) ? (
+              <div className="space-y-3" aria-busy="true" aria-label="Loading payments">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-3/4" />
+              </div>
+            ) : paymentTrailError ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <p className="text-body-sm text-(--color-danger)">{paymentTrailError}</p>
+                <Button variant="secondary" size="sm" onClick={() => void loadPaymentTrail()}>
+                  Retry
+                </Button>
+              </div>
+            ) : paymentTrail && paymentTrail.trail.length === 0 ? (
+              <EmptyState
+                title="No payments"
+                description={
+                  paymentTrail.dentallyConfigured
+                    ? "No GoCardless or Dentally payments found."
+                    : "No GoCardless payments found. Dentally is not configured for this practice, so Dentally payments could not be included."
+                }
+                className="py-8"
+              />
+            ) : paymentTrail ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -991,7 +1039,7 @@ export function PatientDetailClient({
                   ))}
                 </TableBody>
               </Table>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       )}

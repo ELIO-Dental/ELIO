@@ -47,4 +47,23 @@ describe("plans patient search", () => {
     const patient = await fetchDentallyPatientWithClient(client, "99");
     expect(patient?.email).toBe("direct@example.com");
   });
+
+  it("returns null for a genuine 404 (patient not found), but rethrows everything else instead of masking real failures as \"not found\"", async () => {
+    const notFoundClient = new DentallyClient({
+      apiKey: "test-key",
+      fetchImpl: vi.fn(async () => new Response(JSON.stringify({ error: "not found" }), { status: 404 })),
+    });
+    await expect(fetchDentallyPatientWithClient(notFoundClient, "404")).resolves.toBeNull();
+
+    const outageClient = new DentallyClient({
+      apiKey: "test-key",
+      maxRetries: 1,
+      sleepImpl: async () => undefined,
+      fetchImpl: vi.fn(async () => new Response(JSON.stringify({ error: "boom" }), { status: 500 })),
+    });
+    // Previously this resolved to null — indistinguishable from "patient not found,"
+    // which misled callers like the plan-reassign loop into reporting "no payment
+    // plan in Dentally" for a patient whose plan a real outage prevented checking.
+    await expect(fetchDentallyPatientWithClient(outageClient, "500")).rejects.toThrow();
+  });
 });

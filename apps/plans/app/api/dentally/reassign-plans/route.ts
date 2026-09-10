@@ -8,7 +8,17 @@ import {
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
-/** Reassign ELIO plans from live Dentally payment plan data (P1.9). */
+/**
+ * Reassign ELIO plans from live Dentally payment plan data (P1.9).
+ * Sequential per-patient `GET /patients/{id}` calls (no batching) — wall-clock time
+ * scales with roster size. Unlike apps/pay's fetch-dentally route this has no
+ * maxDuration of its own before this fix, so a practice with a large linked-patient
+ * roster was at real risk of hitting the platform's default execution timeout with
+ * zero partial result (see handleReassign's fixed no-catch bug in
+ * dentally-mappings-client.tsx for the client-side half of this).
+ */
+export const maxDuration = 300;
+
 export async function POST() {
   try {
     const session = await requirePermission("plans:edit-settings");

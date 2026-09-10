@@ -175,6 +175,15 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
         `Reassign complete: ${data.assigned} assigned, ${data.corrected} corrected, ${data.skipped} skipped`,
       );
       router.refresh();
+    } catch (err) {
+      // This route re-fetches every linked patient from Dentally one at a time, so
+      // for a large roster it can genuinely time out — without this catch, a
+      // timeout/network failure was completely silent: no toast, spinner just reset,
+      // and the user had no way to tell "it failed" from "it's still thinking."
+      const msg = err instanceof Error ? err.message : "Reassign failed — network error";
+      toast.error(msg, {
+        description: "If this practice has many linked patients, this can take a while — try again.",
+      });
     } finally {
       setReassigning(false);
     }
@@ -289,9 +298,14 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="secondary" onClick={handleReassign} loading={reassigning}>
+            <Button
+              variant="secondary"
+              onClick={handleReassign}
+              loading={reassigning}
+              title="Refetches every linked patient from Dentally one at a time — can take a while for a large roster."
+            >
               <RefreshCw className="mr-2 size-4" />
-              Reassign plans from Dentally
+              {reassigning ? "Reassigning… this can take a while" : "Reassign plans from Dentally"}
             </Button>
           </>
         )}

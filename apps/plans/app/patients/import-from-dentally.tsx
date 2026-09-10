@@ -105,6 +105,11 @@ export function ImportFromDentally({
       }
       setConfigured(true);
       setResults(data.patients ?? []);
+    } catch (err) {
+      // Without this, a network-level failure (as opposed to an API error response)
+      // fell through to `finally` silently — the search just looked like it returned
+      // no results, indistinguishable from a genuinely empty search.
+      toast.error(err instanceof Error ? err.message : "Dentally search failed — network error");
     } finally {
       setSearching(false);
       setHasSearched(true);
@@ -165,6 +170,8 @@ export function ImportFromDentally({
       clearSelection();
       setHasSearched(false);
       router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed — network error");
     } finally {
       setImporting(false);
     }
