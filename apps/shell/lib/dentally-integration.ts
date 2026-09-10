@@ -16,6 +16,10 @@ export interface DentallyIntegrationStatus {
     counts: unknown;
     errorMessage: string | null;
     recordErrorCount: number;
+    currentPhase: string | null;
+    lastHeartbeatAt: string | null;
+    inngestEventId: string | null;
+    resumedFromRunId: string | null;
   } | null;
 }
 
@@ -66,6 +70,10 @@ export async function getDentallyIntegrationStatus(
           recordErrorCount: Array.isArray(latestRun.recordErrors)
             ? (latestRun.recordErrors as unknown[]).length
             : 0,
+          currentPhase: latestRun.currentPhase,
+          lastHeartbeatAt: latestRun.lastHeartbeatAt?.toISOString() ?? null,
+          inngestEventId: latestRun.inngestEventId,
+          resumedFromRunId: latestRun.resumedFromRunId,
         }
       : null,
   };

@@ -9,7 +9,28 @@ function gbp(pence: number): string {
 
 /** Dismissible Dentally fetch summary at top of period page (legacy Y2.2). */
 export function FetchResultsBanner() {
-  const { fetchResult, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
+  const { fetching, fetchPhase, fetchResult, fetchDismissed, dismissFetchResult } = usePayPeriodActions();
+
+  if (fetching) {
+    return (
+      <section
+        className="mb-8 rounded-(--radius-lg) border border-(--color-brand)/30 bg-(--color-brand)/5 px-5 py-4"
+        data-testid="fetch-in-progress-banner"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-body-sm text-(--color-text-primary)">
+          {fetchPhase
+            ? `Fetching from Dentally — ${fetchPhase}…`
+            : "Fetching from Dentally…"}
+        </p>
+        <p className="mt-1 text-caption text-(--color-text-tertiary)">
+          This can take a minute or two for a busy month. If the background worker dies, this
+          will turn into an error automatically within a few minutes — you never need to guess.
+        </p>
+      </section>
+    );
+  }
 
   if (!fetchResult?.ok || fetchDismissed) return null;
 

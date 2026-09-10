@@ -11,6 +11,8 @@ import {
   failDentallySyncRun,
   failLatestRunningDentallySyncRun,
   finalizeDentallySyncRun,
+  findResumableDentallySyncRun,
+  heartbeatDentallySyncRun,
 } from "./sync-run";
 import { DentallySyncConfigError } from "./resolve-api-key";
 
@@ -65,25 +67,49 @@ export type DentallySyncStepRunner = {
 export async function runDentallySyncJobWithSteps(
   step: DentallySyncStepRunner,
   practiceId: string,
-  trigger: "manual" | "scheduled"
+  trigger: "manual" | "scheduled",
+  inngestEventId?: string | null
 ): Promise<SyncResult> {
   const startedAtIso = new Date().toISOString();
-  const runId = await step.run("create-sync-run", async () => {
-    const run = await createDentallySyncRun(practiceId, trigger);
-    return run.id;
+
+  // If the practice's most recent sync FAILED partway through, resume from its last
+  // completed checkpoint instead of re-fetching every phase from page 1 — a failure
+  // must never cost already-synced data. Memoized in the same step as row creation
+  // so a retry of THIS run doesn't re-derive (and potentially re-resume from) a
+  // moving target.
+  const { runId, resume } = await step.run("create-sync-run", async () => {
+    const resumable = await findResumableDentallySyncRun(practiceId);
+    const run = await createDentallySyncRun(practiceId, trigger, {
+      inngestEventId,
+      resumedFromRunId: resumable?.runId ?? null,
+    });
+    return { runId: run.id, resume: resumable };
   });
 
   try {
+    const resumePhaseIndex = resume ? DENTALLY_SYNC_PHASES.indexOf(resume.phase as (typeof DENTALLY_SYNC_PHASES)[number]) : -1;
+
     const phases: SyncPhaseResult[] = [];
     for (const phase of DENTALLY_SYNC_PHASES) {
-      let page = 1;
+      const phaseIndex = DENTALLY_SYNC_PHASES.indexOf(phase);
+      // Phases fully completed by the run we're resuming were already upserted —
+      // skip re-fetching them entirely.
+      if (resume && phaseIndex < resumePhaseIndex) continue;
+
+      let page = resume && phaseIndex === resumePhaseIndex ? resume.page + 1 : 1;
       let done = false;
       // Hard cap pages so a buggy Dentally meta loop cannot spawn unbounded steps.
       for (let guard = 0; !done && guard < 1000; guard++) {
         const currentPage = page;
-        const part = await step.run(`sync-${phase}-p${currentPage}`, () =>
-          syncPracticeDentallyPhasePage(practiceId, phase, currentPage)
-        );
+        const part = await step.run(`sync-${phase}-p${currentPage}`, async () => {
+          const result = await syncPracticeDentallyPhasePage(practiceId, phase, currentPage);
+          // Inside the step so it only runs once (memoized on retry/resume) — this is
+          // what lets the portal tell a live sync apart from a dead worker within
+          // minutes instead of waiting out the 2h absolute ceiling, AND is the resume
+          // checkpoint the next run reads if this one fails after this point.
+          await heartbeatDentallySyncRun(runId, phase, currentPage);
+          return result;
+        });
         phases.push({ counts: part.counts, errors: part.errors });
         done = Boolean(part.done);
         page = Number(part.nextPage) || currentPage + 1;

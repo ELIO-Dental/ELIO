@@ -3,13 +3,19 @@
 import { prisma, type DentallySyncRunStatus, type DentallySyncTrigger } from "@elio/db";
 import type { SyncResult } from "./sync";
 
-/** Runs older than this with status RUNNING are treated as abandoned (serverless
- * timeout / missing Inngest). Multi-step Inngest syncs can legitimately span
- * wall-clock time across checkpoints — keep this above a full practice sync. */
-export const STALE_RUNNING_MS = 2 * 60 * 60 * 1000; // 2h — full practice sync can take ~1–1.5h; 12h left Flow blocked too long
+/** Absolute ceiling: a run older than this with status RUNNING is abandoned no matter
+ * what. Kept high because multi-step Inngest syncs can legitimately span wall-clock
+ * time across checkpoints on a very large practice. The heartbeat check below is what
+ * actually catches a dead worker quickly — this is just the belt-and-braces backstop. */
+export const STALE_RUNNING_MS = 2 * 60 * 60 * 1000; // 2h
+
+/** A run whose heartbeat hasn't moved in this long is treated as stalled — a healthy
+ * sync heartbeats after every Dentally page (seconds, not minutes), so this comfortably
+ * covers a slow page/retry without making users wait hours to find out a worker died. */
+export const STALE_HEARTBEAT_MS = 10 * 60 * 1000; // 10m
 
 const STALE_RUNNING_MESSAGE =
-  "Sync abandoned: stayed RUNNING with no finish (timeout or background worker unavailable). Click Sync now to retry.";
+  "Sync abandoned: stayed RUNNING with no progress (timeout or background worker unavailable). Click Sync now to retry.";
 
 export function mapTrigger(trigger: "manual" | "scheduled"): DentallySyncTrigger {
   return trigger === "manual" ? "MANUAL" : "SCHEDULED";
@@ -17,14 +23,49 @@ export function mapTrigger(trigger: "manual" | "scheduled"): DentallySyncTrigger
 
 export async function createDentallySyncRun(
   practiceId: string,
-  trigger: "manual" | "scheduled"
+  trigger: "manual" | "scheduled",
+  opts?: { inngestEventId?: string | null; resumedFromRunId?: string | null }
 ) {
   return prisma.dentallySyncRun.create({
     data: {
       practiceId,
       trigger: mapTrigger(trigger),
       status: "RUNNING",
+      inngestEventId: opts?.inngestEventId ?? null,
+      resumedFromRunId: opts?.resumedFromRunId ?? null,
+      lastHeartbeatAt: new Date(),
     },
+  });
+}
+
+/** Most recent run for a practice, used to decide whether a new run should resume a
+ *  FAILED attempt instead of starting every phase from page 1 again. Only the single
+ *  most recent run counts — an old failure with successful runs since must not trigger
+ *  a resume (that data is already current). */
+export async function findResumableDentallySyncRun(practiceId: string) {
+  const latest = await prisma.dentallySyncRun.findFirst({
+    where: { practiceId },
+    orderBy: { startedAt: "desc" },
+    select: { id: true, status: true, currentPhase: true, currentPage: true },
+  });
+  if (!latest || latest.status !== "FAILED" || !latest.currentPhase) return null;
+  return {
+    runId: latest.id,
+    phase: latest.currentPhase,
+    page: latest.currentPage ?? 0,
+  };
+}
+
+/** Bumped once per completed sync step so stall-detection reacts in minutes, not hours,
+ *  and so a subsequent failed-then-retried run knows exactly where to resume. */
+export async function heartbeatDentallySyncRun(
+  runId: string,
+  phase: string,
+  page: number
+): Promise<void> {
+  await prisma.dentallySyncRun.update({
+    where: { id: runId },
+    data: { lastHeartbeatAt: new Date(), currentPhase: phase, currentPage: page },
   });
 }
 
@@ -91,13 +132,21 @@ export async function failLatestRunningDentallySyncRun(practiceId: string, messa
   return { cleared: 1, runId: latest.id };
 }
 
-/** Marks abandoned RUNNING rows FAILED so Integrations unlocks Sync now. */
+/** Marks abandoned RUNNING rows FAILED so Integrations unlocks Sync now.
+ * Stale = no heartbeat in STALE_HEARTBEAT_MS (catches a dead worker within minutes)
+ * OR older than the STALE_RUNNING_MS absolute ceiling regardless of heartbeat. */
 export async function failStaleDentallySyncRuns(practiceId?: string) {
-  const cutoff = new Date(Date.now() - STALE_RUNNING_MS);
+  const nowMs = Date.now();
+  const heartbeatCutoff = new Date(nowMs - STALE_HEARTBEAT_MS);
+  const absoluteCutoff = new Date(nowMs - STALE_RUNNING_MS);
   const stuck = await prisma.dentallySyncRun.findMany({
     where: {
       status: "RUNNING",
-      startedAt: { lt: cutoff },
+      OR: [
+        { lastHeartbeatAt: { lt: heartbeatCutoff } },
+        { lastHeartbeatAt: null, startedAt: { lt: heartbeatCutoff } },
+        { startedAt: { lt: absoluteCutoff } },
+      ],
       ...(practiceId ? { practiceId } : {}),
     },
     select: { id: true, practiceId: true },
@@ -135,16 +184,16 @@ export async function getLatestDentallySyncRun(practiceId: string) {
   });
 }
 
-/** True when a non-stale RUNNING sync should block a new Sync now. */
+/** True when a non-stale RUNNING sync should block a new Sync now.
+ * failStaleDentallySyncRuns above already flips anything stale to FAILED, so any
+ * row still RUNNING here is heartbeating and genuinely active — no separate age
+ * check needed (a prior version re-checked startedAt against the 2h ceiling here,
+ * which incorrectly let a second sync start underneath a legitimately long-running
+ * one once it passed 2h). */
 export async function hasActiveDentallySyncRun(practiceId: string) {
   await failStaleDentallySyncRuns(practiceId);
-  const cutoff = new Date(Date.now() - STALE_RUNNING_MS);
   const active = await prisma.dentallySyncRun.findFirst({
-    where: {
-      practiceId,
-      status: "RUNNING",
-      startedAt: { gte: cutoff },
-    },
+    where: { practiceId, status: "RUNNING" },
     select: { id: true },
   });
   return Boolean(active);

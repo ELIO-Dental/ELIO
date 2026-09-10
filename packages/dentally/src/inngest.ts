@@ -16,10 +16,6 @@
 // still timed out (~16m) on Vercel. Phases are now separate steps.
 
 import { Inngest, EventSchemas } from "inngest";
-import {
-  markDentallySyncFailedFromInngest,
-  runDentallySyncJobWithSteps,
-} from "./sync-job";
 
 type DentallySyncEvents = {
   "dentally/sync.requested": {
@@ -33,31 +29,13 @@ export const inngest = new Inngest({
   isDev: process.env.INNGEST_DEV === "1",
 });
 
-export const dentallySyncFunction = inngest.createFunction(
-  {
-    id: "dentally-full-sync",
-    retries: 2,
-    // Wall-clock budget across many short serverless invocations (not one step).
-    timeouts: { finish: "12h" },
-    concurrency: [{ limit: 1, key: "event.data.practiceId" }],
-    onFailure: async ({ error, event }) => {
-      const original = event.data.event;
-      const practiceId = original?.data?.practiceId as string | undefined;
-      if (!practiceId) return;
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : "Dentally sync failed after retries";
-      await markDentallySyncFailedFromInngest(practiceId, message);
-    },
-  },
-  { event: "dentally/sync.requested" },
-  async ({ event, step }) => {
-    const { practiceId, trigger } = event.data;
-    return runDentallySyncJobWithSteps(step, practiceId, trigger);
-  }
-);
+// The actual `dentally/sync.requested` handler lives in
+// apps/shell/lib/dentally-full-sync.ts (id "dentally-full-sync") — that's the only
+// app that registers an `/api/inngest` route, and it's the one Inngest Cloud/Dev
+// dispatches to. A second `createFunction` with the same id/event used to live here
+// too; it was never registered anywhere but exported from this package's public API,
+// which is exactly the kind of accidental-duplicate-registration bug that produces
+// two competing sync runs for one event if anything ever imported and served it.
+// Deleted rather than fixed forward — do not recreate it here.
 
 export { requestDentallySync, inngestConfigured } from "./sync-job";

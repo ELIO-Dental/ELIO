@@ -5,6 +5,9 @@ import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigE
 import { resolvePracticeAuditActor } from "@/lib/resolve-practice-audit-actor";
 
 export const runtime = "nodejs";
+// Runs every active PLANS practice's sync concurrently in one invocation — needs
+// real headroom on a multi-practice night, same reasoning as the manual route above.
+export const maxDuration = 300;
 
 /**
  * Nightly Plans Dentally patient sync — same runPlansDentallySync() as the

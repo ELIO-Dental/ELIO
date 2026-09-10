@@ -40,7 +40,22 @@ interface IntegrationStatus {
     counts: SyncCounts | null;
     errorMessage: string | null;
     recordErrorCount: number;
+    currentPhase: string | null;
+    lastHeartbeatAt: string | null;
+    inngestEventId: string | null;
+    resumedFromRunId: string | null;
   } | null;
+}
+
+/** Mirrors STALE_HEARTBEAT_MS in @elio/dentally — if the run hasn't heartbeated in
+ * this long the background worker is almost certainly dead; offer a manual reset
+ * instead of making the user wait out the server-side check on its own schedule. */
+const HEARTBEAT_LOOKS_STUCK_MS = 3 * 60 * 1000;
+
+function secondsAgo(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Number.isFinite(ms) ? Math.max(0, Math.round(ms / 1000)) : null;
 }
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
@@ -79,6 +94,10 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   const [savingKey, setSavingKey] = React.useState(false);
   const [apiKey, setApiKey] = React.useState("");
   const [keySaved, setKeySaved] = React.useState(false);
+  const [clearingStuck, setClearingStuck] = React.useState(false);
+  /** Re-renders once a second while RUNNING so "updated Ns ago" and the stuck-run
+   *  detection below stay live without waiting for the next poll tick. */
+  const [, forceTick] = React.useState(0);
   const loading = useSkeleton(!status && !error);
   const runIdBeforeEnqueue = React.useRef<string | null>(null);
 
@@ -100,6 +119,33 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
 
   const displayStatus = awaitingStart ? "STARTING" : status?.latestRun?.status ?? null;
   const isBusy = syncing || awaitingStart || status?.latestRun?.status === "RUNNING";
+  const isRunning = status?.latestRun?.status === "RUNNING";
+  const heartbeatAgeSec = secondsAgo(status?.latestRun?.lastHeartbeatAt ?? null);
+  const looksStuck =
+    isRunning && !awaitingStart && heartbeatAgeSec !== null && heartbeatAgeSec * 1000 >= HEARTBEAT_LOOKS_STUCK_MS;
+
+  // Tick every second while running so the "updated Ns ago" readout and the
+  // stuck-run affordance react without waiting for the next status poll.
+  React.useEffect(() => {
+    if (!isRunning) return;
+    const timer = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [isRunning]);
+
+  async function onClearStuck() {
+    setClearingStuck(true);
+    try {
+      const res = await fetch("/api/dentally/sync/clear-stuck", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Reset failed (${res.status})`);
+      toast.success("Cleared — you can retry the sync now");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to clear stuck sync");
+    } finally {
+      setClearingStuck(false);
+    }
+  }
 
   // Poll while a sync is starting or actively running.
   React.useEffect(() => {
@@ -190,6 +236,10 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
                 finishedAt: null,
                 counts: null,
                 errorMessage: null,
+                currentPhase: null,
+                lastHeartbeatAt: null,
+                inngestEventId: null,
+                resumedFromRunId: null,
                 recordErrorCount: 0,
               },
             }
@@ -322,12 +372,44 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
               )}
             </dl>
 
-            {(awaitingStart || status?.latestRun?.status === "RUNNING") && (
-              <p className="rounded-(--radius-md) border border-(--color-primary-500)/30 bg-(--color-primary-50) px-3 py-2 text-body-sm text-(--color-text-primary)">
-                {awaitingStart
-                  ? "Sync queued — waiting for the background worker to start (usually a few seconds)."
-                  : "Sync is running in the background. This page refreshes automatically."}
-              </p>
+            {(awaitingStart || isRunning) && (
+              <div className="rounded-(--radius-md) border border-(--color-primary-500)/30 bg-(--color-primary-50) px-3 py-2 text-body-sm text-(--color-text-primary)">
+                <p>
+                  {awaitingStart
+                    ? "Sync queued — waiting for the background worker to start (usually a few seconds)."
+                    : status?.latestRun?.currentPhase
+                      ? `Syncing ${status.latestRun.currentPhase.replace(/_/g, " ")}… this page refreshes automatically.`
+                      : "Sync is running in the background. This page refreshes automatically."}
+                </p>
+                {isRunning && heartbeatAgeSec !== null && (
+                  <p className="mt-1 text-(--color-text-tertiary)">
+                    Last progress update: {heartbeatAgeSec}s ago
+                    {status?.latestRun?.inngestEventId ? ` · event ${status.latestRun.inngestEventId}` : ""}
+                  </p>
+                )}
+                {isRunning && status?.latestRun?.resumedFromRunId && (
+                  <p className="mt-1 text-(--color-text-tertiary)">
+                    Resuming after a previous failed attempt — already-synced data is not being
+                    re-fetched.
+                  </p>
+                )}
+                {looksStuck && canManage && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-(--color-warning)">
+                      No progress for a while — the background worker may have died.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={clearingStuck}
+                      onClick={onClearStuck}
+                      data-testid="dentally-clear-stuck"
+                    >
+                      Reset stuck sync
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
 
             {status?.latestRun?.errorMessage && !isBusy && (

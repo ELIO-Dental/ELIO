@@ -1,7 +1,14 @@
 /** Stuck RUNNING recovery for pay-period Dentally fetch jobs. */
 
-/** 45m — month-scoped fetch should finish well under this; longer = dead after()/crash. */
+/** 45m — absolute backstop for a month-scoped fetch. The heartbeat check in
+ * dentally-fetch-job.ts (PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS) is what actually
+ * catches a dead `after()` worker quickly; this stays high as a belt-and-braces cap. */
 export const PAY_DENTALLY_FETCH_STALE_MS = 45 * 60 * 1000;
+
+/** No progress in this long while RUNNING = the background worker almost certainly
+ * died (Vercel killed the `after()` job at its maxDuration, or the instance crashed).
+ * A single Dentally page + a chunk of DB writes should never take this long. */
+export const PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS = 4 * 60 * 1000;
 
 export function isPayDentallyFetchStale(
   startedAt: Date | string | null | undefined,

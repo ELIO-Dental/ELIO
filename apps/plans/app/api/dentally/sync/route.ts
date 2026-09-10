@@ -4,7 +4,14 @@ import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigE
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
-/** Manual "Sync with Dentally" — payment-plan filtered patient import (P1.3). */
+/**
+ * Manual "Sync with Dentally" — payment-plan filtered patient import (P1.3).
+ * Synchronous by design (small, plan-filtered patient set, not a full-practice sync) —
+ * but still needs an explicit budget so a busy practice's plan roster can't get killed
+ * by the platform default the way apps/pay's fetch-dentally route was (see that fix).
+ */
+export const maxDuration = 300;
+
 export async function POST() {
   try {
     const session = await requirePermission("plans:invite-patients");

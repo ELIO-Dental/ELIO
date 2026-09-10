@@ -52,6 +52,8 @@ interface PayPeriodActionsContextValue {
   downloading: boolean;
   emailing: boolean;
   fetchResult: FetchResult | null;
+  /** Live phase label while fetching ("invoices", "appointments", ...) — null once settled. */
+  fetchPhase: string | null;
   actionError: string | null;
   fetchDismissed: boolean;
   dismissFetchResult: () => void;
@@ -94,6 +96,7 @@ export function PayPeriodActionsProvider({
   const [downloading, setDownloading] = React.useState(false);
   const [emailing, setEmailing] = React.useState(false);
   const [fetchResult, setFetchResult] = React.useState<FetchResult | null>(initialFetchResult);
+  const [fetchPhase, setFetchPhase] = React.useState<string | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [fetchDismissed, setFetchDismissed] = React.useState(false);
 
@@ -107,6 +110,7 @@ export function PayPeriodActionsProvider({
     setFetching(true);
     setActionError(null);
     setFetchResult(null);
+    setFetchPhase(null);
     setFetchDismissed(false);
     try {
       const res = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`, { method: "POST" });
@@ -127,23 +131,44 @@ export function PayPeriodActionsProvider({
       }
 
       // Poll DB status until background job finishes (Step 3 — no Dentally on render).
+      // The server-side heartbeat check (PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS) flips a
+      // truly dead `after()` job to ERROR within minutes, so this loop always gets a
+      // definite answer well before the 10-minute client deadline below in practice.
       const deadline = Date.now() + 10 * 60 * 1000;
       let final: FetchResult | null = null;
       let firstPoll = true;
+      let consecutiveNetworkErrors = 0;
       while (Date.now() < deadline) {
         if (!firstPoll) await new Promise((r) => setTimeout(r, 1500));
         firstPoll = false;
-        const statusRes = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`);
-        const statusData = (await statusRes.json()) as {
-          status?: string;
-          error?: string;
-          result?: FetchResult | null;
-        };
+
+        let statusRes: Response;
+        let statusData: { status?: string; error?: string; result?: FetchResult | null; phase?: string | null };
+        try {
+          statusRes = await fetch(`/pay/api/pay-periods/${payPeriodId}/fetch-dentally`);
+          statusData = await statusRes.json();
+        } catch {
+          // A transient network blip mid-poll shouldn't abort a multi-minute wait —
+          // only give up after several in a row.
+          consecutiveNetworkErrors++;
+          if (consecutiveNetworkErrors >= 5) {
+            const msg = "Lost connection while checking Dentally fetch status — try Refresh.";
+            setActionError(msg);
+            toast.error(msg);
+            return;
+          }
+          continue;
+        }
+        consecutiveNetworkErrors = 0;
+
         if (!statusRes.ok) {
           const msg = statusData.error ?? "Failed to read Dentally fetch status";
           setActionError(msg);
           toast.error(msg);
           return;
+        }
+        if (statusData.status === "RUNNING") {
+          setFetchPhase(statusData.phase ?? null);
         }
         if (statusData.status === "SUCCESS" && statusData.result) {
           final = statusData.result;
@@ -175,6 +200,7 @@ export function PayPeriodActionsProvider({
       toast.error(msg);
     } finally {
       setFetching(false);
+      setFetchPhase(null);
     }
   }, [dentistIds, payPeriodId, router]);
 
@@ -284,6 +310,7 @@ export function PayPeriodActionsProvider({
     downloading,
     emailing,
     fetchResult,
+    fetchPhase,
     actionError,
     fetchDismissed,
     dismissFetchResult: () => setFetchDismissed(true),

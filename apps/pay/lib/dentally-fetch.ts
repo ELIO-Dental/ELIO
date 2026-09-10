@@ -321,8 +321,19 @@ async function fetchPatientNames(
 
 export async function fetchDentallyForPayPeriod(
   practiceId: string,
-  payPeriodId: string
+  payPeriodId: string,
+  /** Called at coarse checkpoints so the UI can show live phase progress instead
+   *  of a bare spinner, and so a stalled fetch can be told apart from a slow one. */
+  onProgress?: (phase: string) => void | Promise<void>
 ): Promise<DentallyFetchResult> {
+  const reportProgress = async (phase: string) => {
+    try {
+      await onProgress?.(phase);
+    } catch {
+      // Progress reporting must never fail the fetch itself.
+    }
+  };
+
   const { getPaySettings } = await import("./pay-settings-service");
   const paySettings = await getPaySettings(practiceId);
 
@@ -378,6 +389,7 @@ export async function fetchDentallyForPayPeriod(
   const invoiceListParams = buildInvoiceListQueryParamsForPayPeriod(siteId, startDate, endDate);
   requireDentallySiteId(invoiceListParams);
 
+  await reportProgress("invoices");
   const allInvoices: DentallyInvoiceRaw[] = [];
   await client.paginate<DentallyInvoiceRaw>(
     "/invoices",
@@ -388,6 +400,7 @@ export async function fetchDentallyForPayPeriod(
     }
   );
 
+  await reportProgress("appointments");
   const appointments: DentallyAppointmentRaw[] = [];
   try {
     await client.paginate<DentallyAppointmentRaw>(
@@ -407,6 +420,7 @@ export async function fetchDentallyForPayPeriod(
   const invoices = allInvoices.filter((inv) => isInvoiceRelevantForPayPeriod(inv, startDate, endDate));
 
   // Step 5 — wide payments window for Finance (Tabeo) method detection.
+  await reportProgress("payments");
   const { datedAfter, datedBefore } = paymentWindowBounds(startDate, endDate);
   const paymentListParams = buildPaymentsListQueryParams(siteId, datedAfter, datedBefore);
   const allPayments: DentallyPaymentRaw[] = [];
@@ -424,6 +438,8 @@ export async function fetchDentallyForPayPeriod(
   }
   const invoicePaymentMethodMap = buildInvoicePaymentMethodMap(allPayments);
   const patientFinanceSet = buildPatientFinanceSet(allPayments);
+
+  await reportProgress("matching invoices to dentists");
 
   type Bucket = {
     patients: DentallyPatientRow[];
@@ -755,6 +771,8 @@ export async function fetchDentallyForPayPeriod(
 
   let dentistsUpdated = 0;
   const summary: Record<string, DentallyFetchSummaryEntry> = {};
+
+  await reportProgress("saving payslips");
 
   // Step 3 — all dentist payslip + line writes in one transaction so a mid-loop
   // failure cannot leave a half-updated period (re-fetch resumes from clean prior state).

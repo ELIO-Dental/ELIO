@@ -32,6 +32,6 @@ export const dentallyFullSyncFunction = inngest.createFunction(
   { event: "dentally/sync.requested" },
   async ({ event, step }) => {
     const { practiceId, trigger } = event.data;
-    return runDentallySyncJobWithSteps(step, practiceId, trigger);
+    return runDentallySyncJobWithSteps(step, practiceId, trigger, event.id);
   }
 );

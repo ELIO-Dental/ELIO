@@ -16,6 +16,8 @@ vi.mock("./sync-run", () => ({
   finalizeDentallySyncRun: vi.fn(async () => undefined),
   failDentallySyncRun: vi.fn(async () => undefined),
   failLatestRunningDentallySyncRun: vi.fn(async () => ({ cleared: 1 })),
+  findResumableDentallySyncRun: vi.fn(async () => null),
+  heartbeatDentallySyncRun: vi.fn(async () => undefined),
 }));
 
 vi.mock("./sync", async () => {
@@ -160,5 +162,34 @@ describe("runDentallySyncJobWithSteps", () => {
       "sync-patients-p3",
     ]);
     expect(result.counts.patients).toBe(3);
+  });
+
+  it("resumes a prior FAILED run instead of restarting from page 1 — a failure must never cost already-synced data", async () => {
+    const { findResumableDentallySyncRun } = await import("./sync-run");
+    vi.mocked(findResumableDentallySyncRun).mockResolvedValueOnce({
+      runId: "run-0-failed",
+      phase: "invoices",
+      page: 2,
+    });
+
+    const calls: string[] = [];
+    const step: DentallySyncStepRunner = {
+      run: async (id, fn) => {
+        calls.push(id);
+        return fn();
+      },
+    };
+
+    await runDentallySyncJobWithSteps(step, "seed-practice", "manual");
+
+    // patients + appointments were already fully synced by the failed run — skipped entirely.
+    expect(calls.filter((c) => c.startsWith("sync-patients-"))).toHaveLength(0);
+    expect(calls.filter((c) => c.startsWith("sync-appointments-"))).toHaveLength(0);
+    // invoices resumes at page 3 (last completed page was 2), not page 1.
+    expect(calls.filter((c) => c.startsWith("sync-invoices-"))).toEqual(["sync-invoices-p3"]);
+    // phases after the resume point still run normally from page 1.
+    expect(calls).toContain("sync-payments-p1");
+    expect(calls).toContain("sync-accounts-p1");
+    expect(calls).toContain("sync-payment_plans-p1");
   });
 });

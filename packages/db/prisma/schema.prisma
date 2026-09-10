@@ -401,6 +401,20 @@ model DentallySyncRun {
   counts       Json?
   errorMessage String?
   recordErrors Json?
+  /** Inngest event id for this run — lets ops cross-reference the Inngest dashboard directly. */
+  inngestEventId  String?
+  /** Resource phase currently/last being synced (e.g. "invoices") — surfaced live in the portal UI. */
+  currentPhase    String?
+  /** Last Dentally list page of `currentPhase` fully upserted — with currentPhase, this is the
+   *  resume checkpoint: a run started after this one FAILED skips phases before currentPhase and
+   *  resumes currentPhase at currentPage + 1, instead of re-fetching everything from page 1. */
+  currentPage     Int?
+  /** Bumped after every completed sync step; used to detect a truly stalled run much faster
+   *  than the 2h absolute ceiling (a healthy run heartbeats every few seconds). */
+  lastHeartbeatAt DateTime?             @default(now())
+  /** Set when this run resumed a prior FAILED run instead of starting from page 1 — surfaced
+   *  in the UI so it's visible that a failure didn't cost re-fetching already-synced data. */
+  resumedFromRunId String?
 
   @@index([practiceId, startedAt])
   @@map("dentally_sync_runs")
@@ -707,6 +721,11 @@ model PayPeriod {
   dentallyFetchError      String?
   /** Last successful/failed fetch summary (message, summary, debug) as JSON. */
   dentallyFetchResultJson Json?
+  /** Phase label ("invoices", "appointments", ...) surfaced live while a fetch is RUNNING. */
+  dentallyFetchPhase        String?
+  /** Bumped as the fetch progresses; used to detect a stalled `after()` job much faster
+   *  than the 45m absolute ceiling. */
+  dentallyFetchHeartbeatAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

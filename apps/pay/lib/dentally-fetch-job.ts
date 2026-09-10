@@ -7,6 +7,7 @@ import {
 } from "./dentally-fetch";
 import {
   isPayDentallyFetchStale,
+  PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS,
   PAY_DENTALLY_FETCH_STALE_MS,
   STALE_FETCH_ERROR_MESSAGE,
 } from "./dentally-fetch-stale";
@@ -19,6 +20,8 @@ export interface PayDentallyFetchStatusResponse {
   finishedAt: string | null;
   error: string | null;
   result: DentallyFetchResult | null;
+  phase: string | null;
+  heartbeatAt: string | null;
 }
 
 function asFetchResult(json: unknown): DentallyFetchResult | null {
@@ -34,15 +37,26 @@ export async function recoverStalePayPeriodDentallyFetch(
   practiceId: string,
   payPeriodId: string,
   now: Date = new Date(),
-  staleMs: number = PAY_DENTALLY_FETCH_STALE_MS
+  staleMs: number = PAY_DENTALLY_FETCH_STALE_MS,
+  heartbeatStaleMs: number = PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS
 ): Promise<boolean> {
   const db = scopedDb(practiceId);
   const period = await db.payPeriod.findUnique({
     where: { id: payPeriodId },
-    select: { dentallyFetchStatus: true, dentallyFetchStartedAt: true },
+    select: {
+      dentallyFetchStatus: true,
+      dentallyFetchStartedAt: true,
+      dentallyFetchHeartbeatAt: true,
+    },
   });
   if (!period || period.dentallyFetchStatus !== "RUNNING") return false;
-  if (!isPayDentallyFetchStale(period.dentallyFetchStartedAt, now, staleMs)) return false;
+  const staleByAge = isPayDentallyFetchStale(period.dentallyFetchStartedAt, now, staleMs);
+  const staleByHeartbeat = isPayDentallyFetchStale(
+    period.dentallyFetchHeartbeatAt ?? period.dentallyFetchStartedAt,
+    now,
+    heartbeatStaleMs
+  );
+  if (!staleByAge && !staleByHeartbeat) return false;
 
   const result = await db.payPeriod.updateMany({
     where: {
@@ -74,6 +88,8 @@ export async function getPayPeriodDentallyFetchStatus(
       dentallyFetchFinishedAt: true,
       dentallyFetchError: true,
       dentallyFetchResultJson: true,
+      dentallyFetchPhase: true,
+      dentallyFetchHeartbeatAt: true,
     },
   });
   if (!period) throw new Error("Pay period not found");
@@ -84,7 +100,23 @@ export async function getPayPeriodDentallyFetchStatus(
     finishedAt: period.dentallyFetchFinishedAt?.toISOString() ?? null,
     error: period.dentallyFetchError,
     result: asFetchResult(period.dentallyFetchResultJson),
+    phase: period.dentallyFetchStatus === "RUNNING" ? (period.dentallyFetchPhase ?? null) : null,
+    heartbeatAt: period.dentallyFetchHeartbeatAt?.toISOString() ?? null,
   };
+}
+
+/** Bumped at each coarse checkpoint inside fetchDentallyForPayPeriod so a stalled
+ *  `after()` job can be detected within minutes instead of the 45m absolute cap. */
+async function heartbeatPayPeriodDentallyFetch(
+  practiceId: string,
+  payPeriodId: string,
+  phase: string
+) {
+  const db = scopedDb(practiceId);
+  await db.payPeriod.updateMany({
+    where: { id: payPeriodId, dentallyFetchStatus: "RUNNING" },
+    data: { dentallyFetchHeartbeatAt: new Date(), dentallyFetchPhase: phase },
+  });
 }
 
 /**
@@ -117,6 +149,8 @@ export async function claimPayPeriodDentallyFetchRunning(
       dentallyFetchFinishedAt: null,
       dentallyFetchError: null,
       dentallyFetchResultJson: Prisma.DbNull,
+      dentallyFetchPhase: "starting",
+      dentallyFetchHeartbeatAt: new Date(),
     },
   });
 
@@ -166,7 +200,9 @@ export async function runPayPeriodDentallyFetchJob(
   payPeriodId: string
 ): Promise<DentallyFetchResult> {
   try {
-    const result = await fetchDentallyForPayPeriod(practiceId, payPeriodId);
+    const result = await fetchDentallyForPayPeriod(practiceId, payPeriodId, (phase) =>
+      heartbeatPayPeriodDentallyFetch(practiceId, payPeriodId, phase)
+    );
     await markFetchSuccess(practiceId, payPeriodId, result);
     return result;
   } catch (err) {

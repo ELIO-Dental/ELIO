@@ -35,15 +35,18 @@ export {
   failDentallySyncRun,
   failStaleDentallySyncRuns,
   failLatestRunningDentallySyncRun,
+  findResumableDentallySyncRun,
   getLatestDentallySyncRun,
   hasActiveDentallySyncRun,
+  heartbeatDentallySyncRun,
   resolveRunStatus,
   STALE_RUNNING_MS,
+  STALE_HEARTBEAT_MS,
 } from "./src/sync-run";
 
 export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAllPaymentsForPatient, getAccounts, getPaymentPlans } from "./src/queries";
 
-export { inngest, dentallySyncFunction, requestDentallySync, inngestConfigured } from "./src/inngest";
+export { inngest, requestDentallySync, inngestConfigured } from "./src/inngest";
 
 export {
   runDentallySyncJob,
