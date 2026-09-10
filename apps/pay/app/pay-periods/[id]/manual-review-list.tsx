@@ -56,13 +56,20 @@ export function ManualReviewList({ lines, dentists }: { lines: ReviewLine[]; den
     }
   }
 
+  // Same treatment as apps/pay's Operations review panel: collapsed by default via
+  // <details> once this list gets long (found live — an unbounded operational list
+  // pushing the whole payslip page to tens of thousands of pixels tall), auto-open
+  // only when small enough that showing it immediately beats an extra click.
   return (
-    <div className="mt-6 rounded-(--radius-lg) border border-(--color-warning) bg-(--color-warning-bg) p-4">
-      <div className="mb-3 flex items-center gap-2">
+    <details
+      className="mt-6 rounded-(--radius-lg) border border-(--color-warning) bg-(--color-warning-bg) p-4"
+      open={lines.length <= 5}
+    >
+      <summary className="mb-3 flex cursor-pointer items-center gap-2">
         <Badge variant="warning">Needs review</Badge>
         <span className="text-body-sm font-medium">{lines.length} Compass line(s) could not be auto-matched</span>
-      </div>
-      <ul className="space-y-3">
+      </summary>
+      <ul className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
         {lines.map((line) => (
           <li key={line.id} className="flex flex-wrap items-center gap-3 rounded-(--radius-md) bg-(--color-bg) p-3">
             <div className="text-body-sm">
@@ -98,6 +105,6 @@ export function ManualReviewList({ lines, dentists }: { lines: ReviewLine[]; den
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   );
 }
