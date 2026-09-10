@@ -10,6 +10,7 @@ interface DebugResponse {
   unmatched_invoice_ids: Array<{ id: string; name?: string; count: number }>;
   stored_dentists: Array<{ id: string; name: string; dentally_practitioner_id: string | null }>;
   site_id: string;
+  warnings: string[];
 }
 
 export function DentallyConnectionPanel() {
@@ -55,6 +56,15 @@ export function DentallyConnectionPanel() {
             Check Dentally connection
           </Button>
           {error && <p className="text-xs text-(--color-danger)">{error}</p>}
+          {data && data.warnings.length > 0 && (
+            <div className="space-y-1 text-xs text-(--color-danger)">
+              {data.warnings.map((w, i) => (
+                // Sub-fetch failures/truncation — surfaced so an empty result can't
+                // be mistaken for "all clear" (previously swallowed silently).
+                <p key={i}>{w}</p>
+              ))}
+            </div>
+          )}
           {data && (
             <div className="space-y-2 text-xs text-(--color-text-secondary)">
               <p>

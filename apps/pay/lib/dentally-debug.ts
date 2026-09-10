@@ -5,6 +5,7 @@ import { getDentallyClientForPractice } from "@elio/dentally";
 import { getPayPeriodBoundaries } from "@elio/pay-engine";
 import { getPaySettings } from "./pay-settings-service";
 import { resolveDentallySiteId } from "./pay-settings";
+import { buildInvoiceListQueryParams } from "./dentally-fetch-invoices";
 import {
   buildUnmatchedInvoiceIds,
   mapDentallyDebugUser,
@@ -27,6 +28,9 @@ export interface DentallyDebugResult {
     name: string;
     dentally_practitioner_id: string | null;
   }>;
+  /** Non-fatal: a sub-fetch failed or was truncated. Surfaced so "0 users found" /
+   *  an empty unmatched list can't be mistaken for a genuinely clean result. */
+  warnings: string[];
 }
 
 function parseAmount(value: unknown): number {
@@ -50,23 +54,38 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
   });
 
   const client = await getDentallyClientForPractice(practiceId);
+  const warnings: string[] = [];
 
   let dentallyUsers: DentallyDebugUser[] = [];
   try {
-    const usersData = await client.get<Record<string, unknown>>("/users", { site_id: siteId, per_page: 100 });
-    const users = (usersData.users ?? usersData.data ?? []) as Record<string, unknown>[];
-    dentallyUsers = users.map(mapDentallyDebugUser);
-  } catch {
-    dentallyUsers = [];
+    await client.paginate<Record<string, unknown>>(
+      "/users",
+      "users",
+      { site_id: siteId },
+      (page) => {
+        dentallyUsers.push(...page.map(mapDentallyDebugUser));
+      }
+    );
+  } catch (err) {
+    warnings.push(
+      `Could not fetch Dentally users: ${err instanceof Error ? err.message : String(err)} — results below may be incomplete.`
+    );
   }
 
   let practitioners: DentallyDebugUser[] = [];
   try {
-    const pracData = await client.get<Record<string, unknown>>("/practitioners", { site_id: siteId, per_page: 100 });
-    const pracs = (pracData.practitioners ?? pracData.data ?? []) as Record<string, unknown>[];
-    practitioners = pracs.map(mapDentallyDebugUser);
-  } catch {
-    practitioners = [];
+    await client.paginate<Record<string, unknown>>(
+      "/practitioners",
+      "practitioners",
+      { site_id: siteId },
+      (page) => {
+        practitioners.push(...page.map(mapDentallyDebugUser));
+      }
+    );
+  } catch (err) {
+    warnings.push(
+      `Could not fetch Dentally practitioners: ${err instanceof Error ? err.message : String(err)} — results below may be incomplete.`
+    );
   }
 
   const now = new Date();
@@ -86,22 +105,37 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
 
   for (const range of dateRanges) {
     try {
-      const raw = await client.get<Record<string, unknown>>("/invoices", {
-        site_id: siteId,
-        dated_on_from: range.startDate,
-        dated_on_to: range.endDate,
-        per_page: 50,
-      });
-      const invoices = (raw.invoices ?? raw.data ?? []) as Array<Record<string, unknown>>;
-      for (const inv of invoices) {
-        const uid = String(inv.user_id ?? inv.practitioner_id ?? "");
-        if (!uid) continue;
-        if (!invoiceUserIds[uid]) invoiceUserIds[uid] = { count: 0, totalAmount: 0 };
-        invoiceUserIds[uid].count++;
-        invoiceUserIds[uid].totalAmount += parseAmount(inv.amount);
+      // dated_on_after/dated_on_before, NOT dated_on_from/dated_on_to — see
+      // buildInvoiceListQueryParams in dentally-fetch-invoices.ts (the working,
+      // tested version of this same endpoint). The old from/to names were silently
+      // ignored by Dentally, so this diagnostic was scanning unfiltered invoices
+      // across the practice's whole history rather than the intended two-month
+      // window — the exact "unmatched practitioner ID" counts this panel exists to
+      // produce were built on the wrong data.
+      const fetched = await client.paginate<Record<string, unknown>>(
+        "/invoices",
+        "invoices",
+        buildInvoiceListQueryParams(siteId, range.startDate, range.endDate),
+        (page) => {
+          for (const inv of page) {
+            const uid = String(inv.user_id ?? inv.practitioner_id ?? "");
+            if (!uid) continue;
+            if (!invoiceUserIds[uid]) invoiceUserIds[uid] = { count: 0, totalAmount: 0 };
+            invoiceUserIds[uid].count++;
+            invoiceUserIds[uid].totalAmount += parseAmount(inv.amount);
+          }
+        },
+        { maxPages: 20 } // diagnostic tool, not a full sync — 2,000 invoices/range is generous
+      );
+      if (fetched >= 20 * 100) {
+        warnings.push(
+          `Invoice scan for ${range.startDate}–${range.endDate} hit its page cap — counts below may be incomplete for a very busy period.`
+        );
       }
-    } catch {
-      // continue with other range
+    } catch (err) {
+      warnings.push(
+        `Could not fetch invoices for ${range.startDate}–${range.endDate}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -125,5 +159,6 @@ export async function runDentallyConnectionDebug(practiceId: string): Promise<De
       name: d.name,
       dentally_practitioner_id: d.dentallyPractitionerId,
     })),
+    warnings,
   };
 }
