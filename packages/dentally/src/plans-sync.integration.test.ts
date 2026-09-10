@@ -7,7 +7,11 @@ const patientCreate = vi.fn();
 const patientUpdate = vi.fn();
 const planPatientFindFirst = vi.fn();
 const planPatientCreate = vi.fn();
+const planPatientUpdate = vi.fn();
+const enrolmentFindFirst = vi.fn();
+const enrolmentFindMany = vi.fn();
 const enrolmentCreate = vi.fn();
+const enrolmentUpdate = vi.fn();
 const mandateCount = vi.fn();
 
 vi.mock("@elio/db", () => ({
@@ -22,12 +26,13 @@ vi.mock("@elio/db", () => ({
     planPatient: {
       findFirst: planPatientFindFirst,
       create: planPatientCreate,
-      update: vi.fn(),
+      update: planPatientUpdate,
     },
     patientPlanEnrolment: {
-      findFirst: vi.fn(),
+      findFirst: enrolmentFindFirst,
+      findMany: enrolmentFindMany,
       create: enrolmentCreate,
-      update: vi.fn(),
+      update: enrolmentUpdate,
     },
     planMandate: { count: mandateCount },
   }),
@@ -48,6 +53,10 @@ describe("runPlansDentallySync", () => {
     patientFindMany.mockResolvedValue([]);
     patientFindFirst.mockResolvedValue(null);
     planPatientFindFirst.mockResolvedValue(null);
+    planPatientUpdate.mockResolvedValue({});
+    enrolmentFindFirst.mockResolvedValue(null);
+    enrolmentFindMany.mockResolvedValue([]);
+    enrolmentUpdate.mockResolvedValue({});
     mandateCount.mockResolvedValue(0);
     patientCreate.mockResolvedValue({ id: "new-patient-id" });
     planPatientCreate.mockResolvedValue({ id: "new-plan-patient-id" });
@@ -88,6 +97,7 @@ describe("runPlansDentallySync", () => {
       total: 1,
       plansMatched: 1,
       syncedPlanIds: [10],
+      offPlanEnded: 0,
     });
     expect(patientCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -96,7 +106,7 @@ describe("runPlansDentallySync", () => {
           dentallyId: "501",
           email: "new@example.com",
         }),
-      }),
+      })
     );
     expect(planPatientCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -104,12 +114,12 @@ describe("runPlansDentallySync", () => {
           status: "INVITED",
           planModelId: "plan-1",
         }),
-      }),
+      })
     );
     expect(enrolmentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "PENDING", planId: "plan-1" }),
-      }),
+      })
     );
   });
 
@@ -135,12 +145,12 @@ describe("runPlansDentallySync", () => {
       expect.objectContaining({
         where: { id: "existing-id" },
         data: expect.objectContaining({ email: "new@example.com" }),
-      }),
+      })
     );
     expect(patientCreate).not.toHaveBeenCalled();
   });
 
-  it("skips enrolment updates for cancelled plan patients", async () => {
+  it("reopens cancelled plan patients who reappear on a mapped plan", async () => {
     patientFindMany.mockResolvedValue([
       {
         id: "existing-id",
@@ -153,10 +163,44 @@ describe("runPlansDentallySync", () => {
       },
     ]);
     planPatientFindFirst.mockResolvedValue({ id: "pp-1", status: "CANCELLED", planModelId: "plan-1" });
+    enrolmentFindFirst.mockResolvedValue(null);
+
+    const result = await runPlansDentallySync("practice-1");
+
+    expect(result.updated).toBe(1);
+    expect(planPatientUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "pp-1" },
+        data: expect.objectContaining({ status: "INVITED" }),
+      })
+    );
+    expect(enrolmentCreate).toHaveBeenCalled();
+  });
+
+  it("preserves PAUSED enrolments (does not flip status)", async () => {
+    patientFindMany.mockResolvedValue([
+      {
+        id: "existing-id",
+        dentallyId: "501",
+        email: "new@example.com",
+        phone: null,
+        firstName: "New",
+        lastName: "Member",
+        dateOfBirth: null,
+      },
+    ]);
+    planPatientFindFirst.mockResolvedValue({ id: "pp-1", status: "PAUSED", planModelId: "plan-1" });
+    enrolmentFindFirst.mockResolvedValue({
+      id: "en-1",
+      planId: "plan-1",
+      status: "PAUSED",
+      startDate: null,
+    });
 
     const result = await runPlansDentallySync("practice-1");
 
     expect(result.skipped).toBe(1);
+    expect(enrolmentUpdate).not.toHaveBeenCalled();
     expect(enrolmentCreate).not.toHaveBeenCalled();
   });
 });

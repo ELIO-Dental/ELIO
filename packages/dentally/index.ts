@@ -84,10 +84,12 @@ export {
   PlansDentallySyncConfigError,
   matchPaymentPlanIds,
   dedupePatientsByDentallyId,
+  syncEnrolmentForPatient,
+  endOffPlanEnrolments,
 } from "./src/plans-sync";
 export type { PlansDentallySyncResult, PlansDentallyReassignResult } from "./src/plans-sync";
 
-export { normalizeEmail, emailsMatch, findExistingPatient } from "./src/patient-matching";
+export { normalizeEmail, emailsMatch, findExistingPatient, isPlaceholderDentallyId } from "./src/patient-matching";
 export type { MatchableExisting, MatchCandidate, MatchResult } from "./src/patient-matching";
 
 export {

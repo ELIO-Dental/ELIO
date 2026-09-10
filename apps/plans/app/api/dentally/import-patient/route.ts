@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findExistingPatient, normalizeEmail } from "@elio/dentally";
+import { findExistingPatient, isPlaceholderDentallyId, normalizeEmail } from "@elio/dentally";
 import { scopedDb } from "@elio/db";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
@@ -29,7 +29,10 @@ export async function POST(req: Request) {
       select: { id: true, dentallyId: true, email: true, firstName: true, lastName: true },
     });
 
-    const { match, matchedBy } = findExistingPatient({ dentallyId, email: email ?? undefined }, existingPatients);
+    const { match, matchedBy } = findExistingPatient(
+      { dentallyId, email: email ?? undefined },
+      existingPatients
+    );
 
     let patientId: string;
     if (match) {
@@ -41,7 +44,9 @@ export async function POST(req: Request) {
         email?: string | null;
         phone?: string | null;
       } = {};
-      if (matchedBy === "email" && !match.dentallyId) updates.dentallyId = dentallyId;
+      if (matchedBy === "email" && isPlaceholderDentallyId(match.dentallyId)) {
+        updates.dentallyId = dentallyId;
+      }
       if (firstName) updates.firstName = firstName;
       if (lastName) updates.lastName = lastName;
       if (email) updates.email = email;
@@ -64,7 +69,8 @@ export async function POST(req: Request) {
     }
 
     const planId = typeof body?.planId === "string" ? body.planId : "";
-    const parentPatientId = typeof body?.parentPatientId === "string" ? body.parentPatientId.trim() : undefined;
+    const parentPatientId =
+      typeof body?.parentPatientId === "string" ? body.parentPatientId.trim() : undefined;
     if (planId) {
       const enrolment = await enrolPatient(session.practiceId, { patientId, planId, parentPatientId });
       return NextResponse.json({

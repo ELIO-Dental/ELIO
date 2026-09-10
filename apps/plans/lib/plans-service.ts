@@ -493,6 +493,28 @@ export async function enrolPatient(
       });
     }
 
+    const existingFreeEnrolment = await db.patientPlanEnrolment.findFirst({
+      where: {
+        planPatientId: planPatient.id,
+        status: { in: ["PENDING", "ACTIVE", "PAUSED"] },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existingFreeEnrolment) {
+      const enrolment =
+        existingFreeEnrolment.planId === plan.id && existingFreeEnrolment.status === "ACTIVE"
+          ? existingFreeEnrolment
+          : await db.patientPlanEnrolment.update({
+              where: { id: existingFreeEnrolment.id },
+              data: {
+                planId: plan.id,
+                status: "ACTIVE",
+                startDate: existingFreeEnrolment.startDate ?? new Date(),
+              },
+            });
+      return { planPatient, enrolment, signupToken: null as string | null };
+    }
+
     const enrolment = await db.patientPlanEnrolment.create({
       data: {
         practiceId,
@@ -523,6 +545,57 @@ export async function enrolPatient(
     planPatient = await db.planPatient.create({
       data: { practiceId, patientId: input.patientId, status: "INVITED", planModelId: plan.id },
     });
+  } else if (planPatient.planModelId !== plan.id && planPatient.status !== "PAUSED") {
+    planPatient = await db.planPatient.update({
+      where: { id: planPatient.id },
+      data: { planModelId: plan.id },
+    });
+  }
+
+  const liveEnrolment = await db.patientPlanEnrolment.findFirst({
+    where: {
+      planPatientId: planPatient.id,
+      status: { in: ["PENDING", "ACTIVE", "PAUSED"] },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (liveEnrolment) {
+    let enrolment = liveEnrolment;
+    if (liveEnrolment.status !== "PAUSED" && liveEnrolment.planId !== plan.id) {
+      enrolment = await db.patientPlanEnrolment.update({
+        where: { id: liveEnrolment.id },
+        data: { planId: plan.id },
+      });
+    }
+
+    let signupToken: string | null = null;
+    if (liveEnrolment.status === "PENDING") {
+      const existingSigning = await db.planSigningRequest.findFirst({
+        where: {
+          planPatientId: planPatient.id,
+          signedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existingSigning) {
+        signupToken = existingSigning.token;
+      } else {
+        const signingRequest = await db.planSigningRequest.create({
+          data: {
+            practiceId,
+            planPatientId: planPatient.id,
+            documentId: document.id,
+            token: randomUUID(),
+            expiresAt: new Date(Date.now() + SIGNUP_TOKEN_MAX_AGE_MS),
+          },
+        });
+        signupToken = signingRequest.token;
+      }
+    }
+
+    return { planPatient, enrolment, signupToken };
   }
 
   const enrolment = await db.patientPlanEnrolment.create({

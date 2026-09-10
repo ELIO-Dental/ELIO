@@ -13,12 +13,12 @@ describe("matchPaymentPlanIds", () => {
     expect(ids).toEqual([10]);
   });
 
-  it("returns empty when no names match", () => {
+  it("trims whitespace on mapped and live plan names", () => {
     const ids = matchPaymentPlanIds(
-      [{ dentallyPlanName: "Missing", planModelId: "plan-1" }],
-      [{ id: 10, name: "AuraCare Gold" }],
+      [{ dentallyPlanName: " AuraCare Gold ", planModelId: "plan-1" }],
+      [{ id: 10, name: "AuraCare Gold  " }]
     );
-    expect(ids).toEqual([]);
+    expect(ids).toEqual([10]);
   });
 });
 

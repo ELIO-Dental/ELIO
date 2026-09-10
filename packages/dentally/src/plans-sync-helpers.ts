@@ -20,10 +20,11 @@ type PaymentPlanRef = {
 };
 
 export function matchPaymentPlanIds(mappings: PlanMapping[], paymentPlans: PaymentPlanRef[]): number[] {
-  const mappedNames = mappings.map((m) => m.dentallyPlanName.toLowerCase());
+  const mappedNames = mappings.map((m) => m.dentallyPlanName.trim().toLowerCase()).filter(Boolean);
   const ids: number[] = [];
   for (const plan of paymentPlans) {
-    if (mappedNames.includes(plan.name.toLowerCase())) {
+    const name = plan.name.trim().toLowerCase();
+    if (name && mappedNames.includes(name)) {
       ids.push(plan.id);
     }
   }
