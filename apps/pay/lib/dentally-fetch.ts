@@ -391,24 +391,32 @@ export async function fetchDentallyForPayPeriod(
 
   await reportProgress("invoices");
   const allInvoices: DentallyInvoiceRaw[] = [];
+  let invoicePageNum = 0;
   await client.paginate<DentallyInvoiceRaw>(
     "/invoices",
     "invoices",
     invoiceListParams,
-    (page) => {
+    async (page) => {
       allInvoices.push(...page);
+      // Per-page, not just per-phase: a phase with many pages (or one slowed by
+      // Dentally rate-limit backoff, e.g. a concurrent Portal full sync hitting the
+      // same API key) must not look "stalled" to the heartbeat-staleness check just
+      // because it hasn't reached the NEXT phase yet.
+      await reportProgress(`invoices (page ${++invoicePageNum})`);
     }
   );
 
   await reportProgress("appointments");
   const appointments: DentallyAppointmentRaw[] = [];
+  let appointmentPageNum = 0;
   try {
     await client.paginate<DentallyAppointmentRaw>(
       "/appointments",
       "appointments",
       { site_id: siteId, start_date: startDate, end_date: apiEndDate },
-      (page) => {
+      async (page) => {
         appointments.push(...page);
+        await reportProgress(`appointments (page ${++appointmentPageNum})`);
       }
     );
   } catch {
@@ -424,13 +432,15 @@ export async function fetchDentallyForPayPeriod(
   const { datedAfter, datedBefore } = paymentWindowBounds(startDate, endDate);
   const paymentListParams = buildPaymentsListQueryParams(siteId, datedAfter, datedBefore);
   const allPayments: DentallyPaymentRaw[] = [];
+  let paymentPageNum = 0;
   try {
     await client.paginate<DentallyPaymentRaw>(
       "/payments",
       "payments",
       paymentListParams,
-      (page) => {
+      async (page) => {
         allPayments.push(...page);
+        await reportProgress(`payments (page ${++paymentPageNum})`);
       }
     );
   } catch {

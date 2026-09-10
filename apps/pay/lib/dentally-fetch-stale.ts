@@ -7,8 +7,15 @@ export const PAY_DENTALLY_FETCH_STALE_MS = 45 * 60 * 1000;
 
 /** No progress in this long while RUNNING = the background worker almost certainly
  * died (Vercel killed the `after()` job at its maxDuration, or the instance crashed).
- * A single Dentally page + a chunk of DB writes should never take this long. */
-export const PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS = 4 * 60 * 1000;
+ * fetchDentallyForPayPeriod heartbeats once per Dentally *page*, not just once per
+ * phase (see dentally-fetch.ts) — a single page can legitimately take a while under
+ * Dentally rate-limit backoff (worse if a Portal full sync is hitting the same API
+ * key concurrently), so this needs headroom above one page's worst-case retry time,
+ * not just above one phase's total time. Kept just above the route's own
+ * maxDuration (300s) — in production that platform kill fires first on a genuine
+ * dead worker; this is the backstop for the inline/local-dev path that has no
+ * platform-level kill at all. */
+export const PAY_DENTALLY_FETCH_HEARTBEAT_STALE_MS = 6 * 60 * 1000;
 
 export function isPayDentallyFetchStale(
   startedAt: Date | string | null | undefined,
