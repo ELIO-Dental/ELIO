@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAppointmentsListQueryParamsForPayPeriod,
   buildInvoiceListQueryParams,
   buildInvoiceListQueryParamsForPayPeriod,
   invoiceDatedOn,
@@ -31,6 +32,22 @@ describe("buildInvoiceListQueryParamsForPayPeriod (Step 22)", () => {
       dated_on_after: "2025-11-02",
       dated_on_before: "2026-06-01",
     });
+  });
+});
+
+describe("buildAppointmentsListQueryParamsForPayPeriod", () => {
+  it("uses after/before, NOT start_date/end_date — Dentally silently ignores the latter and returns unfiltered history (live incident 2026-09-10)", () => {
+    expect(buildAppointmentsListQueryParamsForPayPeriod("site-1", "2026-06-01", "2026-07-01")).toEqual({
+      site_id: "site-1",
+      after: "2026-06-01",
+      before: "2026-07-01",
+    });
+  });
+
+  it("does not include start_date or end_date keys", () => {
+    const params = buildAppointmentsListQueryParamsForPayPeriod("site-1", "2026-06-01", "2026-07-01");
+    expect(params).not.toHaveProperty("start_date");
+    expect(params).not.toHaveProperty("end_date");
   });
 });
 

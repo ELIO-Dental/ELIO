@@ -20,6 +20,7 @@ import {
 } from "@elio/dentally";
 import { getPayPeriodBoundaries } from "@elio/pay-engine";
 import {
+  buildAppointmentsListQueryParamsForPayPeriod,
   buildInvoiceListQueryParamsForPayPeriod,
   isInvoiceEligibleForGrossInPeriod,
   isInvoiceRelevantForPayPeriod,
@@ -413,7 +414,7 @@ export async function fetchDentallyForPayPeriod(
     await client.paginate<DentallyAppointmentRaw>(
       "/appointments",
       "appointments",
-      { site_id: siteId, start_date: startDate, end_date: apiEndDate },
+      buildAppointmentsListQueryParamsForPayPeriod(siteId, startDate, apiEndDate),
       async (page) => {
         appointments.push(...page);
         await reportProgress(`appointments (page ${++appointmentPageNum})`);

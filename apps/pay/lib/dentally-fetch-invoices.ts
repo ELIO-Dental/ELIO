@@ -41,6 +41,27 @@ export function buildInvoiceListQueryParamsForPayPeriod(
   );
 }
 
+/**
+ * Dentally `/appointments` list params. Unlike invoices (`dated_on_after`/
+ * `dated_on_before`), this endpoint filters on `after`/`before` — see
+ * packages/dentally/src/appointment-window.ts ("returns 0 rows unless after/before
+ * are set (confirmed live)"). A prior version of this file used `start_date`/
+ * `end_date` here, which Dentally silently ignored rather than rejecting — the
+ * fetch was pulling the practice's ENTIRE appointment history every time instead of
+ * one pay period's worth (found live: 344+ pages and still growing).
+ */
+export function buildAppointmentsListQueryParamsForPayPeriod(
+  siteId: string,
+  periodStart: string,
+  periodEndExclusive: string
+): Record<string, string> {
+  return {
+    site_id: siteId,
+    after: periodStart,
+    before: periodEndExclusive,
+  };
+}
+
 function parseYmd(ymd: string): { y: number; m: number; d: number } {
   const [y, m, d] = ymd.split("-").map(Number);
   return { y: y ?? 0, m: m ?? 1, d: d ?? 1 };
