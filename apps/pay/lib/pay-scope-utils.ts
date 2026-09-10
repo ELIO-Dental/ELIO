@@ -1,3 +1,5 @@
+import { isUatOrE2eDentistName } from "./active-dentists";
+
 export interface PayPractitionerScope {
   /** Ops/admin/finance/auditor — see every dentist. */
   viewAll: boolean;
@@ -14,12 +16,15 @@ export function payslipMatchesPractitionerScope(
   return payslip.dentistId === scope.dentistId;
 }
 
-/** Filter payslip entries to the caller's allowed dentist. */
-export function filterPayslipsForScope<T extends { dentistId: string }>(
-  entries: T[],
-  scope: PayPractitionerScope
-): T[] {
-  if (scope.viewAll) return entries;
+/** Filter payslip entries to the caller's allowed dentist; never show UAT/E2E junk. */
+export function filterPayslipsForScope<
+  T extends { dentistId: string; dentist?: { name?: string | null } | null },
+>(entries: T[], scope: PayPractitionerScope): T[] {
+  const withoutTest = entries.filter((e) => {
+    const name = e.dentist?.name;
+    return !(name && isUatOrE2eDentistName(name));
+  });
+  if (scope.viewAll) return withoutTest;
   if (!scope.dentistId) return [];
-  return entries.filter((e) => e.dentistId === scope.dentistId);
+  return withoutTest.filter((e) => e.dentistId === scope.dentistId);
 }

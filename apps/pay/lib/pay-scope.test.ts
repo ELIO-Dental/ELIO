@@ -47,6 +47,17 @@ describe("pay scope utils (Step 30)", () => {
     ]);
     expect(filterPayslipsForScope(entries, { viewAll: false, dentistId: null })).toEqual([]);
   });
+
+  it("drops UAT/E2E dentist payslips even for viewAll", () => {
+    const entries = [
+      { dentistId: "d-1", dentist: { name: "Dr Real" } },
+      { dentistId: "d-uat", dentist: { name: "[UAT] UAT Pay Dentist 1" } },
+      { dentistId: "d-e2e", dentist: { name: "E2E Dentally 2" } },
+    ];
+    expect(filterPayslipsForScope(entries, { viewAll: true, dentistId: null })).toEqual([
+      { dentistId: "d-1", dentist: { name: "Dr Real" } },
+    ]);
+  });
 });
 
 describe("pay permission helpers (Step 30)", () => {

@@ -5,7 +5,7 @@ const SHELL_ORIGIN = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3030";
 const OWNER_EMAIL = process.env.INITIAL_ADMIN_EMAIL ?? "dev-owner@elio.test";
 const OWNER_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD ?? "Dev-Owner-Local-Seed-Only-Not-Real";
 
-const DENTIST_NAME = `E2E Dentally ${Date.now()}`;
+const DENTIST_NAME = `[UAT] E2E Dentally ${Date.now()}`;
 const PRACTITIONER_ID = `e2e-${Date.now()}`;
 
 let sessionCookies: Cookie[] = [];

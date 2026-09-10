@@ -114,7 +114,7 @@ test.describe("Pay verification (P5 / Part 6)", () => {
     if (!owner.practiceId) throw new Error("Seeded OWNER has no practiceId");
     practiceId = owner.practiceId;
 
-    const dentistName = `UAT Pay Dentist ${Date.now()}`;
+    const dentistName = `[UAT] UAT Pay Dentist ${Date.now()}`;
     const dentist = await prisma.dentist.create({
       data: {
         practiceId,
@@ -341,7 +341,7 @@ test.describe("Pay verification (P5 / Part 6)", () => {
     const dentist = await prisma.dentist.create({
       data: {
         practiceId,
-        name: `UAT Email Dentist ${Date.now()}`,
+        name: `[UAT] UAT Email Dentist ${Date.now()}`,
         email: "uat-dentist@elio.test",
         payType: "PERCENTAGE_SPLIT",
         privateSplitPercent: 50,
