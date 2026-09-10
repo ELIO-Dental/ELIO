@@ -22,6 +22,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
         appointments: panel.appointments,
         fetchedAt: panel.fetchedAt,
         configured: true,
+        warnings: panel.warnings,
       });
     } catch (e) {
       if (e instanceof DentallySyncConfigError) {

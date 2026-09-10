@@ -57,6 +57,13 @@ export interface LivePatientPanel {
   invoices: LivePatientInvoice[];
   payments: LivePatientPayment[];
   fetchedAt: string;
+  /** Non-fatal: one resource type failed to fetch (empty, not "genuinely none") or
+   *  hit its page cap (list may be truncated). Previously the patient-level lookup
+   *  had a soft-fail fallback but these four did not — any one of them throwing
+   *  (e.g. rate-limited) discarded results already successfully fetched from the
+   *  others, and even on success there was no signal that a long history had been
+   *  cut off at maxPages. Shared by apps/flow's and apps/plans' live patient panels. */
+  warnings: string[];
 }
 
 function poundsToPence(v: string | number | null | undefined): number {
@@ -89,58 +96,72 @@ export async function fetchLivePatientPanel(
   const dentallyClient = client ?? (await getDentallyClientForPractice(practiceId));
   const dentallyId = patient.dentallyId;
 
+  const warnings: string[] = [];
+
   let livePatient: DentallyPatientRaw | null = null;
   try {
     const data = await dentallyClient.get<{ patient?: DentallyPatientRaw }>(`/patients/${dentallyId}`);
     livePatient = data.patient ?? null;
   } catch {
     // Fall back to synced-core demographics when live fetch fails.
+    warnings.push("Could not load live patient details from Dentally — showing last-known name/email/phone.");
   }
 
-  const appointments: DentallyAppointmentRaw[] = [];
+  /** Each resource type is fetched independently so one endpoint failing (rate
+   *  limit, outage) doesn't discard results already fetched from the others. */
+  async function fetchResource<T>(
+    label: string,
+    path: string,
+    listKey: string,
+    params: Record<string, string | number | undefined>,
+    maxPages: number,
+  ): Promise<T[]> {
+    const items: T[] = [];
+    try {
+      const fetched = await dentallyClient.paginate<T>(path, listKey, params, (page) => {
+        items.push(...page);
+      }, { perPage: 50, maxPages });
+      if (fetched >= maxPages * 50) {
+        warnings.push(`${label} may be incomplete — this patient has more than ${maxPages * 50} records.`);
+      }
+    } catch (err) {
+      warnings.push(`Could not load ${label.toLowerCase()} from Dentally: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return items;
+  }
+
   // Dentally returns 0 appointment rows without after/before (confirmed live).
   const { after, before } = appointmentSyncDateParams();
-  await dentallyClient.paginate<DentallyAppointmentRaw>(
+  const appointments = await fetchResource<DentallyAppointmentRaw>(
+    "Appointments",
     "/appointments",
     "appointments",
     { patient_id: dentallyId, after, before },
-    (page) => {
-      appointments.push(...page);
-    },
-    { perPage: 50, maxPages: 3 },
+    3,
   );
 
-  const invoices: DentallyInvoiceRaw[] = [];
-  await dentallyClient.paginate<DentallyInvoiceRaw>(
+  const invoices = await fetchResource<DentallyInvoiceRaw>(
+    "Invoices",
     "/invoices",
     "invoices",
     { patient_id: dentallyId },
-    (page) => {
-      invoices.push(...page);
-    },
-    { perPage: 50, maxPages: 3 },
+    3,
   );
 
-  const payments: DentallyPaymentRaw[] = [];
-  await dentallyClient.paginate<DentallyPaymentRaw>(
+  const payments = await fetchResource<DentallyPaymentRaw>(
+    "Payments",
     "/payments",
     "payments",
     { patient_id: dentallyId },
-    (page) => {
-      payments.push(...page);
-    },
-    { perPage: 50, maxPages: 3 },
+    3,
   );
 
-  const accounts: DentallyAccountRaw[] = [];
-  await dentallyClient.paginate<DentallyAccountRaw>(
+  const accounts = await fetchResource<DentallyAccountRaw>(
+    "Account",
     "/accounts",
     "accounts",
     { patient_id: dentallyId },
-    (page) => {
-      accounts.push(...page);
-    },
-    { perPage: 50, maxPages: 1 },
+    1,
   );
 
   const name = livePatient
@@ -199,5 +220,6 @@ export async function fetchLivePatientPanel(
       method: null,
     })),
     fetchedAt: new Date().toISOString(),
+    warnings,
   };
 }

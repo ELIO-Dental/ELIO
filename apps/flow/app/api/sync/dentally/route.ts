@@ -11,7 +11,12 @@ import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { parseFlowDentallySyncMode } from "@/lib/flow-sync";
 
-/** F1.7 — Flow manual Dentally sync: full (background) or payments-only (existing consults). */
+/**
+ * F1.7 — Flow manual Dentally sync: full (background, pulls from Dentally) or
+ * payments-only (synchronous, re-derives from already-synced Postgres rows).
+ */
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
   try {
     const session = await requirePermission("flow:capture-enquiry");
@@ -19,33 +24,30 @@ export async function POST(req: Request) {
     const mode = parseFlowDentallySyncMode(body?.mode);
 
     if (mode === "payments") {
+      // Reads/writes already-synced Postgres rows only — no Dentally API calls, so
+      // no realistic timeout risk. Previously backgrounded via after() with the real
+      // {total, updated, errors} result written ONLY to the audit log — the caller
+      // got a generic "started" message and never learned the outcome, so per-consult
+      // failures were reported nowhere the user could see (console.error only).
+      // Awaiting it directly and returning the real counts is both simpler and more
+      // honest than a background job whose result nobody could read.
       const practiceId = session.practiceId;
-      const actor = resolveAuditActor(session);
-      after(() =>
-        syncAllConsultFinancialsFromSyncedCore(practiceId)
-          .then(async (result) => {
-            await writeAuditLog({
-              ...actor,
-              practiceId,
-              action: "flow.sync.payments",
-              targetType: "Practice",
-              targetId: practiceId,
-              metadata: { ...result },
-            });
-          })
-          .catch((err) => {
-            console.error(`[flow] payment sync failed practice=${practiceId}`, err);
-          })
-      );
+      const result = await syncAllConsultFinancialsFromSyncedCore(practiceId);
+      await writeAuditLog({
+        ...resolveAuditActor(session),
+        practiceId,
+        action: "flow.sync.payments",
+        targetType: "Practice",
+        targetId: practiceId,
+        metadata: { ...result },
+      });
 
-      return NextResponse.json(
-        {
-          ok: true,
-          mode: "payments",
-          message: "Payment sync started — this runs in the background for all consults.",
-        },
-        { status: 202 }
-      );
+      return NextResponse.json({
+        ok: true,
+        mode: "payments",
+        ...result,
+        message: `Payment sync complete — updated ${result.updated} of ${result.total} consult(s)${result.errors > 0 ? `, ${result.errors} failed` : ""}.`,
+      });
     }
 
     try {

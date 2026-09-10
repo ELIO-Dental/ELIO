@@ -251,29 +251,28 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     setSyncingPayments(true);
     appendSyncLog("Payment sync started…");
     try {
+      // Re-derives from already-synced Postgres rows (no Dentally API calls), so this
+      // is synchronous now and returns the real result directly — previously it was
+      // backgrounded and the real {total, updated, errors} counts went only to the
+      // audit log, never to the user, so per-consult failures were invisible.
       const res = await fetch("/flow/api/sync/dentally", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "payments" }),
       });
       const body = await res.json().catch(() => ({}));
-      if (res.status === 202) {
-        appendSyncLog(body.message ?? "Payment sync started in the background.");
-        toast.success("Payment sync started", {
-          description: body.message ?? "Refreshing financial fields for all consults in the background.",
-        });
-        // Background job — refresh now and again shortly so the table catches up.
-        await loadDashboard();
-        window.setTimeout(() => void loadDashboard(), 5000);
-        return;
-      }
       if (!res.ok) throw new Error(body.error ?? "Payment sync failed");
-      appendSyncLog(
-        body.message ?? `Payment sync complete — updated ${body.updated ?? 0} of ${body.total ?? 0}.`,
-      );
-      toast.success("Payment sync complete", {
-        description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s).`,
-      });
+      const errors = Number(body.errors ?? 0);
+      appendSyncLog(body.message ?? `Payment sync complete — updated ${body.updated ?? 0} of ${body.total ?? 0}.`);
+      if (errors > 0) {
+        toast.warning("Payment sync completed with errors", {
+          description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s) — ${errors} failed. See server logs for details.`,
+        });
+      } else {
+        toast.success("Payment sync complete", {
+          description: `Updated ${body.updated ?? 0} of ${body.total ?? 0} consult(s).`,
+        });
+      }
       await loadDashboard();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Run Portal sync first if data is stale.";
@@ -282,6 +281,51 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     } finally {
       setSyncingPayments(false);
     }
+  }
+
+  /** Polls the real DentallySyncRun status to actual completion instead of guessing
+   *  with a fixed timeout. Previously the dashboard refreshed once at +8s regardless
+   *  of whether the background job (which can legitimately take much longer) had
+   *  finished — a slower/larger sync would leave the table silently showing
+   *  pre-sync data with no further signal. Also: the automatic cosmetic-consult
+   *  import (registered in instrumentation.ts) only runs once this status flips to
+   *  SUCCESS/PARTIAL/FAILED, so polling here is what lets the log correctly report
+   *  when the REAL data (not a stale manual re-scan) has actually landed. */
+  async function pollFullSyncToCompletion() {
+    const deadlineMs = Date.now() + 15 * 60 * 1000; // full sync can legitimately run long
+    let lastPhase: string | null = null;
+    while (Date.now() < deadlineMs) {
+      await new Promise((r) => setTimeout(r, 3000));
+      let statusData: { latestRun: { status: string; currentPhase: string | null; errorMessage: string | null } | null };
+      try {
+        const statusRes = await fetch("/flow/api/sync/dentally/status");
+        if (!statusRes.ok) continue; // transient — keep polling rather than giving up
+        statusData = await statusRes.json();
+      } catch {
+        continue; // network blip — keep polling rather than giving up
+      }
+      const run = statusData.latestRun;
+      if (!run) continue;
+      if (run.currentPhase && run.currentPhase !== lastPhase) {
+        lastPhase = run.currentPhase;
+        appendSyncLog(`Syncing ${run.currentPhase.replace(/_/g, " ")}…`);
+      }
+      if (run.status === "SUCCESS" || run.status === "PARTIAL") {
+        appendSyncLog(
+          run.status === "PARTIAL"
+            ? "Full sync finished with some record errors — cosmetic consult import has run automatically."
+            : "Full sync complete — cosmetic consult import has run automatically."
+        );
+        return true;
+      }
+      if (run.status === "FAILED") {
+        appendSyncLog(`Full sync failed: ${run.errorMessage ?? "unknown error"}`);
+        toast.error("Full sync failed", { description: run.errorMessage ?? undefined });
+        return false;
+      }
+    }
+    appendSyncLog("Still syncing — this is taking a while. Check Portal Integrations for live progress.");
+    return false;
   }
 
   async function syncFullFromDentally() {
@@ -295,14 +339,13 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 202) {
-        appendSyncLog(body.message ?? "Full sync started — check Portal Integrations for progress.");
         toast.success("Full sync started", {
-          description:
-            body.message ??
-            "Background Dentally pull started. Check Portal Integrations for progress; consults refresh when it finishes.",
+          description: body.message ?? "Background Dentally pull started — the log below will show live progress.",
         });
         await loadDashboard();
-        window.setTimeout(() => void loadDashboard(), 8000);
+        const finished = await pollFullSyncToCompletion();
+        await loadDashboard();
+        if (finished) toast.success("Full sync complete — dashboard refreshed with the latest data");
         return;
       }
       if (!res.ok) throw new Error(body.error ?? "Full sync failed");
@@ -501,16 +544,30 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
             Refresh
           </Button>
           <Button
-            loading={importing || syncingPayments || syncingFull}
-            onClick={async () => {
-              // Full core pull (background) + immediate consult/payment refresh from cache.
-              await syncFullFromDentally();
-              await importFromDentally();
-              await syncPaymentsFromDentally();
-            }}
+            loading={syncingFull}
+            onClick={() => void syncFullFromDentally()}
+            title="Pulls fresh data from Dentally in the background — the log below shows live progress, and cosmetic consults import automatically once it finishes."
             data-testid="flow-sync-dentally"
           >
             Sync Dentally
+          </Button>
+          <Button
+            variant="secondary"
+            loading={importing || syncingPayments}
+            onClick={async () => {
+              // Previously chained silently after "Sync Dentally," running against
+              // whatever was in Postgres BEFORE that background pull landed — the
+              // toast claimed counts as if reflecting the sync just triggered, while
+              // the real import (via the automatic post-sync hook) happened later
+              // with zero UI feedback. Split out as its own explicit action: re-scan
+              // already-synced data now, without waiting for or triggering a new pull.
+              await importFromDentally();
+              await syncPaymentsFromDentally();
+            }}
+            title="Re-scans already-synced appointments/payments for new consults and updated financials — does not pull fresh data from Dentally."
+            data-testid="flow-refresh-consults-payments"
+          >
+            Refresh consults &amp; payments
           </Button>
           <a
             href="/settings/integrations"

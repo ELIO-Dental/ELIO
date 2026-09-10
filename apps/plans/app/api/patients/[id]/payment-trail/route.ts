@@ -38,9 +38,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
     }));
 
     let dentallyConfigured = true;
+    let warnings: string[] = [];
 
     try {
       const panel = await fetchLivePatientPanel(session.practiceId, detail.patientId);
+      warnings = panel.warnings;
       for (const p of panel.payments) {
         trail.push({
           id: `dentally-${p.id}`,
@@ -70,6 +72,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
       goCardlessPayments: trail.filter((t) => t.source === "gocardless"),
       dentallyPayments: trail.filter((t) => t.source === "dentally"),
       dentallyConfigured,
+      warnings,
     });
   } catch (e) {
     return errorResponse(e);

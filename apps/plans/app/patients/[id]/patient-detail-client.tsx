@@ -198,6 +198,7 @@ export function PatientDetailClient({
       description?: string;
     }>;
     dentallyConfigured: boolean;
+    warnings?: string[];
   } | null>(null);
   const [paymentTrailLoading, setPaymentTrailLoading] = React.useState(false);
   const [paymentTrailError, setPaymentTrailError] = React.useState<string | null>(null);
@@ -245,6 +246,7 @@ export function PatientDetailClient({
       setPaymentTrail({
         trail: data.trail ?? [],
         dentallyConfigured: data.dentallyConfigured !== false,
+        warnings: data.warnings ?? [],
       });
     } catch (err) {
       // Previously this branch set { trail: [], dentallyConfigured: false } on ANY
@@ -989,6 +991,13 @@ export function PatientDetailClient({
             <CardTitle>Payment trail</CardTitle>
           </CardHeader>
           <CardContent>
+            {paymentTrail && paymentTrail.warnings && paymentTrail.warnings.length > 0 && (
+              <div className="mb-3 space-y-0.5 rounded-(--radius-md) border border-(--color-warning)/40 bg-(--color-warning-bg) px-3 py-2 text-caption text-(--color-warning)">
+                {paymentTrail.warnings.map((w, i) => (
+                  <p key={i}>{w}</p>
+                ))}
+              </div>
+            )}
             {paymentTrailLoading || (paymentTrail === null && !paymentTrailError) ? (
               <div className="space-y-3" aria-busy="true" aria-label="Loading payments">
                 <Skeleton className="h-10 w-full" />

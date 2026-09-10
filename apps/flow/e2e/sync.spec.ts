@@ -14,16 +14,23 @@ test.beforeEach(async ({ context }) => {
 });
 
 /** F1.7 — Flow manual Dentally sync API (payments + full modes). */
-test("payment sync API returns 202 for existing consults", async ({ page }) => {
+test("payment sync API runs synchronously and returns real counts", async ({ page }) => {
   await page.goto("/flow/dashboard");
 
+  // No Dentally API calls (re-derives from already-synced Postgres rows), so this
+  // is awaited directly and returns 200 with the real result — NOT backgrounded
+  // like the full sync below. A prior version backgrounded this with 202 and wrote
+  // the real {total, updated, errors} only to the audit log, invisible to the user.
   const res = await page.request.post("/flow/api/sync/dentally", {
     data: { mode: "payments" },
   });
-  expect(res.status(), await res.text()).toBe(202);
+  expect(res.status(), await res.text()).toBe(200);
   const body = await res.json();
   expect(body.ok).toBe(true);
   expect(body.mode).toBe("payments");
+  expect(typeof body.total).toBe("number");
+  expect(typeof body.updated).toBe("number");
+  expect(typeof body.errors).toBe("number");
 });
 
 test("full sync API starts background job or returns configuration error", async ({ page }) => {

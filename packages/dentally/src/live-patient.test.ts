@@ -129,4 +129,49 @@ describe("fetchLivePatientPanel", () => {
     const client = new DentallyClient({ apiKey: "test", fetchImpl: vi.fn() as unknown as typeof fetch });
     await expect(fetchLivePatientPanel("practice-1", "missing", client)).rejects.toThrow("Patient not found");
   });
+
+  it("degrades gracefully when one resource fails instead of discarding results already fetched from the others", async () => {
+    mockFindFirst.mockResolvedValue({
+      id: "elio-p1",
+      dentallyId: "42",
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      phone: "07000000000",
+    });
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/patients/42")) {
+        return new Response(JSON.stringify({ patient: { id: 42, first_name: "Jane", last_name: "Doe" } }));
+      }
+      if (url.includes("/appointments")) {
+        // Simulate an outage on this one endpoint only.
+        return new Response(JSON.stringify({ error: "boom" }), { status: 500 });
+      }
+      if (url.includes("/invoices")) {
+        return new Response(
+          JSON.stringify({
+            invoices: [{ id: 9, patient_id: 42, amount: "1500.00", dated_on: "2026-01-20" }],
+            meta: { total: 1, page: 1, total_pages: 1 },
+          }),
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+
+    const client = new DentallyClient({
+      apiKey: "test",
+      maxRetries: 1,
+      sleepImpl: async () => undefined,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const panel = await fetchLivePatientPanel("practice-1", "elio-p1", client);
+
+    // Invoices still came through even though appointments failed — previously any
+    // one of the four paginate() calls throwing discarded ALL of them.
+    expect(panel.invoices).toHaveLength(1);
+    expect(panel.appointments).toHaveLength(0);
+    expect(panel.warnings.some((w) => w.toLowerCase().includes("appointments"))).toBe(true);
+  });
 });

@@ -56,6 +56,10 @@ type LivePanel = {
     amountPence: number;
   }>;
   fetchedAt: string;
+  /** One resource type failed or was truncated — the rest of the panel still shows
+   *  whatever loaded successfully, so this needs to be visible, not just implied by
+   *  an empty section (which looks identical to "genuinely nothing there"). */
+  warnings?: string[];
 };
 
 function formatWhen(iso: string | null) {
@@ -199,6 +203,13 @@ export function DashboardPatientPanel({
               <p className="text-caption text-(--color-text-tertiary)">
                 Dentally #{panel.patient.dentallyId} · fetched {formatWhen(panel.fetchedAt)}
               </p>
+              {panel.warnings && panel.warnings.length > 0 && (
+                <div className="space-y-0.5 text-caption text-(--color-warning)">
+                  {panel.warnings.map((w, i) => (
+                    <p key={i}>{w}</p>
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
         </SheetHeader>

@@ -66,10 +66,12 @@ test.describe("Flow verification (F4)", () => {
   test("sync payment button triggers API", async ({ page }) => {
     await page.goto("/flow/dashboard");
 
+    // Synchronous (no Dentally API calls, re-derives from already-synced Postgres
+    // rows) — returns 200 with the real result, not a 202 background-job ack.
     const res = await page.request.post("/flow/api/sync/dentally", {
       data: { mode: "payments" },
     });
-    expect(res.status(), await res.text()).toBe(202);
+    expect(res.status(), await res.text()).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.mode).toBe("payments");
