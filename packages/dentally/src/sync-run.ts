@@ -1,18 +1,30 @@
 // Persists Dentally sync run metadata (Phase A.3) for portal status + error surfacing.
-
-import { prisma, type DentallySyncRunStatus, type DentallySyncTrigger } from "@elio/db";
+//
+// IMPORTANT (2026-09-10 live incident): an earlier version of this file auto-failed
+// a RUNNING row whenever it looked heartbeat-stale, and did so as a side effect of
+// ordinary reads (getLatestDentallySyncRun / hasActiveDentallySyncRun) — i.e. every
+// time anyone loaded the Integrations page. Proven live: a run's `lastHeartbeatAt`
+// kept advancing for 9 minutes AFTER we'd already written `status: FAILED` — the
+// Inngest job was never dead, it was just slow (rate-limit backoff, worse with a
+// concurrent Pay fetch hitting the same Dentally API key), and Inngest's own retry
+// backoff between steps can legitimately span many minutes. No fixed timer can tell
+// "slow but alive" apart from "actually dead" here, so we stopped trying to guess on
+// every page load:
+// - Reads (getLatestDentallySyncRun, hasActiveDentallySyncRun) are now PURE — they
+//   never mutate status. What you see reflects exactly what the sync job itself (or
+//   Inngest's onFailure hook after retries are truly exhausted) wrote.
+// - failStaleDentallySyncRuns still exists, but only runs from two places a human or
+//   an ops schedule explicitly triggers: the "Reset stuck sync" button (immediate,
+//   informed choice) and the daily cron backstop (STALE_RUNNING_MS, set to just
+//   past Inngest's own `timeouts.finish: "12h"` so it only ever fires once Inngest
+//   itself must already have given up).
+import { prisma, Prisma, type DentallySyncRunStatus, type DentallySyncTrigger } from "@elio/db";
 import type { SyncResult } from "./sync";
 
-/** Absolute ceiling: a run older than this with status RUNNING is abandoned no matter
- * what. Kept high because multi-step Inngest syncs can legitimately span wall-clock
- * time across checkpoints on a very large practice. The heartbeat check below is what
- * actually catches a dead worker quickly — this is just the belt-and-braces backstop. */
-export const STALE_RUNNING_MS = 2 * 60 * 60 * 1000; // 2h
-
-/** A run whose heartbeat hasn't moved in this long is treated as stalled — a healthy
- * sync heartbeats after every Dentally page (seconds, not minutes), so this comfortably
- * covers a slow page/retry without making users wait hours to find out a worker died. */
-export const STALE_HEARTBEAT_MS = 10 * 60 * 1000; // 10m
+/** Absolute ceiling for the cron backstop only — set just past Inngest's own function
+ * `timeouts.finish: "12h"` (see inngest.ts) so this can never contradict a run Inngest
+ * itself still considers live. Not used on any read path — see file header. */
+export const STALE_RUNNING_MS = 12.5 * 60 * 60 * 1000; // 12h30m
 
 const STALE_RUNNING_MESSAGE =
   "Sync abandoned: stayed RUNNING with no progress (timeout or background worker unavailable). Click Sync now to retry.";
@@ -94,7 +106,12 @@ export async function finalizeDentallySyncRun(runId: string, result: SyncResult)
       recordErrors:
         result.errors.length > 0
           ? (JSON.parse(JSON.stringify(result.errors.slice(0, 100))) as object)
-          : undefined,
+          : Prisma.JsonNull,
+      // A run that reaches here genuinely finished — clear any stale abandonment
+      // message a prior over-eager stale sweep may have written onto this same row
+      // (see the file header). Without this, a run that actually completed fine could
+      // still show a leftover red error box under a SUCCESS badge.
+      errorMessage: null,
     },
   });
   await prisma.practice.update({
@@ -132,21 +149,17 @@ export async function failLatestRunningDentallySyncRun(practiceId: string, messa
   return { cleared: 1, runId: latest.id };
 }
 
-/** Marks abandoned RUNNING rows FAILED so Integrations unlocks Sync now.
- * Stale = no heartbeat in STALE_HEARTBEAT_MS (catches a dead worker within minutes)
- * OR older than the STALE_RUNNING_MS absolute ceiling regardless of heartbeat. */
+/** Marks RUNNING rows older than STALE_RUNNING_MS as FAILED. Only ever called
+ * explicitly — from the daily cron (apps/shell/app/api/cron/clear-stuck-dentally-sync)
+ * or the ops `?force=1` variant — never from a read path. See file header for why:
+ * heartbeat-based auto-failing on every page load was proven to kill runs that were
+ * still genuinely alive, just slow. */
 export async function failStaleDentallySyncRuns(practiceId?: string) {
-  const nowMs = Date.now();
-  const heartbeatCutoff = new Date(nowMs - STALE_HEARTBEAT_MS);
-  const absoluteCutoff = new Date(nowMs - STALE_RUNNING_MS);
+  const absoluteCutoff = new Date(Date.now() - STALE_RUNNING_MS);
   const stuck = await prisma.dentallySyncRun.findMany({
     where: {
       status: "RUNNING",
-      OR: [
-        { lastHeartbeatAt: { lt: heartbeatCutoff } },
-        { lastHeartbeatAt: null, startedAt: { lt: heartbeatCutoff } },
-        { startedAt: { lt: absoluteCutoff } },
-      ],
+      startedAt: { lt: absoluteCutoff },
       ...(practiceId ? { practiceId } : {}),
     },
     select: { id: true, practiceId: true },
@@ -176,22 +189,26 @@ export async function failStaleDentallySyncRuns(practiceId?: string) {
   return { cleared: stuck.length };
 }
 
+/** Pure read — does not mutate. See file header for why this no longer auto-fails a
+ *  stale-looking row: a live sync's real progress must never be second-guessed just
+ *  because someone loaded this page. */
 export async function getLatestDentallySyncRun(practiceId: string) {
-  await failStaleDentallySyncRuns(practiceId);
   return prisma.dentallySyncRun.findFirst({
     where: { practiceId },
     orderBy: { startedAt: "desc" },
   });
 }
 
-/** True when a non-stale RUNNING sync should block a new Sync now.
- * failStaleDentallySyncRuns above already flips anything stale to FAILED, so any
- * row still RUNNING here is heartbeating and genuinely active — no separate age
- * check needed (a prior version re-checked startedAt against the 2h ceiling here,
- * which incorrectly let a second sync start underneath a legitimately long-running
- * one once it passed 2h). */
+/** True when a RUNNING sync should block a new "Sync now" click. Pure read — does
+ * not auto-fail anything (see file header). This is a UX convenience only, not the
+ * correctness guard against duplicate work: Inngest's own
+ * `concurrency: [{ limit: 1, key: practiceId }]` (inngest.ts) is what actually
+ * prevents two real syncs from running at once — if a click gets through while an
+ * old run is secretly dead, Inngest just queues it, and if the old run turns out to
+ * still be alive, letting the click through was correct anyway. Genuinely stuck runs
+ * are cleared via the "Reset stuck sync" button or the daily cron backstop, not by
+ * silently overriding what this returns. */
 export async function hasActiveDentallySyncRun(practiceId: string) {
-  await failStaleDentallySyncRuns(practiceId);
   const active = await prisma.dentallySyncRun.findFirst({
     where: { practiceId, status: "RUNNING" },
     select: { id: true },

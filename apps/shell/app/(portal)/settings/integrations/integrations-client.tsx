@@ -47,10 +47,13 @@ interface IntegrationStatus {
   } | null;
 }
 
-/** Mirrors STALE_HEARTBEAT_MS in @elio/dentally — if the run hasn't heartbeated in
- * this long the background worker is almost certainly dead; offer a manual reset
- * instead of making the user wait out the server-side check on its own schedule. */
-const HEARTBEAT_LOOKS_STUCK_MS = 3 * 60 * 1000;
+/** Purely a suggestion to the user, never an automatic action (the backend no longer
+ * auto-fails a run based on heartbeat age — a live 2026-09-10 incident proved a
+ * healthy Inngest sync's own retry backoff can legitimately go quiet for many
+ * minutes, especially under Dentally rate-limit contention). This just surfaces the
+ * "Reset stuck sync" option; the human decides whether it's actually dead. Kept
+ * generous so it doesn't nag mid-backoff. */
+const HEARTBEAT_LOOKS_STUCK_MS = 15 * 60 * 1000;
 
 function secondsAgo(iso: string | null): number | null {
   if (!iso) return null;

@@ -41,7 +41,6 @@ export {
   heartbeatDentallySyncRun,
   resolveRunStatus,
   STALE_RUNNING_MS,
-  STALE_HEARTBEAT_MS,
 } from "./src/sync-run";
 
 export { getPatient, getPatients, getAppointments, getTreatments, getInvoices, getPayments, getAllPaymentsForPatient, getAccounts, getPaymentPlans } from "./src/queries";
