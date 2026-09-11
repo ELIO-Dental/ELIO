@@ -67,6 +67,37 @@ describe("calculatePrivateEarnings — §6.3, £50 cosmetic consultation exclusi
     const result = calculatePrivateEarnings("dentist-1", treatments, startDate, endDate, 50);
     expect(result.grossPrivateRevenuePence).toBe(0);
   });
+
+  // Legacy AuraPay clamped an out-of-range split % (e.g. a typo'd 150) to [0, 100] and
+  // warned rather than using it as-is — a prior version of this function had dropped
+  // that clamp entirely, so a bad dentist-record value would silently produce a wrong
+  // split instead of being capped.
+  it("clamps a split % above 100 and reports a warning", () => {
+    const treatments: TreatmentRecord[] = [
+      { id: "t1", dentistId: "dentist-1", completedAt: "2026-06-10", amountPence: 100000, isCosmeticConsultation: false },
+    ];
+    const result = calculatePrivateEarnings("dentist-1", treatments, startDate, endDate, 150);
+    expect(result.privateEarningsPence).toBe(100000); // 100% of £1000, not 150%
+    expect(result.splitPercentWarning).toMatch(/150/);
+    expect(result.splitPercentWarning).toMatch(/clamped to 100/);
+  });
+
+  it("clamps a negative split % to 0 and reports a warning", () => {
+    const treatments: TreatmentRecord[] = [
+      { id: "t1", dentistId: "dentist-1", completedAt: "2026-06-10", amountPence: 100000, isCosmeticConsultation: false },
+    ];
+    const result = calculatePrivateEarnings("dentist-1", treatments, startDate, endDate, -10);
+    expect(result.privateEarningsPence).toBe(0);
+    expect(result.splitPercentWarning).toMatch(/clamped to 0/);
+  });
+
+  it("reports no warning for a valid split % (backward compatible)", () => {
+    const treatments: TreatmentRecord[] = [
+      { id: "t1", dentistId: "dentist-1", completedAt: "2026-06-10", amountPence: 100000, isCosmeticConsultation: false },
+    ];
+    const result = calculatePrivateEarnings("dentist-1", treatments, startDate, endDate, 50);
+    expect(result.splitPercentWarning).toBeUndefined();
+  });
 });
 
 describe("calculateFinalPay — §6.5 final formula", () => {

@@ -32,6 +32,11 @@ export interface PrivateEarningsResult {
     amountPence: number;
     excludedAsConsultation: boolean;
   }>;
+  /** Set when privateSplitPercent was outside [0, 100] and had to be clamped —
+   *  legacy AuraPay clamped this too (and surfaced a warning); this restores the
+   *  clamp so a bad dentist-record value (e.g. a typo'd 150) can never silently
+   *  produce a wrong split instead of just being capped at 100%. */
+  splitPercentWarning?: string;
 }
 
 /**
@@ -49,6 +54,12 @@ export function calculatePrivateEarnings(
   let grossPrivateRevenuePence = 0;
   let consultationExclusionsPence = 0;
   const lineItems: PrivateEarningsResult["lineItems"] = [];
+
+  const clampedSplitPercent = Math.min(100, Math.max(0, privateSplitPercent));
+  const splitPercentWarning =
+    clampedSplitPercent !== privateSplitPercent
+      ? `Private split % (${privateSplitPercent}) is out of range — clamped to ${clampedSplitPercent}%. Check this dentist's split percent.`
+      : undefined;
 
   for (const t of treatments) {
     // Only THIS dentist's treatment — another dentist's never counts.
@@ -70,9 +81,15 @@ export function calculatePrivateEarnings(
     lineItems.push({ treatmentId: t.id, amountPence: amount, excludedAsConsultation: false });
   }
 
-  const privateEarningsPence = Math.round((grossPrivateRevenuePence * privateSplitPercent) / 100);
+  const privateEarningsPence = Math.round((grossPrivateRevenuePence * clampedSplitPercent) / 100);
 
-  return { grossPrivateRevenuePence, consultationExclusionsPence, privateEarningsPence, lineItems };
+  return {
+    grossPrivateRevenuePence,
+    consultationExclusionsPence,
+    privateEarningsPence,
+    lineItems,
+    ...(splitPercentWarning ? { splitPercentWarning } : {}),
+  };
 }
 
 export interface PercentageSplitPayslipInput {

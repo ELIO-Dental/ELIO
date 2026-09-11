@@ -119,7 +119,10 @@ export function DentistsManager({ dentists }: { dentists: DentistListItem[] }) {
       const body = {
         name: draft.name.trim(),
         email: draft.email.trim() || null,
-        privateSplitPercent: Number(draft.privateSplitPercent) || 0,
+        // Clamped client-side (form) AND server-side (calculatePrivateEarnings in
+        // packages/pay-engine) — a bad value (e.g. a typo'd 150) must never reach
+        // payroll math even if it somehow gets saved another way.
+        privateSplitPercent: Math.min(100, Math.max(0, Number(draft.privateSplitPercent) || 0)),
         udaRate: Number(draft.udaRate) || 0,
         nhsPerformerNumber: draft.nhsPerformerNumber.trim() || null,
         dentallyPractitionerId: draft.dentallyPractitionerId.trim() || null,
@@ -329,6 +332,8 @@ export function DentistsManager({ dentists }: { dentists: DentistListItem[] }) {
                     id="dentist-split"
                     type="number"
                     step="0.01"
+                    min={0}
+                    max={100}
                     value={draft.privateSplitPercent}
                     onChange={(e) => setDraft({ ...draft, privateSplitPercent: e.target.value })}
                   />

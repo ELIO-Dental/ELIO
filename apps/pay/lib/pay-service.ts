@@ -1032,6 +1032,9 @@ export async function calculatePayslipForDentist(practiceId: string, payPeriodId
   if (dentist.payType === "PERCENTAGE_SPLIT") {
     const splitPercent = rates.privateSplitPercent ?? 0;
     const earnings = calculatePrivateEarnings(dentistId, treatments, periodStartIso, periodEndIso, splitPercent);
+    if (earnings.splitPercentWarning) {
+      console.warn(`[pay-service] practice=${practiceId} dentist=${dentistId}: ${earnings.splitPercentWarning}`);
+    }
     const nhs = resolveNhsUdasForCalc(
       { nhsPerformerNumber: dentist.nhsPerformerNumber, udaRatePence: rates.udaRatePence },
       payLine?.udas ? Number(payLine.udas) : 0
@@ -1210,10 +1213,18 @@ export async function savePayslipEntry(
   const udaRatePence = isNhs ? (existing.udaRatePence ?? rates.udaRatePence ?? 0) : 0;
   const nhsEarningsPence = Math.round(udas * udaRatePence);
   const grossPrivateRevenuePence = input.grossPrivateRevenuePence ?? existing.grossPrivateRevenuePence ?? 0;
-  const privateSplitPercent =
-    existing.privateSplitPercent != null
-      ? Number(existing.privateSplitPercent)
-      : Number(rates.privateSplitPercent ?? dentist.privateSplitPercent ?? 0);
+  // Clamped — this recompute path (manual edit of gross private revenue) bypasses
+  // calculatePrivateEarnings' own clamp in packages/pay-engine, so a bad dentist-record
+  // split % (e.g. a typo'd 150) must be capped here too, not just on the auto-calculate path.
+  const privateSplitPercent = Math.min(
+    100,
+    Math.max(
+      0,
+      existing.privateSplitPercent != null
+        ? Number(existing.privateSplitPercent)
+        : Number(rates.privateSplitPercent ?? dentist.privateSplitPercent ?? 0)
+    )
+  );
   // When gross changes without an explicit privateEarnings override, recompute net private.
   const privateEarningsPence =
     input.privateEarningsPence != null
