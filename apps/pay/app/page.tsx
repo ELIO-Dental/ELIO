@@ -15,6 +15,7 @@ import {
   PageHeader,
 } from "@elio/ui";
 import { FileWarning, Calendar, Plus, Users, FileText, TrendingUp } from "lucide-react";
+import { PayStatCard } from "@/components/pay-stat-card";
 import { canPayViewAll, canPayViewAny, resolvePayPractitionerScope } from "@/lib/pay-scope";
 import { parseUnmappedFromFetchResult } from "@/lib/unmapped-practitioners";
 import { ACTIVE_DENTIST_WHERE } from "@/lib/active-dentists";
@@ -114,93 +115,79 @@ export default async function PayDashboardPage() {
       />
 
       <div className="mt-8 flex flex-col gap-6">
-        {/* AuraPay-style stats: value + label, compact (not hero money type). */}
+        {/* Same compact KPI-tile spec as apps/plans (PlansStatCard) and apps/flow
+            (FlowStatCard) — previously this dashboard was the odd one out with a
+            bespoke icon-in-a-box Card layout, the only visual inconsistency found
+            across the three module dashboards. */}
         {viewAll ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="flex items-center gap-3 px-5 py-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-primary-50) text-(--color-primary-600)">
-                <Users className="size-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{dentistCount}</p>
-                <p className="text-caption text-(--color-text-secondary)">Active Dentists</p>
-              </div>
-            </Card>
-            <Card className="flex items-center gap-3 px-5 py-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-success)/10 text-(--color-success)">
-                <FileText className="size-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tabular-nums text-(--color-text-primary)">{periodCount}</p>
-                <p className="text-caption text-(--color-text-secondary)">Pay Periods</p>
-              </div>
-            </Card>
-            <Card className="flex items-center gap-3 px-5 py-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-(--color-warning)/10 text-(--color-warning)">
-                <TrendingUp className="size-5" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-2xl font-bold text-(--color-text-primary)">{latestPeriodLabel}</p>
-                <p className="text-caption text-(--color-text-secondary)">Latest Period</p>
-              </div>
-            </Card>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
+            <PayStatCard label="Active dentists" value={dentistCount} icon={Users} />
+            <PayStatCard label="Pay periods" value={periodCount} icon={FileText} tone="success" />
+            <PayStatCard label="Latest period" value={latestPeriodLabel} icon={TrendingUp} tone="accent" />
           </div>
         ) : null}
 
-        {viewAll && provisionalCount > 0 && currentPeriod ? (
-          <Card className="flex items-center justify-between" accentColor="var(--color-warning)">
-            <div className="flex items-center gap-3">
-              <FileWarning className="size-5 text-(--color-warning)" />
-              <div>
-                <p className="text-body font-medium text-(--color-text-primary)">
-                  {provisionalCount} provisional payslip(s)
-                </p>
-                <p className="text-body-sm text-(--color-text-secondary)">
-                  Confirm finance term/fee, then recalculate before finalize.
-                </p>
+        {/* Consolidated into one panel instead of up to three near-identical
+            stacked cards (each repeating the same icon + layout) — found live:
+            a period with all three flags active produced three full-width blocks
+            in a row, which read as cluttered/repetitive rather than premium. */}
+        {viewAll && currentPeriod && (provisionalCount > 0 || unmappedCount > 0 || needsReview > 0) ? (
+          <Card className="border-(--color-warning)/25 bg-(--color-warning)/5" accentColor="var(--color-warning)">
+            <CardHeader>
+              <div className="flex items-center gap-2.5">
+                <FileWarning className="size-5 shrink-0 text-(--color-warning)" aria-hidden />
+                <CardTitle className="text-h3">Needs attention — {formatPayPeriodMonthLabel(currentPeriod.periodStart)}</CardTitle>
               </div>
-            </div>
-            <Link href={`/pay-periods/${currentPeriod.id}`}>
-              <Button variant="secondary">Open period</Button>
-            </Link>
-          </Card>
-        ) : null}
-
-        {viewAll && unmappedCount > 0 && currentPeriod ? (
-          <Card className="flex items-center justify-between" accentColor="var(--color-warning)">
-            <div className="flex items-center gap-3">
-              <FileWarning className="size-5 text-(--color-warning)" />
-              <div>
-                <p className="text-body font-medium text-(--color-text-primary)">
-                  {unmappedCount} unmapped practitioner flag(s)
-                </p>
-                <p className="text-body-sm text-(--color-text-secondary)">
-                  Map Dentally user.id on Dentists, then re-fetch before calculation.
-                </p>
-              </div>
-            </div>
-            <Link href={`/pay-periods/${currentPeriod.id}`}>
-              <Button variant="secondary">Open ops review</Button>
-            </Link>
-          </Card>
-        ) : null}
-
-        {viewAll && needsReview > 0 && currentPeriod ? (
-          <Card className="flex items-center justify-between" accentColor="var(--color-warning)">
-            <div className="flex items-center gap-3">
-              <FileWarning className="size-5 text-(--color-warning)" />
-              <div>
-                <p className="text-body font-medium text-(--color-text-primary)">
-                  {needsReview} Compass line(s) need manual review
-                </p>
-                <p className="text-body-sm text-(--color-text-secondary)">
-                  Unmatched performer numbers or a name mismatch since the last statement.
-                </p>
-              </div>
-            </div>
-            <Link href={`/pay-periods/${currentPeriod.id}`}>
-              <Button variant="secondary">Review now</Button>
-            </Link>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-(--color-warning)/15">
+                {provisionalCount > 0 && (
+                  <li className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div>
+                      <p className="text-body-sm font-medium text-(--color-text-primary)">
+                        {provisionalCount} provisional payslip{provisionalCount === 1 ? "" : "s"}
+                      </p>
+                      <p className="text-caption text-(--color-text-secondary)">
+                        Confirm finance term/fee, then recalculate before finalize.
+                      </p>
+                    </div>
+                    <Link href={`/pay-periods/${currentPeriod.id}`}>
+                      <Button variant="secondary" size="sm">Open period</Button>
+                    </Link>
+                  </li>
+                )}
+                {unmappedCount > 0 && (
+                  <li className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div>
+                      <p className="text-body-sm font-medium text-(--color-text-primary)">
+                        {unmappedCount} unmapped practitioner flag{unmappedCount === 1 ? "" : "s"}
+                      </p>
+                      <p className="text-caption text-(--color-text-secondary)">
+                        Map Dentally user.id on Dentists, then re-fetch before calculation.
+                      </p>
+                    </div>
+                    <Link href={`/pay-periods/${currentPeriod.id}`}>
+                      <Button variant="secondary" size="sm">Open ops review</Button>
+                    </Link>
+                  </li>
+                )}
+                {needsReview > 0 && (
+                  <li className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div>
+                      <p className="text-body-sm font-medium text-(--color-text-primary)">
+                        {needsReview} Compass line{needsReview === 1 ? "" : "s"} need manual review
+                      </p>
+                      <p className="text-caption text-(--color-text-secondary)">
+                        Unmatched performer numbers or a name mismatch since the last statement.
+                      </p>
+                    </div>
+                    <Link href={`/pay-periods/${currentPeriod.id}`}>
+                      <Button variant="secondary" size="sm">Review now</Button>
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </CardContent>
           </Card>
         ) : null}
 
