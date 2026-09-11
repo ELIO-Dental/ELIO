@@ -29,6 +29,7 @@ import {
   TablePagination,
   useClientTablePagination,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { Users } from "lucide-react";
 
@@ -359,6 +360,10 @@ function TeamUsersTable({
   onRefresh: () => void;
 }) {
   const { items, page, pageSize, totalCount, setPage, showPagination } = useClientTablePagination(users, 25);
+  // Deactivating a colleague is easy to misclick (a small button in a dense table
+  // row) and immediately locks them out — confirm before it happens. Reactivating is
+  // low-risk/reversible and stays a direct one-click action.
+  const [deactivateTarget, setDeactivateTarget] = React.useState<TeamUser | null>(null);
 
   function dentistOptionsFor(user: TeamUser): TeamDentist[] {
     return dentists.filter((d) => !d.userId || d.userId === user.id);
@@ -442,7 +447,7 @@ function TeamUsersTable({
                     size="sm"
                     disabled={u.id === currentUserId}
                     loading={updatingId === u.id}
-                    onClick={() => onUpdate(u.id, { active: !u.active })}
+                    onClick={() => (u.active ? setDeactivateTarget(u) : onUpdate(u.id, { active: true }))}
                     data-testid={`deactivate-${u.email}`}
                   >
                     {u.active ? "Deactivate" : "Reactivate"}
@@ -453,6 +458,21 @@ function TeamUsersTable({
           ))}
         </TableBody>
       </Table>
+      <ConfirmDialog
+        open={deactivateTarget !== null}
+        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+        title="Deactivate this team member?"
+        description={
+          deactivateTarget
+            ? `${deactivateTarget.email} will immediately lose access to this practice. You can reactivate them at any time.`
+            : undefined
+        }
+        confirmLabel="Deactivate"
+        variant="destructive"
+        onConfirm={() => {
+          if (deactivateTarget) onUpdate(deactivateTarget.id, { active: false });
+        }}
+      />
     </TablePanel>
   );
 }

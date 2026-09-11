@@ -146,6 +146,10 @@ export function PortalLayout({ userEmail, role, canViewTeam, children }: PortalL
                   <button
                     className="flex min-w-0 flex-1 items-center gap-2.5 rounded-(--radius-md) p-2 text-left transition-colors hover:bg-(--color-border-subtle)"
                     data-testid="account-switcher"
+                    // When collapsed, only the avatar initials render — without this
+                    // a screen reader announces just the two-letter initials with no
+                    // indication the button opens an account menu.
+                    aria-label={collapsed ? `Account menu — ${displayName}` : undefined}
                   >
                     <Avatar size="sm" initials={initials} />
                     {!collapsed && (

@@ -98,6 +98,7 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
   const [apiKey, setApiKey] = React.useState("");
   const [keySaved, setKeySaved] = React.useState(false);
   const [clearingStuck, setClearingStuck] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
   /** Re-renders once a second while RUNNING so "updated Ns ago" and the stuck-run
    *  detection below stay live without waiting for the next poll tick. */
   const [, forceTick] = React.useState(0);
@@ -278,6 +279,17 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
       }
     } finally {
       setTesting(false);
+    }
+  }
+
+  // Previously this had no loading guard of its own — a fast double-click fired two
+  // overlapping status fetches with no visible acknowledgement of the first click.
+  async function onManualRefresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -469,7 +481,13 @@ export function IntegrationsClient({ canManage }: { canManage: boolean }) {
                   Test connection
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={() => void load()} data-testid="dentally-status-refresh">
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={refreshing}
+                onClick={() => void onManualRefresh()}
+                data-testid="dentally-status-refresh"
+              >
                 <RefreshCw className="mr-1 h-4 w-4" />
                 Refresh
               </Button>

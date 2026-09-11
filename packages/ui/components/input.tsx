@@ -10,13 +10,24 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, success, disabled, ...props }, ref) => {
+  ({ className, error, success, disabled, id, "aria-describedby": describedBy, ...props }, ref) => {
+    // Screen-reader parity for the existing visual error cue (red border + shake +
+    // text below the field) — previously the error text had no id and the input had
+    // no aria-invalid/aria-describedby, so assistive tech gave no indication a field
+    // was invalid or why. Purely additive: no visual or behavioral change.
+    const generatedId = React.useId();
+    const errorId = error ? `${id ?? generatedId}-error` : undefined;
+    const combinedDescribedBy = [describedBy, errorId].filter(Boolean).join(" ") || undefined;
+
     return (
       <div className="w-full">
         <div className="relative">
           <input
             ref={ref}
+            id={id}
             disabled={disabled}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={combinedDescribedBy}
             className={cn(
               "h-10 w-full rounded-(--radius-md) border bg-(--color-surface) px-3 text-body text-(--color-text-primary) shadow-(--shadow-xs) outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-(--color-text-tertiary)",
               "border-(--color-border) focus:border-(--color-primary-600) focus:shadow-(--shadow-glow-primary)",
@@ -34,7 +45,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             />
           )}
         </div>
-        {error && <p className="mt-1 text-caption text-(--color-danger)">{error}</p>}
+        {error && (
+          <p id={errorId} className="mt-1 text-caption text-(--color-danger)">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
