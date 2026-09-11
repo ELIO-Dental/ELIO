@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardContent, Switch, Label, Input, Button, toast } from "@elio/ui";
+import { Card, CardHeader, CardTitle, CardContent, Switch, Label, Input, Button, ConfirmDialog, toast } from "@elio/ui";
 import type { ModuleId } from "@elio/db";
 
 interface Props {
@@ -29,6 +29,7 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
   const [suspendedState, setSuspendedState] = React.useState(suspended);
   const [savingPlan, setSavingPlan] = React.useState(false);
   const [togglingSuspend, setTogglingSuspend] = React.useState(false);
+  const [confirmSuspendOpen, setConfirmSuspendOpen] = React.useState(false);
 
   async function onToggleLicence(moduleId: ModuleId, next: boolean) {
     const key = `licence-${moduleId}`;
@@ -138,7 +139,13 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
           </div>
           <div className="flex items-center justify-between border-t border-(--color-border-subtle) pt-4">
             <Label htmlFor="suspend">{suspendedState ? "Suspended" : "Active"}</Label>
-            <Button variant={suspendedState ? "primary" : "destructive"} size="sm" onClick={onToggleSuspend} loading={togglingSuspend} data-testid="suspend-toggle">
+            <Button
+              variant={suspendedState ? "primary" : "destructive"}
+              size="sm"
+              onClick={() => (suspendedState ? onToggleSuspend() : setConfirmSuspendOpen(true))}
+              loading={togglingSuspend}
+              data-testid="suspend-toggle"
+            >
               {suspendedState ? "Reactivate" : "Suspend"}
             </Button>
           </div>
@@ -170,6 +177,19 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
           ))}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmSuspendOpen}
+        onOpenChange={setConfirmSuspendOpen}
+        title="Suspend this practice?"
+        description="This locks out every user at this practice immediately. You can reactivate it later."
+        confirmLabel="Suspend"
+        variant="destructive"
+        onConfirm={async () => {
+          setConfirmSuspendOpen(false);
+          await onToggleSuspend();
+        }}
+      />
     </div>
   );
 }
