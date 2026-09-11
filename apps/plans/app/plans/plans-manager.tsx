@@ -139,6 +139,7 @@ export function PlansManager({
   const [newPrice, setNewPrice] = React.useState("");
   const [effectiveDate, setEffectiveDate] = React.useState("");
   const [priceProcessing, setPriceProcessing] = React.useState(false);
+  const [priceIncreaseConfirmOpen, setPriceIncreaseConfirmOpen] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<PlanRow | null>(null);
   const [priceResult, setPriceResult] = React.useState<{
@@ -246,13 +247,13 @@ export function PlansManager({
       toast.error("Please enter a valid price");
       return;
     }
-    if (
-      !confirm(
-        `Update ${pricePlan.name} to ${formatMoneyGBP(Math.round(priceNum * 100))}/month and email all active members?`,
-      )
-    ) {
-      return;
-    }
+    setPriceIncreaseConfirmOpen(true);
+  }
+
+  async function submitPriceIncrease() {
+    if (!pricePlan || !newPrice) return;
+    const priceNum = parseFloat(newPrice);
+    if (Number.isNaN(priceNum) || priceNum <= 0) return;
     setPriceProcessing(true);
     try {
       const res = await fetch(`/plans/api/plans/${pricePlan.id}/price-increase`, {
@@ -783,6 +784,22 @@ export function PlansManager({
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={priceIncreaseConfirmOpen}
+        onOpenChange={setPriceIncreaseConfirmOpen}
+        title={pricePlan ? `Update ${pricePlan.name}'s price?` : "Update price?"}
+        description={
+          pricePlan && newPrice && !Number.isNaN(parseFloat(newPrice))
+            ? `This updates ${pricePlan.name} to ${formatMoneyGBP(Math.round(parseFloat(newPrice) * 100))}/month and emails all active members.`
+            : "This updates the plan price and emails all active members."
+        }
+        confirmLabel="Apply price change"
+        onConfirm={async () => {
+          setPriceIncreaseConfirmOpen(false);
+          await submitPriceIncrease();
+        }}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

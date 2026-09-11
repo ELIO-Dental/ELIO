@@ -230,12 +230,18 @@ export function GuideManager({
                   </div>
                   {canEdit && (
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(selected)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Edit ${selected.title}`}
+                        onClick={() => openEdit(selected)}
+                      >
                         <Pencil className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={`Delete ${selected.title}`}
                         loading={deleting}
                         onClick={() => setDeleteTargetId(selected.id)}
                       >

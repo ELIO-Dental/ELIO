@@ -85,6 +85,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = React.useState<string | null>(null);
   const [reassigning, setReassigning] = React.useState(false);
+  const [reassignConfirmOpen, setReassignConfirmOpen] = React.useState(false);
 
   const [dentallyPlanName, setDentallyPlanName] = React.useState("");
   const [planModelId, setPlanModelId] = React.useState("");
@@ -300,7 +301,7 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
             </Dialog>
             <Button
               variant="secondary"
-              onClick={handleReassign}
+              onClick={() => setReassignConfirmOpen(true)}
               loading={reassigning}
               title="Refetches every linked patient from Dentally one at a time — can take a while for a large roster."
             >
@@ -337,6 +338,18 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={reassignConfirmOpen}
+        onOpenChange={setReassignConfirmOpen}
+        title="Reassign plans from Dentally?"
+        description="This refetches every linked patient from Dentally and reassigns their plan mapping based on the current rules. It can take a while for a large roster."
+        confirmLabel="Reassign"
+        onConfirm={async () => {
+          setReassignConfirmOpen(false);
+          await handleReassign();
+        }}
+      />
 
       <ConfirmDialog
         open={!!deleteTargetId}

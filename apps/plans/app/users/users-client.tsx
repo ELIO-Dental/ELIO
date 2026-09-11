@@ -24,6 +24,7 @@ import {
   TablePagination,
   useClientTablePagination,
   toast,
+  ConfirmDialog,
 } from "@elio/ui";
 import { Users as UsersIcon } from "lucide-react";
 
@@ -58,6 +59,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = React.useState<PracticeUser | null>(null);
   const showSkeleton = useSkeleton(loading);
   const usersRef = React.useRef(users);
   usersRef.current = users;
@@ -140,14 +142,36 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   }
 
   return (
-    <PlansUsersTable
-      users={users}
-      canManage={canManage}
-      currentUserId={currentUserId}
-      pendingId={pendingId}
-      onUpdate={updateUser}
-      onRefresh={() => refetch({ soft: true })}
-    />
+    <>
+      <PlansUsersTable
+        users={users}
+        canManage={canManage}
+        currentUserId={currentUserId}
+        pendingId={pendingId}
+        onUpdate={(id, patch) => {
+          if (patch.active === false) {
+            const target = users.find((u) => u.id === id);
+            if (target) setDeactivateTarget(target);
+            return;
+          }
+          void updateUser(id, patch);
+        }}
+        onRefresh={() => refetch({ soft: true })}
+      />
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+        title={`Deactivate ${deactivateTarget?.email ?? "this user"}?`}
+        description="This revokes their access immediately. You can reactivate them later."
+        confirmLabel="Deactivate"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deactivateTarget) return;
+          await updateUser(deactivateTarget.id, { active: false });
+          setDeactivateTarget(null);
+        }}
+      />
+    </>
   );
 }
 
