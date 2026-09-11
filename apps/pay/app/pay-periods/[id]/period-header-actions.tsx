@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Button, ConfirmDialog } from "@elio/ui";
 import { usePayPeriodActions } from "./pay-period-actions-provider";
 
 /** Legacy payslip period header actions (Y2.1). */
-export function PeriodHeaderActions() {
+export function PeriodHeaderActions({ periodId }: { periodId: string }) {
   const {
     locked,
     payslipCount,
@@ -47,6 +48,9 @@ export function PeriodHeaderActions() {
         data-testid="email-all-pdfs"
       >
         Email All{anyProvisional ? " (provisional)" : ""}
+      </Button>
+      <Button variant="secondary" asChild data-testid="header-occupancy-report">
+        <Link href={`/pay-periods/${periodId}/occupancy`}>Diary occupancy</Link>
       </Button>
       {!locked ? (
         <Button

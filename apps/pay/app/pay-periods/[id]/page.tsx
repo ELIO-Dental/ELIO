@@ -229,7 +229,7 @@ export default async function PayPeriodDetailPage({ params }: { params: Promise<
             </span>
           </span>
         }
-        actions={viewAll ? <PeriodHeaderActions /> : undefined}
+        actions={viewAll ? <PeriodHeaderActions periodId={id} /> : undefined}
       />
 
       {viewAll ? (

@@ -87,6 +87,11 @@ export function PayslipAccordionItem({
                   Provisional
                 </span>
               ) : null}
+              {header.finalPayPence != null && header.finalPayPence < 0 ? (
+                <span className="ml-2 rounded bg-(--color-danger)/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-(--color-danger)">
+                  Negative net pay
+                </span>
+              ) : null}
             </p>
             <p className="mt-0.5 text-caption text-(--color-text-secondary)">
               {subtitle || "—"}
@@ -95,7 +100,13 @@ export function PayslipAccordionItem({
         </div>
         <div className="flex shrink-0 items-center gap-4">
           <div className="text-right">
-            <p className="text-money font-bold tabular-nums text-(--color-text-primary)">
+            <p
+              className={`text-money font-bold tabular-nums ${
+                header.finalPayPence != null && header.finalPayPence < 0
+                  ? "text-(--color-danger)"
+                  : "text-(--color-text-primary)"
+              }`}
+            >
               {formatMoneyGBPOrDash(header.finalPayPence)}
             </p>
             <p className="text-caption text-(--color-text-tertiary)">Net Pay</p>

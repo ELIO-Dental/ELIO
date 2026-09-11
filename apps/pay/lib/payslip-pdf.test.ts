@@ -1,3 +1,4 @@
+import pdfParse from "pdf-parse";
 import { describe, expect, it } from "vitest";
 import {
   buildPatientBreakdownRows,
@@ -6,6 +7,12 @@ import {
   getPayslipPaymentDate,
   type PayslipPdfInput,
 } from "./payslip-pdf";
+
+/** PDFKit subsets/hex-encodes glyphs in its content streams — extract real
+ * rendered text via pdf-parse rather than string-matching the raw buffer. */
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  return (await pdfParse(buffer)).text;
+}
 
 const basePayslip = {
   id: "ps-1",
@@ -134,5 +141,39 @@ describe("generatePayslipPdf (Step 25/29)", () => {
     const text = buffer.toString("latin1");
     // Title is stored uncompressed in the PDF info dict.
     expect(text).toMatch(/PROVISIONAL Payslip/);
+  });
+
+  it("shows a highest-ticket callout, treatment name, and finance fee for patients over £500", async () => {
+    const payslip = {
+      ...basePayslip,
+      clinicWebsite: "https://aura-dental.example.com",
+      privateRevenueLineItems: [
+        ...basePayslip.privateRevenueLineItems,
+        {
+          patientName: "Big Spender",
+          invoiceDate: "2026-03-15",
+          amountPence: 60000,
+          paymentStatus: "paid",
+          flagged: false,
+          amountOutstandingPence: 0,
+          isFinance: true,
+          financeFeePence: 1234,
+          excludedAsConsultation: false,
+          treatment: { dentallyTreatmentCategory: "Full Mouth Reconstruction" },
+        },
+      ],
+    } as unknown as PayslipPdfInput;
+
+    const { buffer } = await generatePayslipPdf(payslip);
+    const text = await extractPdfText(buffer);
+    expect(text).toContain("HIGHEST TICKET");
+    expect(text).toContain("Big Spender");
+    expect(text).toContain("Full Mouth Reconstruction");
+    // Finance fee is shown per-line instead of a generic [FIN] tag.
+    expect(text).not.toContain("[FIN]");
+    expect(text).toContain("12.34");
+    // Footer: clinic website + page count on every page.
+    expect(text).toContain("aura-dental.example.com");
+    expect(text).toMatch(/1 \/ 1/);
   });
 });

@@ -24,6 +24,7 @@ export function enrichPayslipPdfInput(
   return {
     ...payslip,
     practiceName: paySettings.clinic_name || undefined,
+    clinicWebsite: paySettings.clinic_website || undefined,
     financeFeeSplit: resolveShareBp(financeShareBp, practiceFinanceBp),
     financeRateSettings: {
       finance_rate_3m: paySettings.finance_rate_3m,

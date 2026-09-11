@@ -13,6 +13,8 @@ export type PayslipPdfInput = PayslipEntry & {
   privateRevenueLineItems: (PrivateRevenueLineItem & { treatment: Treatment | null })[];
   /** Practice / clinic display name (Step 25 header). */
   practiceName?: string | null;
+  /** Practice / clinic website, shown in the footer. */
+  clinicWebsite?: string | null;
   /** Finance share bp for deduction section (defaults 5000). */
   financeFeeSplit?: number | null;
   /** Optional practice finance rate settings for resolving default fees. */
@@ -60,6 +62,8 @@ export type PatientBreakdownRow = {
   amountPence: number;
   paidTick: boolean;
   isFinance: boolean;
+  financeFeePence: number | null;
+  treatmentName: string | null;
 };
 
 /** Paid private lines only, ascending by invoice date (Step 25). */
@@ -73,6 +77,8 @@ export function buildPatientBreakdownRows(
     amountOutstandingPence?: number | null;
     excludedAsConsultation?: boolean | null;
     isFinance?: boolean | null;
+    financeFeePence?: number | null;
+    treatment?: { dentallyTreatmentCategory?: string | null } | null;
     createdAt?: Date;
   }>
 ): PatientBreakdownRow[] {
@@ -93,6 +99,8 @@ export function buildPatientBreakdownRows(
     amountPence: li.amountPence,
     paidTick: true,
     isFinance: Boolean(li.isFinance),
+    financeFeePence: li.isFinance ? (li.financeFeePence ?? null) : null,
+    treatmentName: li.treatment?.dentallyTreatmentCategory?.trim() || null,
   }));
 
   rows.sort((a, b) => {
@@ -108,6 +116,7 @@ export async function generatePayslipPdf(payslip: PayslipPdfInput): Promise<{ bu
   const doc = new PDFDocument({
     size: "A4",
     margin: 50,
+    bufferPages: true,
     info: {
       Title: payslip.provisional ? "PROVISIONAL Payslip" : "Payslip",
       Author: payslip.practiceName?.trim() || "ELIO Pay",
@@ -268,28 +277,70 @@ export async function generatePayslipPdf(payslip: PayslipPdfInput): Promise<{ bu
   row("Total payment", gbp(payslip.finalPayPence), true);
 
   const patients = buildPatientBreakdownRows(payslip.privateRevenueLineItems);
+
+  const highestTicket = patients.reduce<PatientBreakdownRow | null>(
+    (max, p) => (max == null || p.amountPence > max.amountPence ? p : max),
+    null
+  );
+  if (highestTicket && highestTicket.amountPence > 50000) {
+    doc.moveDown(0.5);
+    const boxY = doc.y;
+    doc.rect(50, boxY, 495, 26).fillColor("#fffbeb").fill();
+    doc.fillColor("#000");
+    doc.fontSize(8).font("Helvetica-Bold").fillColor("#b45309").text("HIGHEST TICKET", 58, boxY + 5);
+    doc.fontSize(10).fillColor("#000").text(
+      `${highestTicket.patientName} — ${gbp(highestTicket.amountPence)}`,
+      58,
+      boxY + 14
+    );
+    if (highestTicket.treatmentName) {
+      doc.fontSize(8).fillColor("#555").text(highestTicket.treatmentName, 300, boxY + 15, {
+        width: 235,
+        align: "right",
+      });
+    }
+    doc.fillColor("#000").font("Helvetica");
+    doc.y = boxY + 32;
+  }
+
   if (patients.length > 0) {
     section("Patient breakdown");
     doc.fontSize(9).font("Helvetica-Bold");
     const y0 = doc.y;
-    doc.text("Patient", 50, y0, { width: 180 });
-    doc.text("Date", 230, y0, { width: 80 });
-    doc.text("Paid", 320, y0, { width: 40 });
-    doc.text("Amount", 370, y0, { width: 120, align: "right" });
+    doc.text("Patient", 50, y0, { width: 130 });
+    doc.text("Treatment", 185, y0, { width: 120 });
+    doc.text("Date", 310, y0, { width: 60 });
+    doc.text("Amount", 375, y0, { width: 90, align: "right" });
+    doc.text("Finance fee", 470, y0, { width: 75, align: "right" });
     doc.moveDown(0.35);
     doc.font("Helvetica");
     for (const p of patients) {
       const y = doc.y;
-      const name = p.isFinance ? `${p.patientName} [FIN]` : p.patientName;
-      doc.text(name, 50, y, { width: 180 });
-      doc.text(p.invoiceDate || "—", 230, y, { width: 80 });
-      doc.text(p.paidTick ? "✓" : "○", 320, y, { width: 40 });
-      doc.text(gbp(p.amountPence), 370, y, { width: 120, align: "right" });
+      doc.text(p.patientName, 50, y, { width: 130 });
+      doc.text(p.treatmentName || "—", 185, y, { width: 120 });
+      doc.text(p.invoiceDate || "—", 310, y, { width: 60 });
+      doc.text(gbp(p.amountPence), 375, y, { width: 90, align: "right" });
+      doc.text(p.isFinance ? gbp(p.financeFeePence) : "—", 470, y, { width: 75, align: "right" });
       doc.moveDown(0.3);
       if (doc.y > 750) {
         doc.addPage();
       }
     }
+  }
+
+  // Footer on every page — clinic name/website + page numbers (Step 25 parity).
+  const pageRange = doc.bufferedPageRange();
+  for (let i = pageRange.start; i < pageRange.start + pageRange.count; i++) {
+    doc.switchToPage(i);
+    const footerY = doc.page.height - 40;
+    doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor("#ccc").stroke();
+    doc.fontSize(7).font("Helvetica").fillColor("#888");
+    doc.text(practice, 50, footerY + 6, { width: 200 });
+    if (payslip.clinicWebsite) {
+      doc.text(payslip.clinicWebsite, 50, footerY + 6, { width: 495, align: "center" });
+    }
+    doc.text(`${i - pageRange.start + 1} / ${pageRange.count}`, 50, footerY + 6, { width: 495, align: "right" });
+    doc.fillColor("#000");
   }
 
   // PDF §7 / Step 25 — no "generated on" timestamp on payslips.
