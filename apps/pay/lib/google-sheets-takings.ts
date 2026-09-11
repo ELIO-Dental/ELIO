@@ -1,4 +1,14 @@
-/** Public Google Sheets CSV fetch for dentist private takings logs (AuraPay parity, no googleapis). */
+/**
+ * Google Sheets fetch for dentist private takings logs (AuraPay parity).
+ *
+ * Tries an authenticated service-account fetch first (works for a sheet shared
+ * privately with the service account email — most real practice sheets aren't
+ * public), falling back to the public CSV export only if no service account is
+ * configured or it can't read that particular sheet. A prior version of this file
+ * only had the public-CSV path, silently regressing any practice whose dentist
+ * takings sheet wasn't set to "anyone with the link" (it worked in the legacy
+ * AuraPay app specifically because that app had this service-account path).
+ */
 
 export interface TakingsSheetRow {
   patientName: string;
@@ -253,12 +263,84 @@ export function parseTakingsSheetValues(values: string[][], month: number, year:
   return rows;
 }
 
-export async function fetchGoogleSheetTakings(
+interface ServiceAccountCredentials {
+  client_email: string;
+  [key: string]: unknown;
+}
+
+/** Parses GOOGLE_SERVICE_ACCOUNT_JSON — raw JSON or base64-encoded JSON, matching AuraPay. */
+function getServiceAccountCredentials(): ServiceAccountCredentials | null {
+  const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!credentialsJson) return null;
+  try {
+    const jsonStr = credentialsJson.trim().startsWith("{")
+      ? credentialsJson
+      : Buffer.from(credentialsJson, "base64").toString("utf-8");
+    const parsed = JSON.parse(jsonStr) as ServiceAccountCredentials;
+    return parsed.client_email ? parsed : null;
+  } catch (err) {
+    console.error("[google-sheets-takings] Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON:", err);
+    return null;
+  }
+}
+
+export function getServiceAccountEmail(): string {
+  return getServiceAccountCredentials()?.client_email ?? "Configure GOOGLE_SERVICE_ACCOUNT_JSON to enable private-sheet access";
+}
+
+/** Lazily-loaded — `googleapis` is a heavy dependency only needed on this one path. */
+async function getGoogleSheetsClient() {
+  const credentials = getServiceAccountCredentials();
+  if (!credentials) return null;
+  try {
+    const { google } = await import("googleapis");
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    });
+    return google.sheets({ version: "v4", auth });
+  } catch (err) {
+    console.error("[google-sheets-takings] Failed to initialize Google Sheets client:", err);
+    return null;
+  }
+}
+
+async function fetchViaServiceAccount(
   spreadsheetId: string,
+  sheetNames: string[],
+  month: number,
+  year: number
+): Promise<{ rows: TakingsSheetRow[]; error?: string } | null> {
+  const sheets = await getGoogleSheetsClient();
+  if (!sheets) return null;
+
+  let lastError: string | undefined;
+  for (const sheetName of sheetNames) {
+    try {
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: sheetName });
+      const values = (response.data.values ?? []) as string[][];
+      if (values.length === 0) continue;
+      const rows = parseTakingsSheetValues(values, month, year);
+      if (rows.length > 0) return { rows };
+    } catch (err: unknown) {
+      const code = (err as { code?: number })?.code;
+      if (code === 404) continue; // sheet name not found, try the next candidate
+      if (code === 403) {
+        lastError = `Sheet not shared with the service account. Share it with: ${getServiceAccountEmail()}`;
+        continue;
+      }
+      lastError = err instanceof Error ? err.message : "Google Sheets API error";
+    }
+  }
+  return { rows: [], error: lastError };
+}
+
+async function fetchViaPublicCsv(
+  spreadsheetId: string,
+  sheetNames: string[],
   month: number,
   year: number
 ): Promise<{ rows: TakingsSheetRow[]; error?: string }> {
-  const sheetNames = getMonthSheetNames(month, year);
   let lastError: string | undefined;
 
   for (const sheetName of sheetNames) {
@@ -269,15 +351,12 @@ export async function fetchGoogleSheetTakings(
 
       const text = await res.text();
       if (text.includes("<!DOCTYPE html>") || text.includes("<html")) {
-        lastError =
-          "Sheet not publicly accessible. Share the spreadsheet as “Anyone with the link can view”, or set an explicit spreadsheetId.";
+        lastError = `Sheet not publicly accessible. Share it as "Anyone with the link can view", or share it with the service account: ${getServiceAccountEmail()}`;
         continue;
       }
 
       const rows = parseTakingsCsv(text, month, year);
-      if (rows.length > 0) {
-        return { rows };
-      }
+      if (rows.length > 0) return { rows };
     } catch (err) {
       lastError = err instanceof Error ? err.message : "Fetch failed";
     }
@@ -286,5 +365,24 @@ export async function fetchGoogleSheetTakings(
   return {
     rows: [],
     error: lastError || `No data found for ${month}/${year}`,
+  };
+}
+
+export async function fetchGoogleSheetTakings(
+  spreadsheetId: string,
+  month: number,
+  year: number
+): Promise<{ rows: TakingsSheetRow[]; error?: string }> {
+  const sheetNames = getMonthSheetNames(month, year);
+
+  const viaServiceAccount = await fetchViaServiceAccount(spreadsheetId, sheetNames, month, year);
+  if (viaServiceAccount && viaServiceAccount.rows.length > 0) return viaServiceAccount;
+
+  const viaPublic = await fetchViaPublicCsv(spreadsheetId, sheetNames, month, year);
+  if (viaPublic.rows.length > 0) return viaPublic;
+
+  return {
+    rows: [],
+    error: viaPublic.error ?? viaServiceAccount?.error ?? `No data found for ${month}/${year}`,
   };
 }

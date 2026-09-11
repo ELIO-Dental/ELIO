@@ -3,6 +3,7 @@ import { scopedDb } from "@elio/db";
 import { importDentistLogForPayslip } from "@/lib/import-dentist-log";
 import {
   fetchGoogleSheetTakings,
+  getServiceAccountEmail,
   resolveTakingsSpreadsheetIds,
 } from "@/lib/google-sheets-takings";
 import { getPaySettings } from "@/lib/pay-settings-service";
@@ -17,7 +18,8 @@ function handleError(err: unknown) {
   return errorResponse(err);
 }
 
-/** Import dentist private log from a public Google Sheet CSV export (AuraPay parity). */
+/** Import dentist private log from a Google Sheet — service-account auth first (for
+ *  privately-shared sheets), public CSV export as fallback (AuraPay parity). */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requirePermission("pay:manual-adjustment");
@@ -74,6 +76,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({
         ok: false,
         error: sheetError || `No entries found in ${dentistName}'s private log for ${month}/${year}`,
+        hint: `If the sheet isn't public, share it with the service account: ${getServiceAccountEmail()}`,
         count: 0,
       });
     }
