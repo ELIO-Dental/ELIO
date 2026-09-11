@@ -1069,17 +1069,63 @@ export async function runReconciliation(practiceId: string, period: string): Pro
 // Redeems (benefit redemption approval workflow)
 // ---------------------------------------------------------------------------
 
-export async function listRedeems(practiceId: string, status?: string) {
+export interface ListRedeemsOptions {
+  status?: string;
+  /** Legacy parity: OLD's GET /api/redeems accepted a patientId filter and
+   *  page/limit (default 20/page) — NEW had silently hardcoded take:200 with no
+   *  filter/paging at all, doing all "paging" by slicing the full array client-side.
+   *  Kept backward-compatible: existing callers pass just (practiceId, status?) and
+   *  still get a plain array back, same as before. */
+  patientId?: string;
+  page?: number;
+  limit?: number;
+}
+
+function planRedeemWhere(opts: ListRedeemsOptions) {
+  return {
+    ...(opts.status ? { status: opts.status as "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "PARTIALLY_EARNED" } : {}),
+    ...(opts.patientId ? { planPatient: { patientId: opts.patientId } } : {}),
+  };
+}
+
+export async function listRedeems(practiceId: string, options: ListRedeemsOptions | string = {}) {
+  // Accept the old (practiceId, status?) call shape too — every existing caller in
+  // this codebase used that form.
+  const opts: ListRedeemsOptions = typeof options === "string" ? { status: options } : options;
   const db = scopedDb(practiceId);
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 200);
+  const page = Math.max(opts.page ?? 1, 1);
+
   return db.planRedeem.findMany({
-    where: { ...(status ? { status: status as "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "PARTIALLY_EARNED" } : {}) },
+    where: planRedeemWhere(opts),
     include: {
       planPatient: { include: { patient: true } },
       redeemRule: true,
       patientPlanEnrolment: { include: { plan: { select: { name: true } } } },
     },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    skip: (page - 1) * limit,
+    take: limit,
+  });
+}
+
+/** Total count matching the same filters as listRedeems — for API pagination metadata. */
+export async function countRedeems(practiceId: string, options: ListRedeemsOptions = {}) {
+  const db = scopedDb(practiceId);
+  return db.planRedeem.count({ where: planRedeemWhere(options) });
+}
+
+/** Single-redeem detail — legacy parity (OLD had GET /api/redeems/[id], NEW never did). */
+export async function getRedeem(practiceId: string, redeemId: string) {
+  const db = scopedDb(practiceId);
+  return db.planRedeem.findUnique({
+    where: { id: redeemId },
+    include: {
+      planPatient: { include: { patient: true } },
+      redeemRule: true,
+      patientPlanEnrolment: { include: { plan: { select: { name: true } } } },
+      approvedBy: { select: { email: true } },
+    },
   });
 }
 
@@ -1235,24 +1281,49 @@ export async function createRedeem(
 
 /** Approve a PENDING_APPROVAL redeem. Writes an AuditLog row
  * (PERMISSIONS_MATRIX.md §6 — every approval decision is audited). */
-export async function approveRedeem(practiceId: string, actor: { actorUserId: string; impersonatedUserId?: string }, redeemId: string) {
+export async function approveRedeem(
+  practiceId: string,
+  actor: { actorUserId: string; impersonatedUserId?: string },
+  redeemId: string,
+  // Legacy parity: an approver could mark a redeem as only partially earned
+  // (e.g. the patient used part of a benefit) with a percentage + reason. The
+  // schema (isPartial/earnedPercentage/partialReason, status PARTIALLY_EARNED)
+  // already supported this — only this function and the route never accepted it.
+  partial?: { isPartial: boolean; earnedPercentage?: number | null; partialReason?: string | null },
+) {
   const db = scopedDb(practiceId);
   const redeem = await db.planRedeem.findUnique({ where: { id: redeemId } });
   if (!redeem) throw new Error("Redeem not found");
   if (redeem.status !== "PENDING_APPROVAL") throw new Error("Redeem is not pending approval");
 
+  const isPartial = partial?.isPartial ?? false;
+  if (isPartial) {
+    const pct = partial?.earnedPercentage;
+    if (pct == null || !Number.isFinite(pct) || pct <= 0 || pct >= 100) {
+      throw new BadRequestError("earnedPercentage must be a number between 0 and 100 (exclusive) for a partial approval");
+    }
+  }
+
   const updated = await db.planRedeem.update({
     where: { id: redeemId },
     // approvedById attributed to the REAL actor (the Super Admin during
     // impersonation, Step 2.3) — same identity as the AuditLog row below.
-    data: { status: "APPROVED", approvedById: actor.actorUserId, approvedAt: new Date() },
+    data: {
+      status: isPartial ? "PARTIALLY_EARNED" : "APPROVED",
+      approvedById: actor.actorUserId,
+      approvedAt: new Date(),
+      isPartial,
+      earnedPercentage: isPartial ? partial!.earnedPercentage : null,
+      partialReason: isPartial ? (partial?.partialReason ?? null) : null,
+    },
   });
   await writeAuditLog({
     ...actor,
     practiceId,
-    action: "plans.redeem.approve",
+    action: isPartial ? "plans.redeem.partial_approve" : "plans.redeem.approve",
     targetType: "PlanRedeem",
     targetId: redeemId,
+    metadata: isPartial ? { earnedPercentage: partial!.earnedPercentage, partialReason: partial?.partialReason ?? null } : undefined,
   });
   return updated;
 }

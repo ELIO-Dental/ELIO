@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveAuditActor, writeAuditLog } from "@elio/auth";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { listPlans, createPlan } from "@/lib/plans-service";
@@ -42,6 +43,18 @@ export async function POST(req: Request) {
       discounts: Array.isArray(body.discounts) ? body.discounts : [],
       eligibilityRules: Array.isArray(body.eligibilityRules) ? body.eligibilityRules : [],
     });
+
+    // Parity fix: the legacy app logged PLAN_CREATED; this route silently created
+    // plans with no audit trail at all.
+    await writeAuditLog({
+      ...resolveAuditActor(session),
+      practiceId: session.practiceId,
+      action: "plans.plan.created",
+      targetType: "PlanModel",
+      targetId: plan.id,
+      metadata: { name: plan.name, monthlyPricePence },
+    });
+
     return NextResponse.json({ plan }, { status: 201 });
   } catch (e) {
     return errorResponse(e);
