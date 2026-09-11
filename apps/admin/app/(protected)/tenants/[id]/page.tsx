@@ -12,6 +12,7 @@ import { requireMfaComplete } from "@/lib/require-mfa-complete";
 import { Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, PageHeader } from "@elio/ui";
 import { TenantActions } from "./tenant-actions";
 import { TenantUserActions } from "./tenant-user-actions";
+import { ImpersonateButton } from "./impersonate-button";
 
 const SYNC_STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
   SUCCESS: "success",
@@ -146,15 +147,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                   </TableCell>
                   <TableCell>
                     {u.role !== "SUPER_ADMIN" && u.active && (
-                      <form action={`/api/tenants/${practice.id}/impersonate/${u.id}`} method="POST">
-                        <button
-                          type="submit"
-                          className="text-body-sm font-medium text-(--color-primary-fg) hover:text-(--color-primary-fg-muted) hover:underline"
-                          data-testid={`impersonate-${u.id}`}
-                        >
-                          Impersonate
-                        </button>
-                      </form>
+                      <ImpersonateButton
+                        action={`/api/tenants/${practice.id}/impersonate/${u.id}`}
+                        userId={u.id}
+                        email={u.email}
+                      />
                     )}
                   </TableCell>
                   <TableCell>

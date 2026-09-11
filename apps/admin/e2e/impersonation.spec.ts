@@ -23,6 +23,7 @@ test("SUPER_ADMIN can impersonate a real staff user, the shell shows the banner,
   });
 
   await page.getByTestId(`impersonate-${target.id}`).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Impersonate" }).click();
   await page.waitForURL(new RegExp(`${SHELL_ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/launcher`), {
     timeout: 20_000,
   });
