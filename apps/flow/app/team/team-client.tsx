@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   EmptyState,
   Select,
   SelectContent,
@@ -54,6 +55,7 @@ export function TeamClient({ currentUserId, canManage }: { currentUserId: string
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = React.useState<PracticeUser | null>(null);
   const showSkeleton = useSkeleton(loading);
 
   React.useEffect(() => {
@@ -126,7 +128,37 @@ export function TeamClient({ currentUserId, canManage }: { currentUserId: string
     return <EmptyState icon={UsersIcon} title="No users yet" description="Invite colleagues from ELIO Portal → Team." />;
   }
 
-  return <TeamTable users={users} canManage={canManage} currentUserId={currentUserId} pendingId={pendingId} onUpdate={updateUser} />;
+  return (
+    <>
+      <TeamTable
+        users={users}
+        canManage={canManage}
+        currentUserId={currentUserId}
+        pendingId={pendingId}
+        onUpdate={(id, patch) => {
+          if (patch.active === false) {
+            const target = users.find((u) => u.id === id);
+            if (target) setDeactivateTarget(target);
+            return;
+          }
+          void updateUser(id, patch);
+        }}
+      />
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+        title={`Deactivate ${deactivateTarget?.email ?? "this user"}?`}
+        description="This revokes their access immediately. You can reactivate them later."
+        confirmLabel="Deactivate"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deactivateTarget) return;
+          await updateUser(deactivateTarget.id, { active: false });
+          setDeactivateTarget(null);
+        }}
+      />
+    </>
+  );
 }
 
 function TeamTable({

@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Dialog,
   DialogBody,
   DialogContent,
@@ -180,6 +181,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
   const [importing, setImporting] = React.useState(false);
   const [syncingPayments, setSyncingPayments] = React.useState(false);
   const [syncingFull, setSyncingFull] = React.useState(false);
+  const [syncConfirmOpen, setSyncConfirmOpen] = React.useState(false);
   const [view, setView] = React.useState<"table" | "charts">("table");
   const [editRow, setEditRow] = React.useState<FlowDashboardRow | null>(null);
   const [detailRow, setDetailRow] = React.useState<FlowDashboardRow | null>(null);
@@ -545,7 +547,7 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           </Button>
           <Button
             loading={syncingFull}
-            onClick={() => void syncFullFromDentally()}
+            onClick={() => setSyncConfirmOpen(true)}
             title="Pulls fresh data from Dentally in the background — the log below shows live progress, and cosmetic consults import automatically once it finishes."
             data-testid="flow-sync-dentally"
           >
@@ -860,6 +862,18 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={syncConfirmOpen}
+        onOpenChange={setSyncConfirmOpen}
+        title="Start full Dentally sync?"
+        description="This pulls fresh data from Dentally in the background — it can take several minutes, and cosmetic consults import automatically once it finishes."
+        confirmLabel="Sync Dentally"
+        onConfirm={async () => {
+          setSyncConfirmOpen(false);
+          await syncFullFromDentally();
+        }}
+      />
     </div>
   );
 }
