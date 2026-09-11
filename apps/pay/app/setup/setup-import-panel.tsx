@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, toast } from "@elio/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, toast } from "@elio/ui";
 import { Download, Upload } from "lucide-react";
 
 type ImportType = "labs" | "suppliers" | "dentists" | "settings";
@@ -32,6 +32,7 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
   const [preview, setPreview] = React.useState<ImportResult | null>(null);
   const [result, setResult] = React.useState<ImportResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [confirmReplace, setConfirmReplace] = React.useState(false);
 
   async function runPreview() {
     setPending(true);
@@ -159,10 +160,28 @@ export function SetupImportPanel({ type, count }: { type: ImportType; count?: nu
           <Button size="sm" variant="outline" onClick={() => void runPreview()} loading={pending} disabled={!csv.trim()}>
             Preview
           </Button>
-          <Button size="sm" onClick={() => void runImport()} loading={pending} disabled={!csv.trim()}>
+          <Button
+            size="sm"
+            onClick={() => (mode === "replace" ? setConfirmReplace(true) : void runImport())}
+            loading={pending}
+            disabled={!csv.trim()}
+          >
             Import
           </Button>
         </div>
+
+        <ConfirmDialog
+          open={confirmReplace}
+          onOpenChange={setConfirmReplace}
+          title={`Replace all ${TYPE_LABELS[type].toLowerCase()}?`}
+          description="This deletes every existing record of this type before importing the new rows. This cannot be undone."
+          confirmLabel="Replace all"
+          variant="destructive"
+          onConfirm={async () => {
+            setConfirmReplace(false);
+            await runImport();
+          }}
+        />
 
         {error && <p className="text-body-sm text-(--color-danger)">{error}</p>}
 

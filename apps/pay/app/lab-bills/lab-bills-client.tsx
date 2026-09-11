@@ -417,7 +417,8 @@ export function LabBillsClient({
             onChange={(e) =>
               void updateBill(bill.id, { dentistId: e.target.value || null })
             }
-            className="w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-(--color-text-secondary) outline-none hover:text-(--color-text-primary)"
+            disabled={uploading === bill.id}
+            className="w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-(--color-text-secondary) outline-none hover:text-(--color-text-primary) disabled:cursor-wait disabled:opacity-60"
           >
             <option value="">-</option>
             {dentists.map((d) => (
@@ -467,20 +468,21 @@ export function LabBillsClient({
         <td className="px-3 py-2 text-center">
           <button
             type="button"
+            disabled={uploading === bill.id}
             onClick={() =>
               void updateBill(bill.id, {
                 paid: !bill.paid,
                 paid_date: bill.paid ? null : new Date().toISOString().substring(0, 10),
               })
             }
-            className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full border-2 transition ${
+            className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full border-2 transition disabled:cursor-wait disabled:opacity-60 ${
               bill.paid
                 ? "border-green-500 bg-green-500 text-white"
                 : "border-gray-300 hover:border-green-400"
             }`}
             title="Paid"
           >
-            {bill.paid ? <Check size={12} /> : null}
+            {uploading === bill.id ? <Loader2 size={10} className="animate-spin" /> : bill.paid ? <Check size={12} /> : null}
           </button>
         </td>
         <td className="px-3 py-2 text-center">
@@ -535,7 +537,8 @@ export function LabBillsClient({
             onChange={(e) =>
               void updateBill(bill.id, { dentistId: e.target.value || null })
             }
-            className="min-w-0 flex-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface) px-2 py-1.5 text-xs"
+            disabled={uploading === bill.id}
+            className="min-w-0 flex-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface) px-2 py-1.5 text-xs disabled:cursor-wait disabled:opacity-60"
           >
             <option value="">Assign dentist...</option>
             {dentists.map((d) => (
@@ -576,19 +579,20 @@ export function LabBillsClient({
             )}
             <button
               type="button"
+              disabled={uploading === bill.id}
               onClick={() =>
                 void updateBill(bill.id, {
                   paid: !bill.paid,
                   paid_date: bill.paid ? null : new Date().toISOString().substring(0, 10),
                 })
               }
-              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition disabled:cursor-wait disabled:opacity-60 ${
                 bill.paid
                   ? "border-green-500 bg-green-500 text-white"
                   : "border-gray-300 hover:border-green-400"
               }`}
             >
-              {bill.paid ? <Check size={14} /> : null}
+              {uploading === bill.id ? <Loader2 size={12} className="animate-spin" /> : bill.paid ? <Check size={14} /> : null}
             </button>
             <button
               type="button"

@@ -63,6 +63,11 @@ export function BulkPaymentsClient() {
   const [addingEntity, setAddingEntity] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<{ type: "lab" | "supplier"; id: string } | null>(null);
+  // Marking a batch of bills paid is a financial-state change across potentially many
+  // records, but previously had no confirm step (unlike single-record delete right
+  // below it) — the button sits directly next to the selection count with no second
+  // step, so a single misclick marks a whole batch paid.
+  const [markPaidTarget, setMarkPaidTarget] = React.useState<{ type: "lab" | "supplier"; ids: string[] } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const hasLoadedOnce = React.useRef(false);
 
@@ -405,7 +410,7 @@ export function BulkPaymentsClient() {
         marking={marking}
         onToggle={(id) => toggleSelection(type, id)}
         onSelectAll={() => selectAll(type)}
-        onMarkPaid={(ids) => markPaid(type, ids)}
+        onMarkPaid={(ids) => setMarkPaidTarget({ type, ids })}
       />
     );
   }
@@ -490,6 +495,21 @@ export function BulkPaymentsClient() {
           if (!deleteTarget) return;
           await deleteEntity(deleteTarget.type, deleteTarget.id);
           setDeleteTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!markPaidTarget}
+        onOpenChange={(open) => {
+          if (!open) setMarkPaidTarget(null);
+        }}
+        title={`Mark ${markPaidTarget?.ids.length ?? 0} bill${markPaidTarget?.ids.length === 1 ? "" : "s"} as paid?`}
+        description="This updates the paid status for every selected bill at once."
+        confirmLabel="Mark paid"
+        onConfirm={async () => {
+          if (!markPaidTarget) return;
+          await markPaid(markPaidTarget.type, markPaidTarget.ids);
+          setMarkPaidTarget(null);
         }}
       />
     </div>

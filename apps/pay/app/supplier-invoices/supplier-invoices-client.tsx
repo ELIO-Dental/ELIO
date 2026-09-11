@@ -440,7 +440,8 @@ export function SupplierInvoicesClient({
             onChange={(e) =>
               void updateInvoice(inv.id, { dentistId: e.target.value || null })
             }
-            className="w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-(--color-text-secondary) outline-none hover:text-(--color-text-primary)"
+            disabled={uploading === inv.id}
+            className="w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-(--color-text-secondary) outline-none hover:text-(--color-text-primary) disabled:cursor-wait disabled:opacity-60"
           >
             <option value="">-</option>
             {dentists.map((d) => (
@@ -493,20 +494,21 @@ export function SupplierInvoicesClient({
         <td className="px-3 py-2 text-center">
           <button
             type="button"
+            disabled={uploading === inv.id}
             onClick={() =>
               void updateInvoice(inv.id, {
                 paid: !inv.paid,
                 paid_date: inv.paid ? null : new Date().toISOString().substring(0, 10),
               })
             }
-            className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full border-2 transition ${
+            className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full border-2 transition disabled:cursor-wait disabled:opacity-60 ${
               inv.paid
                 ? "border-green-500 bg-green-500 text-white"
                 : "border-gray-300 hover:border-green-400"
             }`}
             title="Paid"
           >
-            {inv.paid ? <Check size={12} /> : null}
+            {uploading === inv.id ? <Loader2 size={10} className="animate-spin" /> : inv.paid ? <Check size={12} /> : null}
           </button>
         </td>
         <td className="px-3 py-2 text-center">
@@ -562,7 +564,8 @@ export function SupplierInvoicesClient({
             onChange={(e) =>
               void updateInvoice(inv.id, { dentistId: e.target.value || null })
             }
-            className="min-w-0 flex-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface) px-2 py-1.5 text-xs"
+            disabled={uploading === inv.id}
+            className="min-w-0 flex-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface) px-2 py-1.5 text-xs disabled:cursor-wait disabled:opacity-60"
           >
             <option value="">Assign dentist...</option>
             {dentists.map((d) => (
@@ -603,19 +606,20 @@ export function SupplierInvoicesClient({
             )}
             <button
               type="button"
+              disabled={uploading === inv.id}
               onClick={() =>
                 void updateInvoice(inv.id, {
                   paid: !inv.paid,
                   paid_date: inv.paid ? null : new Date().toISOString().substring(0, 10),
                 })
               }
-              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition ${
+              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition disabled:cursor-wait disabled:opacity-60 ${
                 inv.paid
                   ? "border-green-500 bg-green-500 text-white"
                   : "border-gray-300 hover:border-green-400"
               }`}
             >
-              {inv.paid ? <Check size={14} /> : null}
+              {uploading === inv.id ? <Loader2 size={12} className="animate-spin" /> : inv.paid ? <Check size={14} /> : null}
             </button>
             <button
               type="button"

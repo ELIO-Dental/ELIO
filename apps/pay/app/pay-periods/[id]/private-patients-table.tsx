@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
-import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination, toast } from "@elio/ui";
+import { formatMoneyGBPOrDash, TablePagination, useClientTablePagination, toast, ConfirmDialog } from "@elio/ui";
 import { privatePatientsFooterTotals } from "@/lib/private-patients-table-format";
 import {
   FINANCE_TERMS_MONTHS,
@@ -77,6 +77,10 @@ export function PrivatePatientsTable({
   const [lines, setLines] = useState(initialLines);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Previously the trash icon deleted the line immediately with only an optimistic
+  // UI update — one misclick permanently removed a patient revenue line feeding the
+  // dentist's pay figures, with no undo. Every other delete in this app confirms first.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; patientName: string | null } | null>(null);
   const {
     items: pageLines,
     page,
@@ -519,7 +523,7 @@ export function PrivatePatientsTable({
                             type="button"
                             className="text-(--color-text-tertiary) hover:text-(--color-danger)"
                             disabled={busy}
-                            onClick={() => deleteLine(line.id)}
+                            onClick={() => setDeleteTarget({ id: line.id, patientName: line.patientName })}
                           >
                             {busy ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
                           </button>
@@ -566,6 +570,22 @@ export function PrivatePatientsTable({
           ) : null}
         </>
       )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this patient line?"
+        description={
+          deleteTarget?.patientName
+            ? `This removes ${deleteTarget.patientName}'s revenue line from this payslip. This cannot be undone.`
+            : "This removes the revenue line from this payslip. This cannot be undone."
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteTarget) deleteLine(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }
