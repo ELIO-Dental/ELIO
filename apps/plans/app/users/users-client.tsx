@@ -128,7 +128,7 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
     }
   }
 
-  if (error) {
+  if (error && !users) {
     return (
       <div className="rounded-(--radius-lg) border border-(--color-border)">
         <EmptyState icon={UsersIcon} title="Couldn't load users" description={error} action={{ label: "Retry", onClick: () => refetch() }} />
