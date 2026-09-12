@@ -1,0 +1,17 @@
+node_modules/
+.pnp
+.pnp.js
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.next/
+out/
+build/
+dist/
+.turbo/
+.git/
+*.tsbuildinfo
+*.log
+project-docs/
+parity-exports/
