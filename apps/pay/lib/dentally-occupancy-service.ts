@@ -13,6 +13,30 @@ export interface DentistOccupancy extends DiaryMetrics {
 }
 
 /**
+ * The real UTC instant of Europe/London midnight for a given YYYY-MM-DD
+ * practice date. `new Date(\`${ymd}T00:00:00Z\`)` is wrong during BST
+ * (UTC+1) — London midnight is 23:00 UTC the previous day, not 00:00 UTC —
+ * which would drop the first hour of each period's appointments and bleed
+ * an hour into the next period's window (toPracticeDateString's own test
+ * already documents this exact UTC/London gap for the reverse direction).
+ */
+export function londonMidnightUtc(ymd: string): Date {
+  const guessUtcMidnight = new Date(`${ymd}T00:00:00Z`);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(guessUtcMidnight);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  // London is always UTC+0 (GMT) or UTC+1 (BST), so this guess reads as
+  // London 00:00 or 01:00 — never wraps to a different calendar day.
+  const minutesPastLondonMidnight = hour * 60 + minute;
+  return new Date(guessUtcMidnight.getTime() - minutesPastLondonMidnight * 60_000);
+}
+
+/**
  * Occupancy/white-space per active dentist for a pay period, computed from
  * already-synced Appointment rows (no live Dentally call — see
  * dentally-occupancy.ts for why this doesn't replicate AuraPay's separate
@@ -48,7 +72,7 @@ export async function loadPeriodOccupancy(
     where: {
       practiceId,
       practitionerId: { in: practitionerIds },
-      startsAt: { gte: new Date(`${startDate}T00:00:00Z`), lt: new Date(`${endExclusive}T00:00:00Z`) },
+      startsAt: { gte: londonMidnightUtc(startDate), lt: londonMidnightUtc(endExclusive) },
     },
     select: { practitionerId: true, startsAt: true, endsAt: true, dentallyState: true },
   });

@@ -416,7 +416,13 @@ export async function markReminderSent(practiceId: string, reminderId: string) {
 export async function listOutstandingReminders(practiceId: string, scope: FlowPractitionerScope) {
   const db = scopedDb(practiceId);
   const reminders = await db.reminder.findMany({
-    where: { sentAt: null },
+    where: {
+      sentAt: null,
+      // Closing a consult (ACCEPTED/DECLINED) doesn't cancel its pending
+      // reminders — without this filter a stale reminder for an
+      // already-closed consult would keep showing up here forever.
+      consult: { outcome: { notIn: ["ACCEPTED", "DECLINED"] } },
+    },
     orderBy: { dueAt: "asc" },
     include: {
       consult: {
