@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn, formatMoneyGBP } from "@elio/ui";
 
 export type PayStatTone = "default" | "success" | "warning" | "danger" | "accent";
@@ -30,19 +30,26 @@ const TONE_ICON_BG: Record<PayStatTone, string> = {
  * don't use one, but Pay's existing dashboard icons (Users, FileText, ...) carried
  * real information worth keeping.
  */
+// `icon` takes a rendered element (e.g. `<Users />`), not a component
+// reference. Callers like apps/pay/app/page.tsx are Server Components, and
+// Next.js's RSC boundary rejects passing a bare function/component reference
+// as a prop into a Client Component like this one ("Functions cannot be
+// passed directly to Client Components..."). A live production 500 on every
+// visit to /pay, 2026-09-12, traced to exactly this: icon={Users} instead
+// of icon={<Users />}.
 export function PayStatCard({
   label,
   value,
   money,
   tone = "default",
-  icon: Icon,
+  icon,
   className,
 }: {
   label: string;
   value: number | string;
   money?: boolean;
   tone?: PayStatTone;
-  icon?: LucideIcon;
+  icon?: ReactNode;
   className?: string;
 }) {
   const display =
@@ -64,9 +71,9 @@ export function PayStatCard({
         <p className="text-[10px] font-semibold tracking-[0.08em] text-(--color-text-tertiary) uppercase sm:text-caption">
           {label}
         </p>
-        {Icon ? (
-          <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-(--radius-md)", TONE_ICON_BG[tone])}>
-            <Icon className="size-3.5" aria-hidden />
+        {icon ? (
+          <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-(--radius-md) [&_svg]:size-3.5", TONE_ICON_BG[tone])}>
+            {icon}
           </span>
         ) : null}
       </div>

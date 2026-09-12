@@ -121,9 +121,9 @@ export default async function PayDashboardPage() {
             across the three module dashboards. */}
         {viewAll ? (
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
-            <PayStatCard label="Active dentists" value={dentistCount} icon={Users} />
-            <PayStatCard label="Pay periods" value={periodCount} icon={FileText} tone="success" />
-            <PayStatCard label="Latest period" value={latestPeriodLabel} icon={TrendingUp} tone="accent" />
+            <PayStatCard label="Active dentists" value={dentistCount} icon={<Users />} />
+            <PayStatCard label="Pay periods" value={periodCount} icon={<FileText />} tone="success" />
+            <PayStatCard label="Latest period" value={latestPeriodLabel} icon={<TrendingUp />} tone="accent" />
           </div>
         ) : null}
 

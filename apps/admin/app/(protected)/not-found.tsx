@@ -1,3 +1,5 @@
+"use client";
+
 import { SearchX } from "lucide-react";
 import { EmptyState, PageContent } from "@elio/ui";
 
@@ -8,6 +10,12 @@ import { EmptyState, PageContent } from "@elio/ui";
  * UI-stability review as the sibling error.tsx gap. Placed inside
  * (protected) so AdminNav's chrome stays visible, same reasoning as
  * error.tsx.
+ *
+ * "use client" (added 2026-09-12, same day as apps/pay's live /pay 500):
+ * this file passes a bare icon component reference to EmptyState, which
+ * Next.js's RSC boundary rejects from a genuine Server Component — the same
+ * bug class that took down apps/pay's dashboard. This file has no
+ * server-only logic to lose by being a Client Component.
  */
 export default function ProtectedNotFound() {
   return (

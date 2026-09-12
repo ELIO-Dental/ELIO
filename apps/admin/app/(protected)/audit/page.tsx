@@ -7,17 +7,16 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  EmptyState,
   TablePanel,
   TableToolbar,
   TablePagination,
   parseTablePage,
   PageHeader,
 } from "@elio/ui";
-import { ScrollText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { requireMfaComplete } from "@/lib/require-mfa-complete";
 import { AuditMetadataCell } from "./audit-metadata-cell";
+import { AuditEmptyState } from "./audit-empty-state";
 
 /** Super-admin audit browser — unscoped AuditLog across all practices. */
 export default async function AdminAuditPage({
@@ -53,8 +52,7 @@ export default async function AdminAuditPage({
 
       {totalCount === 0 ? (
         <TablePanel toolbar={<TableToolbar title="Audit entries" />}>
-          <EmptyState
-            icon={ScrollText}
+          <AuditEmptyState
             title="No audit entries yet"
             description="Recorded Super Admin and practice actions will appear here."
             className="py-12"

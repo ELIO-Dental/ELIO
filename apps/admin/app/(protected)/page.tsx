@@ -13,7 +13,6 @@ import {
   TableCell,
   Badge,
   StatCard,
-  EmptyState,
   TablePanel,
   TableToolbar,
   TablePagination,
@@ -21,6 +20,7 @@ import {
   Input,
   Button,
 } from "@elio/ui";
+import { TenantsEmptyState } from "./tenants-empty-state";
 
 /** Step 2.3, §11.2 — the console's main landing view. Every tenant, at a
  * glance: plan, active licences, user count, Dentally status, trial/
@@ -82,8 +82,7 @@ export default async function TenantListPage({
             </TableToolbar>
           }
         >
-          <EmptyState
-            icon={Building2}
+          <TenantsEmptyState
             title="No practices yet"
             description="When a dental practice signs up through ELIO Portal, it will appear here for licence and access management."
             className="py-12"
@@ -141,10 +140,9 @@ export default async function TenantListPage({
           }
         >
           {tenants.length === 0 ? (
-            <EmptyState
-              icon={Building2}
+            <TenantsEmptyState
               title="No matching practices"
-              description={`No tenants match “${q}”.`}
+              description={`No tenants match "${q}".`}
               className="py-12"
             />
           ) : (
