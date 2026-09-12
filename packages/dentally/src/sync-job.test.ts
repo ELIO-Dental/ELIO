@@ -4,7 +4,7 @@ import {
   EMPTY_SYNC_COUNTS,
   mergeSyncCounts,
 } from "./sync";
-import { runDentallySyncJobWithSteps, type DentallySyncStepRunner } from "./sync-job";
+import { runDentallySyncJob, runDentallySyncJobWithSteps, type DentallySyncStepRunner } from "./sync-job";
 
 vi.mock("./resolve-api-key", () => ({
   getDentallyClientForPractice: vi.fn(),
@@ -191,5 +191,97 @@ describe("runDentallySyncJobWithSteps", () => {
     expect(calls).toContain("sync-payments-p1");
     expect(calls).toContain("sync-accounts-p1");
     expect(calls).toContain("sync-payment_plans-p1");
+  });
+});
+
+describe("runDentallySyncJob (inline fallback, no Inngest)", () => {
+  it("checkpoints via heartbeatDentallySyncRun per page, same as the Inngest step path", async () => {
+    const { syncPracticeDentallyPhasePage } = await import("./sync");
+    const { heartbeatDentallySyncRun } = await import("./sync-run");
+    // mock.calls persists across tests in this file (no global beforeEach
+    // reset) — the earlier WithSteps tests exercise these same mocks, so
+    // clear the call history here rather than inspecting a polluted log.
+    vi.mocked(syncPracticeDentallyPhasePage).mockClear();
+    vi.mocked(heartbeatDentallySyncRun).mockClear();
+    vi.mocked(syncPracticeDentallyPhasePage).mockImplementation(
+      async (_practiceId: string, phase: string, page: number) => ({
+        counts: {
+          ...EMPTY_SYNC_COUNTS,
+          patients: phase === "patients" && page === 1 ? 2 : 0,
+          appointments: phase === "appointments" && page === 1 ? 3 : 0,
+        },
+        errors: [],
+        page,
+        done: true,
+        nextPage: page,
+      })
+    );
+
+    const result = await runDentallySyncJob("seed-practice", "manual");
+
+    expect(result.counts.patients).toBe(2);
+    expect(result.counts.appointments).toBe(3);
+    expect(result.practiceId).toBe("seed-practice");
+    // Old bug: the plain inline path never called heartbeat at all, so it had
+    // no checkpoint a later retry could resume from. Now it does, once per
+    // completed page, exactly like the Inngest step path.
+    const heartbeatCalls = vi.mocked(heartbeatDentallySyncRun).mock.calls;
+    expect(heartbeatCalls.some(([, phase, page]) => phase === "patients" && page === 1)).toBe(true);
+    expect(heartbeatCalls.some(([, phase, page]) => phase === "payment_plans" && page === 1)).toBe(true);
+  });
+
+  it("loops pages until done for a phase, without Inngest step memoization", async () => {
+    const { syncPracticeDentallyPhasePage } = await import("./sync");
+    vi.mocked(syncPracticeDentallyPhasePage).mockClear();
+    vi.mocked(syncPracticeDentallyPhasePage).mockImplementation(
+      async (_practiceId: string, phase: string, page: number) => ({
+        counts: { ...EMPTY_SYNC_COUNTS, patients: phase === "patients" ? 1 : 0 },
+        errors: [],
+        page,
+        done: phase !== "patients" || page >= 3,
+        nextPage: page + 1,
+      })
+    );
+
+    const result = await runDentallySyncJob("seed-practice", "manual");
+
+    expect(result.counts.patients).toBe(3);
+    const pageCalls = vi
+      .mocked(syncPracticeDentallyPhasePage)
+      .mock.calls.filter(([, phase]) => phase === "patients")
+      .map(([, , page]) => page);
+    expect(pageCalls).toEqual([1, 2, 3]);
+  });
+
+  it("resumes a prior FAILED run instead of restarting from page 1 — proves the inline fallback no longer silently restarts a whole practice's sync", async () => {
+    const { syncPracticeDentallyPhasePage } = await import("./sync");
+    const { findResumableDentallySyncRun } = await import("./sync-run");
+    vi.mocked(syncPracticeDentallyPhasePage).mockClear();
+    vi.mocked(syncPracticeDentallyPhasePage).mockImplementation(
+      async (_practiceId: string, phase: string, page: number) => ({
+        counts: { ...EMPTY_SYNC_COUNTS },
+        errors: [],
+        page,
+        done: true,
+        nextPage: page,
+      })
+    );
+    vi.mocked(findResumableDentallySyncRun).mockResolvedValueOnce({
+      runId: "run-0-failed",
+      phase: "invoices",
+      page: 2,
+    });
+
+    await runDentallySyncJob("seed-practice", "manual");
+
+    const calls = vi.mocked(syncPracticeDentallyPhasePage).mock.calls;
+    // patients + appointments were already fully synced by the failed run — never re-fetched.
+    expect(calls.some(([, phase]) => phase === "patients")).toBe(false);
+    expect(calls.some(([, phase]) => phase === "appointments")).toBe(false);
+    // invoices resumes at page 3 (last completed page was 2), not page 1.
+    const invoicesPages = calls.filter(([, phase]) => phase === "invoices").map(([, , page]) => page);
+    expect(invoicesPages).toEqual([3]);
+    // phases after the resume point still run normally from page 1.
+    expect(calls.some(([, phase, page]) => phase === "payments" && page === 1)).toBe(true);
   });
 });

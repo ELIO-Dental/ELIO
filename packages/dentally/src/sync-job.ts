@@ -1,7 +1,6 @@
 import {
   DENTALLY_SYNC_PHASES,
   mergeSyncCounts,
-  syncPracticeDentallyData,
   syncPracticeDentallyPhasePage,
   type SyncPhaseResult,
   type SyncResult,
@@ -24,34 +23,6 @@ export function setDentallyPostSyncHook(hook: PostSyncHook | null) {
   postSyncHook = hook;
 }
 
-export async function runDentallySyncJob(
-  practiceId: string,
-  trigger: "manual" | "scheduled"
-) {
-  const run = await createDentallySyncRun(practiceId, trigger);
-  try {
-    const result = await syncPracticeDentallyData(practiceId);
-    await finalizeDentallySyncRun(run.id, result);
-    if (postSyncHook) {
-      try {
-        await postSyncHook(practiceId);
-      } catch (err) {
-        console.error(`[dentally-sync] post-sync hook failed practice=${practiceId}`, err);
-      }
-    }
-    return result;
-  } catch (err) {
-    const message =
-      err instanceof DentallySyncConfigError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : String(err);
-    await failDentallySyncRun(run.id, practiceId, message);
-    throw err;
-  }
-}
-
 /** Minimal step handle — matches Inngest's `step.run` shape without importing the SDK here. */
 export type DentallySyncStepRunner = {
   // Inngest JSON-ifies step outputs; keep this loose so SDK step types assign cleanly.
@@ -60,11 +31,31 @@ export type DentallySyncStepRunner = {
 };
 
 /**
- * Production path: one Inngest step per Dentally *list page* (not whole resource).
- * Whole-phase steps still hit Vercel FUNCTION_INVOCATION_TIMEOUT (~300s) on large
- * practices — confirmed live 2026-09-03 after create-sync-run succeeded.
+ * No-op step runner for the plain inline path (no Inngest available) — runs
+ * each unit of work directly with no memoization. Sharing `runDentallySyncCore`
+ * between both paths means the inline fallback gets the SAME per-page
+ * heartbeat/resume checkpointing the Inngest path always had, instead of the
+ * old plain phase-by-phase loop with zero checkpoints, which silently
+ * restarted a large practice's ENTIRE sync from page 1 of phase 1 on every
+ * retry whenever Inngest was unreachable (found in a stability review,
+ * 2026-09-12 — this path is a live production fallback, not dev-only: it's
+ * reached whenever `inngest.send` throws, e.g. a transient Inngest Cloud
+ * outage at trigger time).
  */
-export async function runDentallySyncJobWithSteps(
+const inlineStepRunner: DentallySyncStepRunner = {
+  run: (_id, fn) => fn(),
+};
+
+/**
+ * One Dentally *list page* per unit of work (not whole resource) — whole-phase
+ * units still hit Vercel FUNCTION_INVOCATION_TIMEOUT (~300s) on large
+ * practices (confirmed live 2026-09-03). Shared by both the Inngest
+ * step-function path (each page is a real memoized `step.run`) and the plain
+ * inline fallback path (each page just runs directly, but still checkpoints
+ * via `heartbeatDentallySyncRun` so a later retry — inline or Inngest — can
+ * resume from the last completed page instead of restarting).
+ */
+async function runDentallySyncCore(
   step: DentallySyncStepRunner,
   practiceId: string,
   trigger: "manual" | "scheduled",
@@ -147,6 +138,33 @@ export async function runDentallySyncJobWithSteps(
     await failDentallySyncRun(runId, practiceId, message).catch(() => undefined);
     throw err;
   }
+}
+
+/**
+ * Inline fallback path (no Inngest available — see `requestDentallySync`).
+ * Shares the same per-page checkpointing as the Inngest step path via
+ * `runDentallySyncCore`, so a crash/timeout partway through resumes from the
+ * last completed page on the next attempt instead of restarting.
+ */
+export async function runDentallySyncJob(
+  practiceId: string,
+  trigger: "manual" | "scheduled"
+): Promise<SyncResult> {
+  return runDentallySyncCore(inlineStepRunner, practiceId, trigger, null);
+}
+
+/**
+ * Production path: one Inngest step per Dentally *list page* (not whole resource).
+ * Whole-phase steps still hit Vercel FUNCTION_INVOCATION_TIMEOUT (~300s) on large
+ * practices — confirmed live 2026-09-03 after create-sync-run succeeded.
+ */
+export async function runDentallySyncJobWithSteps(
+  step: DentallySyncStepRunner,
+  practiceId: string,
+  trigger: "manual" | "scheduled",
+  inngestEventId?: string | null
+): Promise<SyncResult> {
+  return runDentallySyncCore(step, practiceId, trigger, inngestEventId);
 }
 
 /** Used by Inngest `onFailure` after retries are exhausted (or hard cancel). */

@@ -497,13 +497,15 @@ export async function syncPracticeDentallyPhase(
 }
 
 /**
- * Runs a full sync for one practice. Safe to call repeatedly (every write is
- * an upsert) — a scheduled full sync and a manual "sync now" both call this
- * same function, just from different triggers (see inngest.ts and the manual
- * trigger route in apps/shell).
- *
- * Prefer Inngest multi-step (`runDentallySyncJobWithSteps`) in production so
- * each phase can checkpoint before serverless time limits.
+ * Runs a full sync for one practice in one shot, whole-phase-at-a-time, with
+ * no heartbeat/resume checkpointing. Safe to call repeatedly (every write is
+ * an upsert), but neither `runDentallySyncJobWithSteps` (Inngest) nor
+ * `runDentallySyncJob` (the non-Inngest inline fallback) call this anymore —
+ * both go through the shared per-page `runDentallySyncCore` in sync-job.ts
+ * instead, so a crash/timeout partway through can resume from the last
+ * completed page rather than restarting the whole practice (sync-job.ts's
+ * own comment has the full history, 2026-09-12). Kept exported for direct
+ * one-off/test use where checkpointing doesn't matter.
  */
 export async function syncPracticeDentallyData(
   practiceId: string,
