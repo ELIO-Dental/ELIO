@@ -33,6 +33,15 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
 
   async function onToggleLicence(moduleId: ModuleId, next: boolean) {
     const key = `licence-${moduleId}`;
+    // Re-entrancy guard — Switch's `pending` prop deliberately keeps the
+    // track looking interactive (not disabled/greyed) while a request is
+    // in flight, so nothing at the control level stops a second click
+    // mid-request. Without this, a rapid second toggle on the SAME switch
+    // overlaps with the first request, and whichever response lands last
+    // (not necessarily the last click) wins — the spinner flickers off
+    // then back on, and the wrong optimistic value can stick (found in a
+    // 2026-09-12 UI-stability review).
+    if (pendingKey === key) return;
     setPendingKey(key);
     setLicenceState((prev) => prev.map((l) => (l.moduleId === moduleId ? { ...l, active: next } : l)));
     try {
@@ -57,6 +66,8 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
 
   async function onToggleFlag(featureFlagId: string, next: boolean) {
     const key = `flag-${featureFlagId}`;
+    // Same re-entrancy guard as onToggleLicence above.
+    if (pendingKey === key) return;
     setPendingKey(key);
     setFlagState((prev) => prev.map((f) => (f.id === featureFlagId ? { ...f, enabled: next } : f)));
     try {
