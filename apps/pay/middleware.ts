@@ -11,13 +11,23 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { auth, isModuleLicensed } from "@elio/auth";
 
+// This app's own public Vercel domain (pay.elioportal.co.uk) is directly
+// reachable — not only through the shell's rewrite — and a real live request
+// confirmed it: `req.nextUrl.origin` there is pay.elioportal.co.uk itself,
+// which has no /login route (login only exists on the shell), so the
+// redirect below 404'd instead of reaching a working login page (found live,
+// 2026-09-12 — a real production incident, not a theoretical gap). Same
+// env-var-with-hardcoded-fallback convention apps/shell/middleware.ts
+// already uses for ADMIN_APP_ORIGIN, for the mirror-image problem.
+const SHELL_APP_ORIGIN = process.env.SHELL_APP_ORIGIN ?? "https://app.elioportal.co.uk";
+
 // Auth gate for the multi-zone /pay app. Deliberately NOT using next/navigation's
 // redirect() from a layout for this — Next.js auto-prefixes a relative redirect
 // with this app's own `basePath` ("/pay"), which would produce "/pay/login", a
 // route that doesn't exist here (it's the shell's route, at the shared origin's
-// root). Middleware gives us the real incoming request origin (the shell's
-// origin — this app is only ever reached through the shell's rewrite in the
-// shared-shell flow) so the redirect lands on the shell's actual /login page,
+// root). Redirects target SHELL_APP_ORIGIN explicitly (not req.nextUrl.origin —
+// see the comment above) so the redirect lands on the shell's actual /login
+// page regardless of which domain this request actually arrived on,
 // preserving "no separate login" (MASTER_BUILD_GUIDE.md Step 1.6).
 //
 // Step 2.2 (FR-3) — server-side licence gate, defense-in-depth layer. A real
@@ -53,11 +63,11 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
   if (!req.auth?.userId) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/login", SHELL_APP_ORIGIN));
   }
   const practiceId = (req.auth as any).practiceId as string | undefined;
   if (!practiceId || !(await isModuleLicensed(practiceId, "PAY"))) {
-    return NextResponse.redirect(new URL("/launcher?unlicensed=pay", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/launcher?unlicensed=pay", SHELL_APP_ORIGIN));
   }
   return NextResponse.next();
 });
