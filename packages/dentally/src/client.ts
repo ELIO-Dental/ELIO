@@ -71,6 +71,21 @@ export interface DentallyClientOptions {
   fetchImpl?: typeof fetch;
   /** Injectable for tests, to avoid real sleeping. */
   sleepImpl?: (ms: number) => Promise<void>;
+  /**
+   * Per-request timeout (ms) before a single Dentally call is aborted and
+   * retried through the same backoff loop as a 429/5xx. Previously absent
+   * entirely — a hung Dentally response blocked indefinitely with no
+   * ceiling of its own, found in a 2026-09-13 stability review across
+   * apps/pay, apps/plans, and apps/flow: apps/pay's own fetch-dentally route
+   * has a maxDuration + heartbeat/stale-recovery backstop, but several
+   * lighter-weight call sites don't (apps/pay's status/debug checks,
+   * apps/plans' manual sync button, apps/flow's live-patient panel — the
+   * last of these hangs an actual page render, not just a background job).
+   * Default 20s: generous for a single paginated list call, short enough
+   * that a genuinely hung connection doesn't strand a user-facing request
+   * for the platform's full function-timeout.
+   */
+  timeoutMs?: number;
 }
 
 type QueueTask<T> = () => Promise<T>;
@@ -124,6 +139,7 @@ export class DentallyClient {
   private readonly fetchImpl: typeof fetch;
   private readonly sleepImpl: (ms: number) => Promise<void>;
   private readonly queue: RequestQueue;
+  private readonly timeoutMs: number;
 
   constructor(options: DentallyClientOptions = {}) {
     const apiKey = options.apiKey ?? process.env.DENTALLY_API_KEY;
@@ -139,6 +155,7 @@ export class DentallyClient {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.sleepImpl = options.sleepImpl ?? defaultSleep;
     this.queue = new RequestQueue(options.concurrency ?? 4);
+    this.timeoutMs = options.timeoutMs ?? 20_000;
   }
 
   /**
@@ -159,10 +176,34 @@ export class DentallyClient {
       let attempt = 0;
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        const res = await this.fetchImpl(url.toString(), {
-          method: "GET",
-          headers: buildDentallyHeaders(this.apiKey),
-        });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        let res: Response;
+        try {
+          res = await this.fetchImpl(url.toString(), {
+            method: "GET",
+            headers: buildDentallyHeaders(this.apiKey),
+            signal: controller.signal,
+          });
+        } catch (err) {
+          // AbortError (our own timeout) or a network-level failure — both
+          // transient, so retry through the same backoff loop as a 5xx
+          // instead of failing the whole sync/request on one bad connection.
+          attempt++;
+          if (attempt > this.maxRetries) {
+            const reason = err instanceof Error ? err.message : String(err);
+            throw new DentallyApiError(
+              `Dentally API request failed after ${this.maxRetries} retries: ${path} (${reason})`,
+              0
+            );
+          }
+          const backoff = this.baseDelayMs * 2 ** (attempt - 1);
+          const jittered = Math.min(30_000, Math.random() * backoff);
+          await this.sleepImpl(jittered);
+          continue;
+        } finally {
+          clearTimeout(timer);
+        }
 
         // PDF §2: Dentally rate limits often return 403 (as well as 429).
         // Retry 403/429/5xx with backoff; do not retry 401 (bad key).

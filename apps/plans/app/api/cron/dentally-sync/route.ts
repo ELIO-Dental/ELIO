@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, writeAuditLog, verifyCronSecret } from "@elio/auth";
 import { prisma } from "@elio/db";
-import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
+import {
+  runPlansDentallySync,
+  PlansDentallySyncConfigError,
+  PlansDentallySyncInProgressError,
+  DentallySyncConfigError,
+} from "@elio/dentally";
 import { resolvePracticeAuditActor } from "@/lib/resolve-practice-audit-actor";
 
 export const runtime = "nodejs";
@@ -63,6 +68,12 @@ export async function GET(request: NextRequest) {
 
         return { practiceId: practice.id, ...result };
       } catch (error) {
+        if (error instanceof PlansDentallySyncInProgressError) {
+          // A manual "Sync with Dentally" click is already running for this
+          // practice — let it finish rather than racing it; the next
+          // scheduled cron tick will pick this practice up normally.
+          return { practiceId: practice.id, skipped: true, reason: error.message };
+        }
         if (error instanceof PlansDentallySyncConfigError) {
           return {
             practiceId: practice.id,

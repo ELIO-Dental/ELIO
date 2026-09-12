@@ -43,7 +43,7 @@ vi.mock("./resolve-api-key", () => ({
   getDentallyClientForPractice: vi.fn(async () => ({ paginate })),
 }));
 
-import { runPlansDentallySync } from "./plans-sync";
+import { runPlansDentallySync, PlansDentallySyncInProgressError } from "./plans-sync";
 import { PlansDentallySyncConfigError } from "./plans-sync-errors";
 
 describe("runPlansDentallySync", () => {
@@ -85,6 +85,44 @@ describe("runPlansDentallySync", () => {
   it("throws when no plan mappings exist", async () => {
     mappingFindMany.mockResolvedValue([]);
     await expect(runPlansDentallySync("practice-1")).rejects.toBeInstanceOf(PlansDentallySyncConfigError);
+  });
+
+  it("rejects a second concurrent sync for the same practice (2026-09-13 stability review)", async () => {
+    // Force the first call to stay "in flight" until we've started the second.
+    let releaseFirst!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    mappingFindMany.mockImplementationOnce(async () => {
+      await gate;
+      return [{ dentallyPlanName: "AuraCare", planModelId: "plan-1" }];
+    });
+
+    const first = runPlansDentallySync("practice-1");
+    // Let the first call's mappingFindMany() start and register the lock
+    // before firing the second.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await expect(runPlansDentallySync("practice-1")).rejects.toBeInstanceOf(PlansDentallySyncInProgressError);
+
+    releaseFirst();
+    await expect(first).resolves.toMatchObject({ imported: 1 });
+
+    // The lock must be released once the first call finishes, so a THIRD
+    // call afterwards succeeds normally rather than staying locked forever
+    // (it sees the patient the first call just created, so this run
+    // updates rather than imports it — the point being it resolves at all).
+    await expect(runPlansDentallySync("practice-1")).resolves.toMatchObject({ skipped: 0 });
+  });
+
+  it("does not block concurrent syncs for two different practices", async () => {
+    const [a, b] = await Promise.all([
+      runPlansDentallySync("practice-a"),
+      runPlansDentallySync("practice-b"),
+    ]);
+    expect(a).toMatchObject({ imported: 1 });
+    expect(b).toMatchObject({ imported: 1 });
   });
 
   it("imports a new patient with plan enrolment", async () => {

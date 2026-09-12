@@ -256,7 +256,7 @@ export async function endOffPlanEnrolments(
  * Import/refresh every Dentally patient whose payment plan maps to an ELIO plan.
  * Idempotent: re-running matches existing records rather than duplicating them.
  */
-export async function runPlansDentallySync(practiceId: string): Promise<PlansDentallySyncResult> {
+async function runPlansDentallySyncImpl(practiceId: string): Promise<PlansDentallySyncResult> {
   const db = scopedDb(practiceId);
   const client = await getDentallyClientForPractice(practiceId);
 
@@ -484,7 +484,7 @@ export type PlansDentallyReassignResult = {
  * ensure the correct ELIO plan mapping is applied (P1.9). Uses mandate-aware
  * enrolment sync — never marks ACTIVE without a live mandate; preserves PAUSED.
  */
-export async function runPlansDentallyReassign(practiceId: string): Promise<PlansDentallyReassignResult> {
+async function runPlansDentallyReassignImpl(practiceId: string): Promise<PlansDentallyReassignResult> {
   const db = scopedDb(practiceId);
   const client = await getDentallyClientForPractice(practiceId);
 
@@ -562,4 +562,57 @@ export async function runPlansDentallyReassign(practiceId: string): Promise<Plan
   }
 
   return { total: linkedPatients.length, assigned, corrected, skipped, details };
+}
+
+/**
+ * In-memory, per-instance guard against two concurrent Plans Dentally
+ * operations for the same practice — e.g. an admin clicking "Sync with
+ * Dentally" (apps/plans/app/api/dentally/sync/route.ts) while the nightly
+ * cron (apps/plans/app/api/cron/dentally-sync/route.ts) is mid-run for that
+ * practice, or a double-click of the same button.
+ *
+ * Found in a 2026-09-13 stability review: unlike apps/pay's per-pay-period
+ * fetch (claimPayPeriodDentallyFetchRunning, an atomic DB update) or the
+ * full-practice sync (DentallySyncRun's Inngest concurrency lock), Plans had
+ * no lock at all — both runXXXImpl functions do read-then-write on
+ * patient/planPatient/patientPlanEnrolment with no transaction, so two
+ * concurrent runs can race on the same findFirst-then-create pattern.
+ *
+ * Deliberately NOT a DB-backed lock (no schema/migration): there's no
+ * DentallySyncRun-style table for Plans, and the actual failure mode a race
+ * produces is a caught, non-fatal per-patient duplicate-key error pushed
+ * into the returned `errors`/`details` array — not data corruption. An
+ * in-memory Set closes the common case (impatient double-click, or cron and
+ * a manual click landing on the same warm serverless instance) without the
+ * cost of a schema change for a low-severity race. It does not protect
+ * against two DIFFERENT cold-started instances racing at the exact same
+ * moment — accepted as a rarer residual window, not eliminated.
+ */
+const practicesCurrentlySyncing = new Set<string>();
+
+export class PlansDentallySyncInProgressError extends Error {
+  constructor() {
+    super("A Dentally sync is already in progress for this practice. Please wait for it to finish.");
+    this.name = "PlansDentallySyncInProgressError";
+  }
+}
+
+async function withPlansDentallySyncLock<T>(practiceId: string, run: () => Promise<T>): Promise<T> {
+  if (practicesCurrentlySyncing.has(practiceId)) {
+    throw new PlansDentallySyncInProgressError();
+  }
+  practicesCurrentlySyncing.add(practiceId);
+  try {
+    return await run();
+  } finally {
+    practicesCurrentlySyncing.delete(practiceId);
+  }
+}
+
+export async function runPlansDentallySync(practiceId: string): Promise<PlansDentallySyncResult> {
+  return withPlansDentallySyncLock(practiceId, () => runPlansDentallySyncImpl(practiceId));
+}
+
+export async function runPlansDentallyReassign(practiceId: string): Promise<PlansDentallyReassignResult> {
+  return withPlansDentallySyncLock(practiceId, () => runPlansDentallyReassignImpl(practiceId));
 }

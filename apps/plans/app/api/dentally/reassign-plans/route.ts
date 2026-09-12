@@ -3,6 +3,7 @@ import { resolveAuditActor, writeAuditLog } from "@elio/auth";
 import {
   DentallySyncConfigError,
   PlansDentallySyncConfigError,
+  PlansDentallySyncInProgressError,
   runPlansDentallyReassign,
 } from "@elio/dentally";
 import { requirePermission } from "@/lib/session";
@@ -41,6 +42,9 @@ export async function POST() {
 
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
+    if (e instanceof PlansDentallySyncInProgressError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     if (e instanceof PlansDentallySyncConfigError) {
       return NextResponse.json({ error: e.message, ...e.details }, { status: 400 });
     }

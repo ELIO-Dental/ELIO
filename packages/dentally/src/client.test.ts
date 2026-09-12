@@ -118,6 +118,63 @@ describe("DentallyClient rate-limit backoff", () => {
     expect(result.patients).toHaveLength(1);
   });
 
+  it("aborts a hung request after timeoutMs and retries it (2026-09-13 stability review)", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      calls++;
+      if (calls === 1) {
+        // Simulate a genuinely hung connection: never resolves on its own,
+        // only rejects when the client's own AbortController fires.
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const err = new Error("aborted");
+            err.name = "AbortError";
+            reject(err);
+          });
+        });
+      }
+      return jsonResponse({ patients: [{ id: 1 }], meta: { total: 1, page: 1 } });
+    });
+    const sleeps: number[] = [];
+    const client = new DentallyClient({
+      apiKey: "test-key",
+      timeoutMs: 5,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async (ms) => {
+        sleeps.push(ms);
+      },
+    });
+
+    const result = await client.get<{ patients: unknown[] }>("/patients");
+
+    expect(calls).toBe(2);
+    expect(result.patients).toHaveLength(1);
+    expect(sleeps).toHaveLength(1);
+  });
+
+  it("gives up after maxRetries of a persistently hung request", async () => {
+    const fetchImpl = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const err = new Error("aborted");
+            err.name = "AbortError";
+            reject(err);
+          });
+        })
+    );
+    const client = new DentallyClient({
+      apiKey: "test-key",
+      timeoutMs: 5,
+      maxRetries: 2,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async () => {},
+    });
+
+    await expect(client.get("/patients")).rejects.toBeInstanceOf(DentallyApiError);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
   it("throws DentallyApiError after exhausting retries on persistent 429s", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}, 429));
     const client = new DentallyClient({

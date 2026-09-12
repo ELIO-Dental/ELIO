@@ -84,6 +84,7 @@ export {
   runPlansDentallySync,
   runPlansDentallyReassign,
   PlansDentallySyncConfigError,
+  PlansDentallySyncInProgressError,
   matchPaymentPlanIds,
   dedupePatientsByDentallyId,
   syncEnrolmentForPatient,

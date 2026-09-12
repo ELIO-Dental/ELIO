@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { resolveAuditActor, writeAuditLog } from "@elio/auth";
-import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
+import {
+  runPlansDentallySync,
+  PlansDentallySyncConfigError,
+  PlansDentallySyncInProgressError,
+  DentallySyncConfigError,
+} from "@elio/dentally";
 import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 
@@ -45,6 +50,9 @@ export async function POST() {
       noEmailPatients: result.noEmailPatients.length > 0 ? result.noEmailPatients : undefined,
     });
   } catch (e) {
+    if (e instanceof PlansDentallySyncInProgressError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     if (e instanceof PlansDentallySyncConfigError) {
       return NextResponse.json({ error: e.message, ...e.details }, { status: 400 });
     }
