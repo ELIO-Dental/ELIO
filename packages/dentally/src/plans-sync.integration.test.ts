@@ -98,11 +98,17 @@ describe("runPlansDentallySync", () => {
       return [{ dentallyPlanName: "AuraCare", planModelId: "plan-1" }];
     });
 
+    // No need to await any microtask turns before firing the second call:
+    // the lock (practicesCurrentlySyncing.add) runs synchronously inside
+    // withPlansDentallySyncLock, BEFORE the first `await` in
+    // runPlansDentallySyncImpl — so it's already registered the instant
+    // this call expression returns its promise, regardless of how many
+    // awaits precede the first DB call inside the wrapped function. An
+    // earlier version of this test guessed at a fixed number of
+    // `Promise.resolve()` turns instead, which would have silently started
+    // racing (not failing loudly) if that internal await chain ever changed
+    // shape — flagged in a 2026-09-13 adversarial review.
     const first = runPlansDentallySync("practice-1");
-    // Let the first call's mappingFindMany() start and register the lock
-    // before firing the second.
-    await Promise.resolve();
-    await Promise.resolve();
 
     await expect(runPlansDentallySync("practice-1")).rejects.toBeInstanceOf(PlansDentallySyncInProgressError);
 
