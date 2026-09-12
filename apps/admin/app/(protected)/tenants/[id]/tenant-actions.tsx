@@ -35,70 +35,93 @@ export function TenantActions({ practiceId, currentPlan, suspended, licences, fe
     const key = `licence-${moduleId}`;
     setPendingKey(key);
     setLicenceState((prev) => prev.map((l) => (l.moduleId === moduleId ? { ...l, active: next } : l)));
-    const res = await fetch(`/api/tenants/${practiceId}/licence`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moduleId, active: next }),
-    });
-    setPendingKey(null);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/tenants/${practiceId}/licence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleId, active: next }),
+      });
+      if (!res.ok) {
+        setLicenceState((prev) => prev.map((l) => (l.moduleId === moduleId ? { ...l, active: !next } : l)));
+        toast.error(`Failed to update ${moduleId} licence.`);
+        return;
+      }
+      router.refresh();
+    } catch {
       setLicenceState((prev) => prev.map((l) => (l.moduleId === moduleId ? { ...l, active: !next } : l)));
-      toast.error(`Failed to update ${moduleId} licence.`);
-      return;
+      toast.error(`Failed to update ${moduleId} licence.`, { description: "Network error — please try again." });
+    } finally {
+      setPendingKey(null);
     }
-    router.refresh();
   }
 
   async function onToggleFlag(featureFlagId: string, next: boolean) {
     const key = `flag-${featureFlagId}`;
     setPendingKey(key);
     setFlagState((prev) => prev.map((f) => (f.id === featureFlagId ? { ...f, enabled: next } : f)));
-    const res = await fetch(`/api/tenants/${practiceId}/feature-flag`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ featureFlagId, enabled: next }),
-    });
-    setPendingKey(null);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/tenants/${practiceId}/feature-flag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featureFlagId, enabled: next }),
+      });
+      if (!res.ok) {
+        setFlagState((prev) => prev.map((f) => (f.id === featureFlagId ? { ...f, enabled: !next } : f)));
+        toast.error("Failed to update feature flag.");
+        return;
+      }
+      router.refresh();
+    } catch {
       setFlagState((prev) => prev.map((f) => (f.id === featureFlagId ? { ...f, enabled: !next } : f)));
-      toast.error("Failed to update feature flag.");
-      return;
+      toast.error("Failed to update feature flag.", { description: "Network error — please try again." });
+    } finally {
+      setPendingKey(null);
     }
-    router.refresh();
   }
 
   async function onSavePlan() {
     setSavingPlan(true);
-    const res = await fetch(`/api/tenants/${practiceId}/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
-    });
-    setSavingPlan(false);
-    if (!res.ok) {
-      toast.error("Failed to update plan label.");
-      return;
+    try {
+      const res = await fetch(`/api/tenants/${practiceId}/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to update plan label.");
+        return;
+      }
+      toast.success("Plan updated.");
+      router.refresh();
+    } catch {
+      toast.error("Failed to update plan label.", { description: "Network error — please try again." });
+    } finally {
+      setSavingPlan(false);
     }
-    toast.success("Plan updated.");
-    router.refresh();
   }
 
   async function onToggleSuspend() {
     const next = !suspendedState;
     setTogglingSuspend(true);
     setSuspendedState(next);
-    const res = await fetch(`/api/tenants/${practiceId}/suspend`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ suspended: next }),
-    });
-    setTogglingSuspend(false);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/tenants/${practiceId}/suspend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suspended: next }),
+      });
+      if (!res.ok) {
+        setSuspendedState(!next);
+        toast.error("Failed to update suspension.");
+        return;
+      }
+      router.refresh();
+    } catch {
       setSuspendedState(!next);
-      toast.error("Failed to update suspension.");
-      return;
+      toast.error("Failed to update suspension.", { description: "Network error — please try again." });
+    } finally {
+      setTogglingSuspend(false);
     }
-    router.refresh();
   }
 
   return (

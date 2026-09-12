@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { endImpersonation } from "@elio/auth";
+import { endImpersonation, sessionCookieName } from "@elio/auth";
 
 export const runtime = "nodejs";
-
-const SESSION_COOKIE_NAME = "authjs.session-token";
 
 /**
  * POST /api/impersonate/end — the persistent banner's "End" button
@@ -21,7 +19,14 @@ export async function POST(request: NextRequest) {
     await endImpersonation(session.impersonationSessionId);
   }
 
+  const isSecureRequest = request.nextUrl.protocol === "https:";
   const response = NextResponse.redirect(new URL("/login", request.nextUrl.origin));
-  response.cookies.set(SESSION_COOKIE_NAME, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
+  response.cookies.set(sessionCookieName(isSecureRequest), "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    secure: isSecureRequest,
+  });
   return response;
 }

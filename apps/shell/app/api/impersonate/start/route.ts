@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
-import { redeemImpersonationHandoff, ImpersonationError, permissionsForRole, IMPERSONATION_MAX_AGE_SECONDS } from "@elio/auth";
+import {
+  redeemImpersonationHandoff,
+  ImpersonationError,
+  permissionsForRole,
+  IMPERSONATION_MAX_AGE_SECONDS,
+  sessionCookieName,
+} from "@elio/auth";
 
 export const runtime = "nodejs";
-
-const SESSION_COOKIE_NAME = "authjs.session-token";
 
 /**
  * GET /api/impersonate/start?token=<impersonationSessionId> — Step 2.3,
@@ -39,9 +43,12 @@ export async function GET(request: NextRequest) {
     const secret = process.env.NEXTAUTH_SECRET;
     if (!secret) throw new Error("NEXTAUTH_SECRET not set");
 
+    const isSecureRequest = request.nextUrl.protocol === "https:";
+    const cookieName = sessionCookieName(isSecureRequest);
+
     const jwt = await encode({
       secret,
-      salt: SESSION_COOKIE_NAME,
+      salt: cookieName,
       maxAge: IMPERSONATION_MAX_AGE_SECONDS,
       token: {
         userId: target.id,
@@ -57,12 +64,12 @@ export async function GET(request: NextRequest) {
     });
 
     const response = NextResponse.redirect(new URL("/launcher", request.nextUrl.origin));
-    response.cookies.set(SESSION_COOKIE_NAME, jwt, {
+    response.cookies.set(cookieName, jwt, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       maxAge: IMPERSONATION_MAX_AGE_SECONDS,
-      secure: request.nextUrl.protocol === "https:",
+      secure: isSecureRequest,
     });
     return response;
   } catch (error) {

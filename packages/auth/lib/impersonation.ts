@@ -21,6 +21,24 @@ export const IMPERSONATION_MAX_AGE_SECONDS = 45 * 60;
  * apps/admin's own route). */
 const HANDOFF_TOKEN_MAX_AGE_MS = 60 * 1000;
 
+/**
+ * Auth.js's actual session-cookie name depends on the request's own
+ * protocol: `__Secure-authjs.session-token` under HTTPS, plain
+ * `authjs.session-token` otherwise (@auth/core's `defaultCookies()` —
+ * `useSecureCookies ?? url.protocol === "https:"`, and this app's shared
+ * config never overrides that). apps/shell's impersonate start/end routes
+ * mint/clear this cookie directly (outside NextAuth's own cookie-writing
+ * code), so they must compute the SAME name `auth()`/`getToken()` will look
+ * for on the next request — hardcoding the plain dev name here silently
+ * broke impersonation on any real HTTPS deployment (found in a security
+ * review, 2026-09-12: the mismatched cookie/salt meant the very next request
+ * couldn't decode the minted token at all, bouncing the Super Admin to
+ * /login instead of the intended launcher).
+ */
+export function sessionCookieName(isSecureRequest: boolean): string {
+  return isSecureRequest ? "__Secure-authjs.session-token" : "authjs.session-token";
+}
+
 export interface StartImpersonationInput {
   superAdminUserId: string;
   targetUserId: string;
@@ -69,8 +87,22 @@ export async function redeemImpersonationHandoff(impersonationSessionId: string)
   const session = await prisma.impersonationSession.findUnique({ where: { id: impersonationSessionId } });
   if (!session) throw new ImpersonationError("Impersonation session not found");
   if (session.endedAt) throw new ImpersonationError("Impersonation session already ended");
+  if (session.handoffRedeemedAt) throw new ImpersonationError("Impersonation handoff link has already been used");
   if (Date.now() - session.startedAt.getTime() > HANDOFF_TOKEN_MAX_AGE_MS) {
     throw new ImpersonationError("Impersonation handoff link has expired");
+  }
+
+  // Atomic claim — the `handoffRedeemedAt: null` guard in the WHERE clause
+  // means only the first of any concurrent/replayed redemption attempts can
+  // ever match and update a row; every later one (replay, double-click,
+  // race) updates zero rows and is rejected below, even though the earlier
+  // findUnique above may have read the row before either claim landed.
+  const claim = await prisma.impersonationSession.updateMany({
+    where: { id: impersonationSessionId, handoffRedeemedAt: null },
+    data: { handoffRedeemedAt: new Date() },
+  });
+  if (claim.count === 0) {
+    throw new ImpersonationError("Impersonation handoff link has already been used");
   }
 
   const [superAdmin, target] = await Promise.all([

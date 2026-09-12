@@ -277,6 +277,14 @@ model User {
   /** Optional display name (AuraPay Account parity). */
   displayName    String?
   hashedPassword String
+  // Checked against the session JWT's own `iat` on every request (jwt()
+  // callback) so a password reset/change actually invalidates any
+  // already-issued session — without this, a stolen cookie kept working
+  // for the JWT's full lifetime even after the legitimate user "recovered"
+  // their account via reset-password, defeating the point of that flow
+  // (found in a security review, 2026-09-12). Null for a never-changed
+  // (freshly signed-up) account — nothing to invalidate against yet.
+  passwordChangedAt DateTime?
   role           Role    @default(STAFF)
   active         Boolean @default(true)
 
@@ -385,6 +393,14 @@ model ImpersonationSession {
   startedAt          DateTime  @default(now())
   endedAt            DateTime?
   reason             String?
+  // Set the FIRST time the one-time handoff link (packages/auth's
+  // redeemImpersonationHandoff) is successfully redeemed — distinct from
+  // `endedAt` (which ends the whole up-to-45-min impersonation SESSION, not
+  // just the handoff link). Without this, the same handoff URL could be
+  // replayed repeatedly within its 60s window (browser history, shared
+  // machine, access logs) to mint a fresh session as the target user with
+  // no credentials at all — found in a security review, 2026-09-12.
+  handoffRedeemedAt  DateTime?
 
   @@index([practiceId])
   @@map("impersonation_sessions")
