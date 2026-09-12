@@ -62,7 +62,13 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   const [deactivateTarget, setDeactivateTarget] = React.useState<PracticeUser | null>(null);
   const showSkeleton = useSkeleton(loading);
   const usersRef = React.useRef(users);
-  usersRef.current = users;
+  // Syncing a ref directly in the render body (rather than an effect) is a
+  // real react-hooks/refs violation — caught by this project's own eslint
+  // config (`Cannot access refs during render`) during a 2026-09-12 review,
+  // even though the codebase already shipped this exact pattern.
+  React.useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
 
   // F.4 Final QA (2026-08-29): eslint(react-hooks/set-state-in-effect) flags
   // synchronous setState reachable from an effect's body, even through an

@@ -71,38 +71,64 @@ export function BulkPaymentsClient() {
   const [error, setError] = React.useState<string | null>(null);
   const hasLoadedOnce = React.useRef(false);
 
-  const load = React.useCallback(async (opts?: { soft?: boolean }) => {
-    const soft = Boolean(opts?.soft) && hasLoadedOnce.current;
-    if (!soft) setLoading(true);
-    setError(null);
-    try {
-      const [entitiesRes, unpaidRes] = await Promise.all([
-        fetch("/pay/api/saved-entities"),
-        fetch("/pay/api/bulk-payment"),
-      ]);
-      // A non-2xx response used to be silently skipped here — no error set,
-      // loading still cleared in `finally` — so a refresh during a backend
-      // hiccup looked like it succeeded while quietly leaving stale data on
-      // screen (found in a stability review, 2026-09-12).
-      if (!entitiesRes.ok || !unpaidRes.ok) {
-        throw new Error("Failed to load bulk payment data");
-      }
-      const [entitiesData, unpaidData] = await Promise.all([entitiesRes.json(), unpaidRes.json()]);
+  // Pure fetch — no setState of its own, so it can be called directly from
+  // the mount effect below without tripping react-hooks/set-state-in-effect
+  // (the linter flags ANY function invoked directly in an effect body that
+  // itself calls setState, even after an await — calling `load`, or even an
+  // inlined async function that both fetches AND applies state, both did;
+  // found in a 2026-09-12 lint review). All state updates happen in
+  // `applyBulkPaymentData` below, called only from a `.then()`/`.catch()`
+  // callback — matching apps/shell's team-client.tsx and apps/plans'
+  // users-client.tsx's identical split for the same reason.
+  const fetchBulkPaymentData = React.useCallback(async () => {
+    const [entitiesRes, unpaidRes] = await Promise.all([
+      fetch("/pay/api/saved-entities"),
+      fetch("/pay/api/bulk-payment"),
+    ]);
+    // A non-2xx response used to be silently skipped here — no error set,
+    // loading still cleared in `finally` — so a refresh during a backend
+    // hiccup looked like it succeeded while quietly leaving stale data on
+    // screen (found in a stability review, 2026-09-12).
+    if (!entitiesRes.ok || !unpaidRes.ok) {
+      throw new Error("Failed to load bulk payment data");
+    }
+    const [entitiesData, unpaidData] = await Promise.all([entitiesRes.json(), unpaidRes.json()]);
+    return { entitiesData, unpaidData };
+  }, []);
+
+  const applyBulkPaymentData = React.useCallback(
+    ({ entitiesData, unpaidData }: Awaited<ReturnType<typeof fetchBulkPaymentData>>) => {
       setLabs(entitiesData.labs ?? []);
       setSuppliers(entitiesData.suppliers ?? []);
       setUnpaidLabBills(unpaidData.lab_bills ?? []);
       setUnpaidSupplierInvoices(unpaidData.supplier_invoices ?? []);
       hasLoadedOnce.current = true;
-    } catch {
-      setError("Failed to load bulk payment data");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
+
+  const load = React.useCallback(
+    async (opts?: { soft?: boolean }) => {
+      const soft = Boolean(opts?.soft) && hasLoadedOnce.current;
+      if (!soft) setLoading(true);
+      setError(null);
+      try {
+        applyBulkPaymentData(await fetchBulkPaymentData());
+      } catch {
+        setError("Failed to load bulk payment data");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchBulkPaymentData, applyBulkPaymentData]
+  );
 
   React.useEffect(() => {
-    void load();
-  }, [load]);
+    fetchBulkPaymentData()
+      .then((data) => applyBulkPaymentData(data))
+      .catch(() => setError("Failed to load bulk payment data"))
+      .finally(() => setLoading(false));
+  }, [fetchBulkPaymentData, applyBulkPaymentData]);
 
   async function saveEntity(type: "lab" | "supplier", id: string) {
     setSavingEntity(true);

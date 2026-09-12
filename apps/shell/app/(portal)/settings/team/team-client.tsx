@@ -143,7 +143,12 @@ export function TeamClient({
   const [error, setError] = React.useState<string | null>(null);
   const showSkeleton = useSkeleton(loading);
   const usersRef = React.useRef(users);
-  usersRef.current = users;
+  // Syncing a ref directly in the render body (rather than an effect) is a
+  // real react-hooks/refs violation ("Cannot access refs during render") —
+  // caught by this project's own eslint config during a 2026-09-12 review.
+  React.useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
 
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<Role>("STAFF");

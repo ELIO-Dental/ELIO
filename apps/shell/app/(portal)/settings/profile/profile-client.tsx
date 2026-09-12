@@ -18,10 +18,23 @@ export function ProfileDetailsForm({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
+  // Re-syncs the form after a successful save + router.refresh() sends back
+  // the canonical (e.g. trimmed) saved values, WITHOUT an effect — an effect
+  // here would call setState synchronously on every render where the props
+  // changed, flagged by this project's own react-hooks/set-state-in-effect
+  // config (found in a 2026-09-12 lint review). This is React's own
+  // documented "adjusting state when a prop changes" pattern instead:
+  // https://react.dev/learn/you-might-not-need-an-effect — comparing and
+  // conditionally setting state DURING render is explicitly supported and
+  // bails out the wasted extra render an effect would cause.
+  const [prevInitialDisplayName, setPrevInitialDisplayName] = React.useState(initialDisplayName);
+  const [prevInitialEmail, setPrevInitialEmail] = React.useState(initialEmail);
+  if (initialDisplayName !== prevInitialDisplayName || initialEmail !== prevInitialEmail) {
+    setPrevInitialDisplayName(initialDisplayName);
+    setPrevInitialEmail(initialEmail);
     setDisplayName(initialDisplayName);
     setEmail(initialEmail);
-  }, [initialDisplayName, initialEmail]);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

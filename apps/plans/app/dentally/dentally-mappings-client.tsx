@@ -90,37 +90,67 @@ export function DentallyMappingsClient({ canManage }: { canManage: boolean }) {
   const [dentallyPlanName, setDentallyPlanName] = React.useState("");
   const [planModelId, setPlanModelId] = React.useState("");
 
-  const load = React.useCallback(async (opts?: { soft?: boolean }) => {
-    // Soft refresh keeps the table mounted; only the first load shows skeletons.
-    if (opts?.soft) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const [mappingsRes, plansRes, liveRes] = await Promise.all([
-        fetch("/plans/api/dentally/mappings"),
-        fetch("/plans/api/plans"),
-        canManage ? fetch("/plans/api/dentally/plans") : Promise.resolve(null),
-      ]);
-      if (mappingsRes.ok) setMappings(await mappingsRes.json());
-      if (plansRes.ok) {
-        const data = await plansRes.json();
-        setPlans(data.plans ?? []);
-      }
-      if (liveRes?.ok) {
-        const data = await liveRes.json();
-        setLivePlans(data.plans ?? []);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to load Dentally mappings");
-    } finally {
-      if (opts?.soft) setRefreshing(false);
-      else setLoading(false);
+  // Pure fetch — no setState of its own, so it can be called directly from
+  // the mount effect below without tripping react-hooks/set-state-in-effect
+  // (calling `load`, which sets loading/refreshing state synchronously, did
+  // — found in a 2026-09-12 lint review). Also fixes the same "silently
+  // skips a non-ok response" bug already found and fixed elsewhere this
+  // session (bulk-payments-client.tsx, apps/pay's dentally-integration.ts):
+  // a non-2xx response used to leave mappings/plans quietly stale with no
+  // error surfaced at all.
+  const fetchMappingsData = React.useCallback(async () => {
+    const [mappingsRes, plansRes, liveRes] = await Promise.all([
+      fetch("/plans/api/dentally/mappings"),
+      fetch("/plans/api/plans"),
+      canManage ? fetch("/plans/api/dentally/plans") : Promise.resolve(null),
+    ]);
+    if (!mappingsRes.ok || !plansRes.ok || (liveRes && !liveRes.ok)) {
+      throw new Error("Failed to load Dentally mappings");
     }
+    const [mappings, plansData, liveData] = await Promise.all([
+      mappingsRes.json(),
+      plansRes.json(),
+      liveRes ? liveRes.json() : Promise.resolve(null),
+    ]);
+    return { mappings, plans: plansData.plans ?? [], livePlans: liveData?.plans ?? [] };
   }, [canManage]);
 
+  const applyMappingsData = React.useCallback(
+    (data: Awaited<ReturnType<typeof fetchMappingsData>>) => {
+      setMappings(data.mappings);
+      setPlans(data.plans);
+      setLivePlans(data.livePlans);
+    },
+    []
+  );
+
+  const load = React.useCallback(
+    async (opts?: { soft?: boolean }) => {
+      // Soft refresh keeps the table mounted; only the first load shows skeletons.
+      if (opts?.soft) setRefreshing(true);
+      else setLoading(true);
+      try {
+        applyMappingsData(await fetchMappingsData());
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to load Dentally mappings");
+      } finally {
+        if (opts?.soft) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [fetchMappingsData, applyMappingsData]
+  );
+
   React.useEffect(() => {
-    void load();
-  }, [load]);
+    fetchMappingsData()
+      .then((data) => applyMappingsData(data))
+      .catch((error) => {
+        console.error(error);
+        toast.error("Failed to load Dentally mappings");
+      })
+      .finally(() => setLoading(false));
+  }, [fetchMappingsData, applyMappingsData]);
 
   async function handleCreate() {
     if (!dentallyPlanName || !planModelId) return;

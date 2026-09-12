@@ -70,6 +70,46 @@ type SortField =
   | "touchpoints";
 type SortDirection = "asc" | "desc";
 
+/**
+ * Declared at module scope, not inside DashboardClient's render body —
+ * defining a component function inside another component's render (the
+ * previous shape) recreates it on every render, resetting its identity and
+ * tripping react-hooks/static-components ("Cannot create components during
+ * render"); found in a 2026-09-12 lint review. Sort state/handler are now
+ * explicit props instead of a closure over the parent's scope.
+ */
+function SortableHead({
+  field,
+  children,
+  className,
+  sortField,
+  sortDirection,
+  onSort,
+}: {
+  field: SortField;
+  children: React.ReactNode;
+  className?: string;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSort: (field: SortField) => void;
+}) {
+  const active = sortField === field;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-1 select-none hover:text-(--color-text-primary)"
+      >
+        <span>{children}</span>
+        <span className="text-(--color-text-tertiary)" aria-hidden>
+          {active ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </button>
+    </TableHead>
+  );
+}
+
 type SyncLogLine = { message: string; at: string };
 
 function appointmentStateClass(attended: boolean, state: string | null) {
@@ -437,32 +477,6 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
     return counts;
   }, [data.rows]);
 
-  function SortableHead({
-    field,
-    children,
-    className,
-  }: {
-    field: SortField;
-    children: React.ReactNode;
-    className?: string;
-  }) {
-    const active = sortField === field;
-    return (
-      <TableHead className={className}>
-        <button
-          type="button"
-          onClick={() => handleSort(field)}
-          className="inline-flex items-center gap-1 select-none hover:text-(--color-text-primary)"
-        >
-          <span>{children}</span>
-          <span className="text-(--color-text-tertiary)" aria-hidden>
-            {active ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
-          </span>
-        </button>
-      </TableHead>
-    );
-  }
-
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-end gap-3 rounded-(--radius-xl) border border-(--color-border-subtle) bg-(--color-surface) p-3.5 shadow-(--shadow-xs) sm:gap-4 sm:p-5">
@@ -694,23 +708,51 @@ export function DashboardClient({ initial }: { initial: FlowDashboardData }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <SortableHead field="patient">Patient</SortableHead>
-                    <SortableHead field="dentist">Dentist</SortableHead>
+                    <SortableHead field="patient" sortField={sortField} sortDirection={sortDirection} onSort={handleSort}>
+                      Patient
+                    </SortableHead>
+                    <SortableHead field="dentist" sortField={sortField} sortDirection={sortDirection} onSort={handleSort}>
+                      Dentist
+                    </SortableHead>
                     <TableHead>Booked by</TableHead>
-                    <SortableHead field="touchpoints">Touchpoints</SortableHead>
+                    <SortableHead field="touchpoints" sortField={sortField} sortDirection={sortDirection} onSort={handleSort}>
+                      Touchpoints
+                    </SortableHead>
                     <TableHead>Plan</TableHead>
-                    <SortableHead field="date">Consult date</SortableHead>
-                    <SortableHead field="value" className="text-right">
+                    <SortableHead field="date" sortField={sortField} sortDirection={sortDirection} onSort={handleSort}>
+                      Consult date
+                    </SortableHead>
+                    <SortableHead
+                      field="value"
+                      className="text-right"
+                      sortField={sortField}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
                       Plan value
                     </SortableHead>
-                    <SortableHead field="paid" className="text-right">
+                    <SortableHead
+                      field="paid"
+                      className="text-right"
+                      sortField={sortField}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
                       Paid
                     </SortableHead>
                     <TableHead>Progress</TableHead>
-                    <SortableHead field="days" className="text-right">
+                    <SortableHead
+                      field="days"
+                      className="text-right"
+                      sortField={sortField}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                    >
                       Days
                     </SortableHead>
-                    <SortableHead field="status">Status</SortableHead>
+                    <SortableHead field="status" sortField={sortField} sortDirection={sortDirection} onSort={handleSort}>
+                      Status
+                    </SortableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>

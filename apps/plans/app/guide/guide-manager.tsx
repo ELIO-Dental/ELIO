@@ -72,17 +72,15 @@ export function GuideManager({
   const [deleteTargetId, setDeleteTargetId] = React.useState<string | null>(null);
   const [seeding, setSeeding] = React.useState(false);
 
-  const selected = articles.find((a) => a.id === selectedId) ?? null;
-
-  React.useEffect(() => {
-    if (articles.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-    if (!selectedId || !articles.some((a) => a.id === selectedId)) {
-      setSelectedId(articles[0]!.id);
-    }
-  }, [articles, selectedId]);
+  // Derived at render time rather than synced back into state via an effect
+  // (react-hooks/set-state-in-effect correctly flags that as an avoidable
+  // effect per React's own guidance — found in a 2026-09-12 lint review):
+  // falls back to the first article whenever the explicitly-selected one is
+  // missing (deleted, or nothing picked yet) without ever needing to
+  // "correct" `selectedId` itself.
+  const effectiveSelectedId =
+    selectedId && articles.some((a) => a.id === selectedId) ? selectedId : (articles[0]?.id ?? null);
+  const selected = articles.find((a) => a.id === effectiveSelectedId) ?? null;
 
   const filtered = articles.filter(
     (a) =>
@@ -193,7 +191,7 @@ export function GuideManager({
                     type="button"
                     onClick={() => setSelectedId(article.id)}
                     className={`w-full rounded-(--radius-md) px-3 py-2 text-left text-body-sm transition-colors ${
-                      selectedId === article.id
+                      effectiveSelectedId === article.id
                         ? "bg-(--color-primary-50) font-medium text-(--color-primary-fg)"
                         : "text-(--color-text-secondary) hover:bg-(--color-bg-subtle)"
                     }`}
