@@ -68,7 +68,10 @@ export async function consumeResetToken(rawToken: string, newHashedPassword: str
   if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) return false;
 
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { hashedPassword: newHashedPassword } }),
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { hashedPassword: newHashedPassword, passwordChangedAt: new Date() },
+    }),
     prisma.passwordResetToken.update({ where: { tokenHash }, data: { usedAt: new Date() } }),
   ]);
   return true;

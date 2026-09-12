@@ -25,9 +25,14 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({ where: { id: userId }, data: { hashedPassword } });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { hashedPassword, passwordChangedAt: new Date() },
+    });
 
-    return NextResponse.json({ ok: true });
+    // Invalidates every session (including this one) on its next request —
+    // see adminAuthConfig's jwt() callback.
+    return NextResponse.json({ ok: true, sessionInvalidated: true });
   } catch (e) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 });

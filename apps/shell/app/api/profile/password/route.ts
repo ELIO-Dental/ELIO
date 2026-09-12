@@ -28,7 +28,14 @@ export async function POST(req: Request) {
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({ where: { id: session.userId }, data: { hashedPassword } });
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { hashedPassword, passwordChangedAt: new Date() },
+  });
 
-  return NextResponse.json({ ok: true });
+  // Every session (including this one) is invalidated on the next request
+  // per the auth jwt() callback's passwordChangedAt check — intentional,
+  // matches the reset-password flow's own security guarantee. The caller
+  // should treat a successful response as "you'll need to log back in."
+  return NextResponse.json({ ok: true, sessionInvalidated: true });
 }

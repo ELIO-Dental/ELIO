@@ -141,6 +141,18 @@ export const authConfig: NextAuthConfig = {
           // "no redeploy, no logout required" guarantee as the licence gate.
           return null;
         }
+        // A password reset/change must invalidate every session issued
+        // BEFORE it — otherwise a stolen cookie keeps working for the JWT's
+        // full lifetime even after the legitimate user "recovered" their
+        // account (security review, 2026-09-12). `token.iat` is in seconds
+        // (standard JWT claim, set by encode()'s setIssuedAt()).
+        if (
+          dbUser.passwordChangedAt &&
+          typeof token.iat === "number" &&
+          token.iat * 1000 < dbUser.passwordChangedAt.getTime()
+        ) {
+          return null;
+        }
         token.role = dbUser.role;
         token.practiceId = dbUser.practiceId;
         token.permissions = permissionsForRole(dbUser.role);

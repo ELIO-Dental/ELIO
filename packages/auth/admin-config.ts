@@ -149,6 +149,15 @@ export const adminAuthConfig: NextAuthConfig = {
         if (!dbUser || !dbUser.active || dbUser.role !== "SUPER_ADMIN") {
           return null;
         }
+        // Same passwordChangedAt-vs-iat check as apps/shell's config.ts —
+        // see that file's identical comment for the full rationale.
+        if (
+          dbUser.passwordChangedAt &&
+          typeof token.iat === "number" &&
+          token.iat * 1000 < dbUser.passwordChangedAt.getTime()
+        ) {
+          return null;
+        }
         token.role = dbUser.role;
         token.mfaSetupRequired = !dbUser.mfaEnabled || !dbUser.mfaSecret;
       }

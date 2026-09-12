@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, toast } from "@elio/ui";
 
 export function ProfileDetailsForm({
@@ -147,7 +148,12 @@ export function ChangePasswordForm() {
     setNewPassword("");
     setConfirmPassword("");
     setSuccess(true);
-    toast.success("Your password has been updated.");
+    toast.success("Your password has been updated — please log back in.");
+    // Changing your own password invalidates every existing session
+    // (including this one) on its next request — sign out explicitly
+    // instead of leaving the user to hit a confusing auth failure on
+    // their next click.
+    void signOut({ callbackUrl: "/login" });
   }
 
   return (
