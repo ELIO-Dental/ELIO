@@ -80,16 +80,18 @@ export function BulkPaymentsClient() {
         fetch("/pay/api/saved-entities"),
         fetch("/pay/api/bulk-payment"),
       ]);
-      if (entitiesRes.ok) {
-        const data = await entitiesRes.json();
-        setLabs(data.labs ?? []);
-        setSuppliers(data.suppliers ?? []);
+      // A non-2xx response used to be silently skipped here — no error set,
+      // loading still cleared in `finally` — so a refresh during a backend
+      // hiccup looked like it succeeded while quietly leaving stale data on
+      // screen (found in a stability review, 2026-09-12).
+      if (!entitiesRes.ok || !unpaidRes.ok) {
+        throw new Error("Failed to load bulk payment data");
       }
-      if (unpaidRes.ok) {
-        const data = await unpaidRes.json();
-        setUnpaidLabBills(data.lab_bills ?? []);
-        setUnpaidSupplierInvoices(data.supplier_invoices ?? []);
-      }
+      const [entitiesData, unpaidData] = await Promise.all([entitiesRes.json(), unpaidRes.json()]);
+      setLabs(entitiesData.labs ?? []);
+      setSuppliers(entitiesData.suppliers ?? []);
+      setUnpaidLabBills(unpaidData.lab_bills ?? []);
+      setUnpaidSupplierInvoices(unpaidData.supplier_invoices ?? []);
       hasLoadedOnce.current = true;
     } catch {
       setError("Failed to load bulk payment data");
@@ -284,7 +286,7 @@ export function BulkPaymentsClient() {
     return (
       <TablePanel
         toolbar={
-          <TableToolbar title={`${label} Bank Details`} onRefresh={() => void load({ soft: true })}>
+          <TableToolbar title={`${label} Bank Details`} onRefresh={() => load({ soft: true })}>
             <Button size="sm" variant="outline" onClick={() => setShowAddEntity(type)}>
               <Plus className="mr-1 h-4 w-4" />
               Add {type === "lab" ? "Lab" : "Supplier"}
@@ -459,7 +461,7 @@ export function BulkPaymentsClient() {
             Export Starling CSV
           </Button>
         )}
-        <TableRefreshButton onRefresh={() => void load({ soft: true })} aria-label="Refresh bulk payments" />
+        <TableRefreshButton onRefresh={() => load({ soft: true })} aria-label="Refresh bulk payments" />
       </div>
 
       {error && <p className="text-sm text-(--color-danger)">{error}</p>}

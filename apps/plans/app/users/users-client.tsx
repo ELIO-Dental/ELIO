@@ -73,10 +73,23 @@ export function UsersClient({ currentUserId, canManage }: { currentUserId: strin
   const refetch = React.useCallback((opts?: { soft?: boolean }) => {
     const soft = opts?.soft && usersRef.current !== null;
     if (!soft) setLoading(true);
-    setError(null);
-    fetchUsers()
+    if (!soft) setError(null);
+    // Returning this chain matters: TableToolbar's onRefresh awaits it to
+    // know when the real fetch is actually done, and — just as
+    // importantly — a FAILED soft refresh must never blow away an
+    // already-good table: setting `error` here used to do exactly that,
+    // since the component's top-level render checks `error` before it
+    // checks whether `users` already holds good data (found in a
+    // stability review, 2026-09-12).
+    return fetchUsers()
       .then((u) => setUsers(u))
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        if (soft) {
+          toast.error("Couldn't refresh the team list", { description: e.message });
+        } else {
+          setError(e.message);
+        }
+      })
       .finally(() => {
         if (!soft) setLoading(false);
       });

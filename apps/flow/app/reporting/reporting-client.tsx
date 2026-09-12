@@ -60,11 +60,14 @@ export function ReportingClient({ initialReport }: { initialReport: ConversionRe
   }
 
   async function refreshReport() {
-    if (from && to) {
-      await applyFilter();
-      return;
-    }
-    setReport(initialReport);
+    // Used to just re-assign `initialReport` — the snapshot captured at the
+    // very first server render — when no date filter was active, so
+    // clicking Refresh with no filter never made a real request at all and
+    // silently kept showing that original snapshot forever, no matter how
+    // much new data had landed since (found in a stability review,
+    // 2026-09-12). `applyFilter()` already omits from/to from the query
+    // string when they're empty, so this always does a real fetch.
+    await applyFilter();
   }
 
   return (
