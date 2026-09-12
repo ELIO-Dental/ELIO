@@ -406,6 +406,42 @@ export async function markReminderSent(practiceId: string, reminderId: string) {
   return db.reminder.update({ where: { id: reminderId }, data: { sentAt: new Date() } });
 }
 
+/**
+ * FR-F1 (00_SCOPE.md §5) — "smart reminders until closed": every unsent
+ * reminder due for a still-open consult, oldest due date first, so staff can
+ * work down the follow-up queue. Respects the same clinician view-scope as
+ * the rest of the pipeline (own-dentist staff only see their own patients'
+ * reminders).
+ */
+export async function listOutstandingReminders(practiceId: string, scope: FlowPractitionerScope) {
+  const db = scopedDb(practiceId);
+  const reminders = await db.reminder.findMany({
+    where: { sentAt: null },
+    orderBy: { dueAt: "asc" },
+    include: {
+      consult: {
+        include: { enquiry: { include: { patient: true } } },
+      },
+    },
+  });
+
+  return reminders
+    .filter((r) => consultMatchesPractitionerScope(r.consult, scope))
+    .map((r) => {
+      const patient = r.consult.enquiry.patient;
+      const patientName = patient
+        ? [patient.firstName, patient.lastName].filter(Boolean).join(" ") || "Unnamed patient"
+        : "Unlinked patient";
+      return {
+        id: r.id,
+        dueAt: r.dueAt.toISOString(),
+        channel: r.channel,
+        consultId: r.consultId,
+        patientName,
+      };
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Cross-module handoff (ACCEPTED -> ElioPlans signup)
 // ---------------------------------------------------------------------------

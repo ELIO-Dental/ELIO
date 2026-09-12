@@ -16,6 +16,7 @@ import {
   FlaskConical,
   Calendar,
   Archive,
+  Bell,
 } from "lucide-react";
 import type { ModuleNavLink } from "../components/module-app-layout";
 
@@ -55,6 +56,10 @@ export const PLANS_MODULE_NAV: ModuleNavLink[] = [
 export const FLOW_MODULE_NAV: ModuleNavLink[] = [
   // Legacy ElioFlow home was labeled "Pipeline" but was stats+table+charts (not a kanban).
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  // FR-F1 (00_SCOPE.md §5) — "smart reminders until closed" is required
+  // scope; classic ElioFlow had no standalone tab for it, but the build
+  // guide calls for one and the feature (API/list/form) was fully built.
+  { id: "reminders", label: "Reminders", href: "/reminders", icon: Bell },
   // Settings stays in-module (branding / Flow options). Team + auth live on Portal.
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
