@@ -30,7 +30,7 @@ Appointment/patient data stops updating from Dentally across Flow, Plans, or Pay
 |---------|--------|
 | `NOT_CONNECTED` / no key | Owner or admin: Settings → Integrations → Save API key → Test connection → Sync now |
 | `401` / connection test failed | Rotate key in Dentally; update in Integrations |
-| Sync stuck `RUNNING` | Auto-clears after **2 hours** on status load (`STALE_RUNNING_MS`). Or `GET /api/cron/clear-stuck-dentally-sync?force=1` with Shell `CRON_SECRET`. Then Sync now. |
+| Sync stuck `RUNNING` | A daily cron (`apps/shell/vercel.json` → `/api/cron/clear-stuck-dentally-sync`) auto-fails any run older than `STALE_RUNNING_MS` (currently 12.5h) — worst case it takes just under 24h to catch a given stuck run. Don't wait: click **Reset stuck sync** in Integrations for an immediate fix, or `GET /api/cron/clear-stuck-dentally-sync?force=1` with Shell `CRON_SECRET` to fail every currently-RUNNING row regardless of age. Status reads themselves never auto-fail a run — only this cron and the manual button do. |
 | Cron not enqueueing | Verify `CRON_SECRET` on Vercel matches bearer token; check Vercel Cron logs for `/api/cron/dentally-sync` |
 | Appointments stay at **0** | Core sync must send `after`/`before` (Dentally returns empty without dates). Deploy pagination + appointment date-window fix, then Sync now. |
 | Patients/payments/accounts stuck near **25–100** | Truncated pagination (old `per_page=500` short-page bug). Deploy fix + Sync now; counts should climb toward Dentally `meta.total`. |
