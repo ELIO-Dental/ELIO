@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
 import type { PlanRedeemItemType } from "@elio/db";
 import { resolveAuditActor } from "@elio/auth";
-import { requireLicensedSession } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { errorResponse } from "@/lib/api-error";
 import { createRedeem } from "@/lib/plans-service";
 
 const ITEM_TYPES: PlanRedeemItemType[] = ["EXAMINATION", "HYGIENE", "DISCOUNT", "OTHER"];
 
-/** List redeems is server-rendered on the page; POST creates from Dentally appointment (P4.6). */
+/**
+ * List redeems is server-rendered on the page; POST creates from Dentally
+ * appointment (P4.6). Gated on `plans:resolve-mismatch`, the same
+ * permission the sibling approve/reject route (redeems/[id]/route.ts) uses
+ * for "issue redeems" per PERMISSIONS_MATRIX.md §4 — this route previously
+ * only checked the PLANS module licence, not role, so any authenticated
+ * STAFF/AUDITOR user with Plans access could create a redeem record with no
+ * server-side role check at all (found in a security review, 2026-09-12).
+ */
 export async function POST(req: Request) {
   try {
-    const session = await requireLicensedSession();
+    const session = await requirePermission("plans:resolve-mismatch");
     const body = await req.json().catch(() => ({}));
     const {
       planPatientId,
