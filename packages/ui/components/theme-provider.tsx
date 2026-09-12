@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { applyTheme, getStoredTheme, storeTheme, type ThemeMode } from "../lib/theme";
+import { useIsomorphicLayoutEffect } from "../lib/use-isomorphic-layout-effect";
 
 interface ThemeContextValue {
   theme: ThemeMode;
@@ -15,7 +16,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<ThemeMode>("system");
   const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => {
+  // useLayoutEffect (not useEffect) — `mounted` gates every dark-mode-aware
+  // consumer (useIsDark, and this provider's own applyTheme/storeTheme
+  // effects below): if it flips to true only after the browser paints, any
+  // component branching on `useIsDark()` renders its light-mode variant for
+  // one visible frame first. Correcting before paint closes that gap (found
+  // in a 2026-09-12 UI-stability review, same fix as useIsDark itself).
+  useIsomorphicLayoutEffect(() => {
     setThemeState(getStoredTheme());
     setMounted(true);
   }, []);

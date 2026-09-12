@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useIsomorphicLayoutEffect } from "./use-isomorphic-layout-effect";
 
 // F.2 Final QA (2026-08-29): every shell-layout.tsx copy (shell/pay/plans/
 // flow) initialized the Sidebar's `collapsed` state to a hardcoded `false`
@@ -20,7 +21,15 @@ const MOBILE_BREAKPOINT_PX = 768;
 export function useIsMobileViewport(): boolean {
   const [isMobile, setIsMobile] = React.useState(false);
 
-  React.useEffect(() => {
+  // useLayoutEffect (not useEffect) — the initial `false` is only correct
+  // for SSR/the very first hydration paint; on a genuinely narrow viewport
+  // the corrected value must land BEFORE the browser paints, or the
+  // Sidebar's motion-animated width visibly slides from 240px to 72px on
+  // every mobile page load (found in a 2026-09-12 UI-stability review —
+  // this hook's own history comment above already fixed one hardcoded-false
+  // bug; this closes the remaining "flashes wrong for one frame" version of
+  // the same defect).
+  useIsomorphicLayoutEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
     setIsMobile(mql.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
