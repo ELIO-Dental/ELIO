@@ -6,13 +6,21 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { auth, isModuleLicensed } from "@elio/auth";
 
+// This app's own public Vercel domain (flow.elioportal.co.uk) is directly
+// reachable — not only through the shell's rewrite. Using req.nextUrl.origin
+// there (as this file used to) redirects to THIS app's own host, which has
+// no /login route, 404ing — the exact bug found and fixed live in
+// apps/pay/middleware.ts, 2026-09-12. Same env-var-with-hardcoded-fallback
+// convention apps/shell/middleware.ts already uses for ADMIN_APP_ORIGIN.
+const SHELL_APP_ORIGIN = process.env.SHELL_APP_ORIGIN ?? "https://app.elioportal.co.uk";
+
 // Auth gate for the multi-zone /flow app. Deliberately NOT using
 // next/navigation's redirect() from a layout — Next.js auto-prefixes a
 // relative redirect with this app's own basePath ("/flow"), producing
-// "/flow/login", a route that doesn't exist here. Middleware gives us the
-// real incoming request origin (the shell's origin, since this app is only
-// ever reached through the shell's rewrite) so the redirect lands on the
-// shell's actual /login page.
+// "/flow/login", a route that doesn't exist here. Redirects target
+// SHELL_APP_ORIGIN explicitly (not req.nextUrl.origin) so the redirect lands
+// on the shell's actual /login page regardless of which domain this request
+// actually arrived on.
 //
 // ElioFlow has no public/unauthenticated routes (unlike apps/plans' patient
 // signup flow) — every screen here is staff-facing pipeline management, so
@@ -36,11 +44,11 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
   if (!req.auth?.userId) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/login", SHELL_APP_ORIGIN));
   }
   const practiceId = (req.auth as any).practiceId as string | undefined;
   if (!practiceId || !(await isModuleLicensed(practiceId, "FLOW"))) {
-    return NextResponse.redirect(new URL("/launcher?unlicensed=flow", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/launcher?unlicensed=flow", SHELL_APP_ORIGIN));
   }
   return NextResponse.next();
 });

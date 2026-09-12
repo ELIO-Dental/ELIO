@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { can, getSession, isModuleLicensed, type PermissionSubject } from "@elio/auth";
 import type { Role } from "@elio/db";
@@ -8,6 +9,26 @@ export async function requireSession() {
   const session = await getSession();
   if (!session?.userId || !session.practiceId) return null;
   return session;
+}
+
+/** This app's own public Vercel domain (plans.elioportal.co.uk) is directly
+ * reachable, not only through the shell's rewrite — same bug found and fixed
+ * live in apps/pay/middleware.ts and apps/pay/lib/session.ts, 2026-09-12. A
+ * bare `redirect("/login")` gets auto-prefixed by Next.js with this app's own
+ * basePath ("/plans"), producing "/plans/login", which doesn't exist (login
+ * only exists on the shell). Building an absolute URL bypasses the
+ * auto-prefix; the x-forwarded-host/env-fallback logic mirrors
+ * apps/pay/lib/session.ts's redirectToShellPath exactly. */
+const SHELL_APP_ORIGIN = process.env.SHELL_APP_ORIGIN ?? "https://app.elioportal.co.uk";
+
+async function redirectToShellPath(path: string): Promise<never> {
+  const h = await headers();
+  const forwardedHost = h.get("x-forwarded-host");
+  if (forwardedHost) {
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    redirect(`${proto}://${forwardedHost}${path}`);
+  }
+  redirect(`${SHELL_APP_ORIGIN}${path}`);
 }
 
 /**
@@ -21,9 +42,9 @@ export async function requireSession() {
  */
 export async function requireLicensedSession() {
   const session = await requireSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToShellPath("/login");
   if (!(await isModuleLicensed(session.practiceId, "PLANS"))) {
-    redirect("/launcher?unlicensed=plans");
+    return redirectToShellPath("/launcher?unlicensed=plans");
   }
   return session;
 }

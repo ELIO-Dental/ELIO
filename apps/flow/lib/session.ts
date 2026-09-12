@@ -12,26 +12,42 @@ export async function requireSession() {
   return session;
 }
 
+/** This app's own public Vercel domain (flow.elioportal.co.uk) is directly
+ * reachable, not only through the shell's rewrite — confirmed live,
+ * 2026-09-12: a request straight to that domain has no x-forwarded-host at
+ * all (no shell proxy in front of it), so the previous fallback to the raw
+ * Host header resolved to THIS app's own host, which has no /login route,
+ * producing a working-looking-but-actually-404ing redirect — the exact bug
+ * found and fixed live in apps/pay/lib/session.ts. Same convention
+ * apps/shell/middleware.ts already uses for ADMIN_APP_ORIGIN. */
+const SHELL_APP_ORIGIN = process.env.SHELL_APP_ORIGIN ?? "https://app.elioportal.co.uk";
+
 /** Redirects to a page on the SHELL app (e.g. "/login", "/launcher?...") from
  * a Server Component in this app. A plain `redirect("/login")` would get
  * auto-prefixed by Next.js with this app's OWN basePath ("/flow"), producing
  * "/flow/login" — a route that doesn't exist, since login/launcher live only
  * on apps/shell. Found live: an unauthenticated visit here 307'd to
  * "/flow/login" and 404'd. Building an absolute URL bypasses the auto-prefix —
- * the same fix middleware.ts already uses via `new URL("/login", req.nextUrl.origin)`.
+ * the same fix middleware.ts already uses via `new URL("/login", SHELL_APP_ORIGIN)`.
  *
- * MUST read x-forwarded-host/x-forwarded-proto, NOT the raw Host header:
- * Next.js's multi-zone rewrite (apps/shell/next.config.ts) is a real internal
- * HTTP fetch to this app's own origin, so the raw Host header this app
- * receives is its OWN host (e.g. localhost:3003), not the shell's — Next
- * separately forwards the original client-facing host via x-forwarded-host.
- * Found live: using the raw Host header redirected to this app's own origin
- * instead of the shell's, producing a working but wrong-domain redirect. */
+ * When reached via the shell's rewrite (the normal path), MUST read
+ * x-forwarded-host/x-forwarded-proto, NOT the raw Host header: Next.js's
+ * multi-zone rewrite (apps/shell/next.config.ts) is a real internal HTTP
+ * fetch to this app's own origin, so the raw Host header this app receives
+ * is its OWN host (e.g. localhost:3003), not the shell's — Next separately
+ * forwards the original client-facing host via x-forwarded-host.
+ *
+ * When reached directly on this app's own public domain (no shell proxy in
+ * front, so no x-forwarded-host at all), fall back to the known shell origin
+ * rather than this app's own host — see SHELL_APP_ORIGIN above. */
 async function redirectToShellPath(path: string): Promise<never> {
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  redirect(`${proto}://${host}${path}`);
+  const forwardedHost = h.get("x-forwarded-host");
+  if (forwardedHost) {
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    redirect(`${proto}://${forwardedHost}${path}`);
+  }
+  redirect(`${SHELL_APP_ORIGIN}${path}`);
 }
 
 export async function redirectToLogin(): Promise<never> {
