@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@elio/auth";
+import { auth, verifyCronSecret } from "@elio/auth";
 import { prisma } from "@elio/db";
 import { billingPeriodFromDate } from "@elio/plans-engine";
 import { runReconciliation } from "@/lib/plans-service";
@@ -35,8 +35,7 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  const hasValidCronSecret = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const hasValidCronSecret = verifyCronSecret(authHeader, process.env.CRON_SECRET);
 
   let practiceId: string | null = null;
   if (!hasValidCronSecret) {

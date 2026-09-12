@@ -44,3 +44,4 @@ export * from "./lib/invite";
 export * from "./lib/encryption";
 export * from "./lib/licence";
 export * from "./lib/impersonation";
+export * from "./lib/cron-secret";

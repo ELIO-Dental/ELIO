@@ -3,11 +3,12 @@
 // schedules inline via Next `after()` when Inngest is not configured.
 import { after, NextRequest, NextResponse } from "next/server";
 import { hasActiveDentallySyncRun, requestDentallySync } from "@elio/dentally";
+import { verifyCronSecret } from "@elio/auth";
 import { listPracticesForScheduledSync } from "@/lib/dentally-cron";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(authHeader, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

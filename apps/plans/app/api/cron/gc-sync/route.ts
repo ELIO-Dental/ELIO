@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, writeAuditLog } from "@elio/auth";
+import { auth, writeAuditLog, verifyCronSecret } from "@elio/auth";
 import { prisma } from "@elio/db";
 import { syncPendingMandatesForPractice } from "@/lib/plans-service";
 import { resolvePracticeAuditActor } from "@/lib/resolve-practice-audit-actor";
@@ -12,8 +12,7 @@ export const runtime = "nodejs";
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  const hasValidCronSecret = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const hasValidCronSecret = verifyCronSecret(authHeader, process.env.CRON_SECRET);
 
   let hasStaffSession = false;
   if (!hasValidCronSecret) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, writeAuditLog } from "@elio/auth";
+import { auth, writeAuditLog, verifyCronSecret } from "@elio/auth";
 import { prisma } from "@elio/db";
 import { runPlansDentallySync, PlansDentallySyncConfigError, DentallySyncConfigError } from "@elio/dentally";
 import { resolvePracticeAuditActor } from "@/lib/resolve-practice-audit-actor";
@@ -15,8 +15,7 @@ export const maxDuration = 300;
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  const hasValidCronSecret = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const hasValidCronSecret = verifyCronSecret(authHeader, process.env.CRON_SECRET);
 
   let hasStaffSession = false;
   if (!hasValidCronSecret) {

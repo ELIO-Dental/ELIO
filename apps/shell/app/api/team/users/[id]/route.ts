@@ -89,6 +89,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  // A practice with zero active OWNERs can no longer self-service its own
+  // team/role management (team:manage is OWNER-only) — the self-deactivate
+  // guard above only covers one path into that lockout; demoting or
+  // deactivating the LAST active owner (including a non-self one, since
+  // any OWNER can reach this route) hits the same dead end (found in a
+  // security/stability review, 2026-09-12).
+  const wasActiveOwner = target.role === "OWNER" && target.active;
+  const staysActiveOwner = (data.role ?? target.role) === "OWNER" && (data.active ?? target.active);
+  if (wasActiveOwner && !staysActiveOwner) {
+    const otherActiveOwners = await prisma.user.count({
+      where: { practiceId: session.practiceId, role: "OWNER", active: true, id: { not: id } },
+    });
+    if (otherActiveOwners === 0) {
+      return NextResponse.json({ error: { code: "LAST_OWNER" } }, { status: 400 });
+    }
+  }
+
   if (Object.keys(data).length === 0 && !dentistLinkChanged) {
     return NextResponse.json({ ok: true, user: target });
   }

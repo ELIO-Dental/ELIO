@@ -142,6 +142,8 @@ export function TeamClient({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const showSkeleton = useSkeleton(loading);
+  const usersRef = React.useRef(users);
+  usersRef.current = users;
 
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<Role>("STAFF");
@@ -149,14 +151,31 @@ export function TeamClient({
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
   const refetch = React.useCallback(() => {
+    const hadUsersAlready = usersRef.current !== null;
     setLoading(true);
     setError(null);
-    fetchTeam()
+    // Returning this chain matters: TableRefreshButton/TableToolbar's
+    // onRefresh awaits whatever it's given to know when the real fetch is
+    // actually done — a refetch that didn't return anything let the
+    // button's spinner stop on an arbitrary timer while the real request
+    // was still in flight (found in a stability review, 2026-09-12).
+    return fetchTeam()
       .then(({ users: u, dentists: d }) => {
         setUsers(u);
         setDentists(d);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        // A refresh failure must never blow away an already-good table —
+        // only fall back to the full-page error state when there was
+        // nothing on screen yet; otherwise just surface a toast and keep
+        // showing the last good data (same reasoning as apps/plans'
+        // identical fix, 2026-09-12).
+        if (hadUsersAlready) {
+          toast.error("Couldn't refresh the team list", { description: e.message });
+        } else {
+          setError(e.message);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -232,7 +251,9 @@ export function TeamClient({
         const msg =
           data?.error?.code === "DENTIST_ALREADY_LINKED"
             ? "That dentist is already linked to another user."
-            : patch.active === false
+            : data?.error?.code === "LAST_OWNER"
+              ? "This practice needs at least one active Owner — promote someone else first."
+              : patch.active === false
               ? "Could not deactivate user."
               : patch.active === true
                 ? "Could not reactivate user."
@@ -310,7 +331,7 @@ export function TeamClient({
           <CardTitle>Users</CardTitle>
         </CardHeader>
         <CardContent>
-          {error ? (
+          {error && !users ? (
             <EmptyState
               icon={Users}
               title="Couldn't load users"
