@@ -72,6 +72,18 @@ export default auth(async (req) => {
   return NextResponse.next();
 });
 
+// Two entries, not one: Next.js's compiled matcher regex for the catch-all
+// pattern below requires a trailing "/<segment>" group, so with this app's
+// `basePath: "/pay"` it never matches the bare basePath root ("/pay" with no
+// trailing slash or segment) — only "/pay/..." — silently skipping this
+// middleware there and falling through to app-router-level redirects that
+// don't know about SHELL_APP_ORIGIN. Confirmed live, 2026-09-12: visiting
+// "/pay" directly kept 404ing after the SHELL_APP_ORIGIN fix below was
+// deployed and verified working on every OTHER route (e.g. "/pay/settings").
+// The explicit "/" entry closes that exact gap.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
+  matcher: [
+    "/",
+    "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)",
+  ],
 };

@@ -74,6 +74,15 @@ export default auth(async (req) => {
 // their own auth (HMAC signature / CRON_SECRET / invite token, see those
 // routes). /signup is excluded here too so the page route itself never even
 // reaches the auth() wrapper's redirect branch above.
+// Two entries, not one: Next.js's compiled matcher regex for the catch-all
+// pattern below requires a trailing "/<segment>" group, so with this app's
+// basePath it never matches the bare basePath root (no trailing slash or
+// segment) — only "/plans/..." — silently skipping this middleware there.
+// Found and fixed alongside the identical bug in apps/pay/middleware.ts,
+// 2026-09-12 (a live production 404 on that app's own bare basePath root).
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
+  matcher: [
+    "/",
+    "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)",
+  ],
 };

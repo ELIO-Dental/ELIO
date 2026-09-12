@@ -49,6 +49,15 @@ export default auth(async (req) => {
 // one) would hit this app's /flow/api/* routes directly, not through a
 // browser session cookie, and must not be redirected to /login — same
 // rationale as apps/plans/middleware.ts.
+// Two entries, not one: Next.js's compiled matcher regex for the catch-all
+// pattern below requires a trailing "/<segment>" group, so with this app's
+// basePath it never matches the bare basePath root (no trailing slash or
+// segment) — only "/flow/..." — silently skipping this middleware there.
+// Found and fixed alongside the identical bug in apps/pay/middleware.ts,
+// 2026-09-12 (a live production 404 on that app's own bare basePath root).
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)"],
+  matcher: [
+    "/",
+    "/((?!api|_next/static|_next/image|favicon.ico|sw\\.js|icons/|manifest\\.webmanifest|offline).*)",
+  ],
 };
